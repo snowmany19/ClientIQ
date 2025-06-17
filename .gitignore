@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+venv/
+.env
+
+# VSCode or macOS
+.vscode/
+.DS_Store
+
+# Streamlit
+.streamlit/
+
+# SQLite or temp files
+*.sqlite3
+*.db
+
+# Logs
+*.log
+
+# System files
+*.zip
+
