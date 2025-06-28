@@ -359,18 +359,46 @@ with st.sidebar:
 with st.sidebar:
     st.title("🚨 IncidentIQ")
     
-    # Navigation
-    page = st.selectbox(
-        "Navigation",
-        ["Dashboard", "Report Incident", "Billing"],
-        index=0
-    )
+    # Role-based navigation
+    if user_role == "admin":
+        # Admin sees everything
+        page = st.selectbox(
+            "Navigation",
+            ["Dashboard", "Report Incident", "Billing"],
+            index=0
+        )
+    elif user_role == "staff":
+        # Staff can access billing
+        page = st.selectbox(
+            "Navigation",
+            ["Dashboard", "Report Incident", "Billing"],
+            index=0
+        )
+    else:
+        # Employees only see incident reporting
+        page = st.selectbox(
+            "Navigation",
+            ["Dashboard", "Report Incident"],
+            index=0
+        )
     
     # User info
     st.markdown("---")
     if st.session_state.user:
         st.markdown(f"**User:** {st.session_state.user.get('username', 'Unknown')}")
         st.markdown(f"**Role:** {st.session_state.user.get('role', 'Unknown')}")
+        
+        # Show subscription status for staff
+        if user_role in ["admin", "staff"]:
+            subscription_status = st.session_state.user.get("subscription_status", "unknown")
+            if user_role == "admin":
+                st.markdown("**Status:** 👑 Admin Premium")
+            elif subscription_status == "active":
+                st.markdown("**Status:** ✅ Active Subscription")
+            elif subscription_status == "trialing":
+                st.markdown("**Status:** 🧪 Trial Active")
+            else:
+                st.markdown("**Status:** ❌ No Active Subscription")
     else:
         st.markdown("**User:** Unknown")
         st.markdown("**Role:** Unknown")

@@ -18,50 +18,61 @@ def get_auth_headers():
 
 def display_subscription_plans():
     """Display available subscription plans."""
-    st.header("📦 Subscription Plans")
-    st.markdown("Choose the plan that best fits your needs:")
+    st.header("📋 Available Plans")
     
+    # Get plans from backend
     try:
         response = requests.get(f"{API_BASE_URL}/billing/plans", headers=get_auth_headers())
         if response.status_code == 200:
-            data = response.json()
-            plans = data["plans"]
-            
-            # Create columns for plan display
-            cols = st.columns(len(plans))
-            
-            for i, (plan_id, plan) in enumerate(plans.items()):
-                with cols[i]:
-                    st.markdown(f"### {plan['name']}")
-                    st.markdown(f"**${plan['price']}/{plan['interval']}**")
-                    
-                    # Features list
-                    st.markdown("**Features:**")
-                    for feature in plan["features"]:
-                        st.markdown(f"✅ {feature}")
-                    
-                    # Limits
-                    st.markdown("**Limits:**")
-                    limits = plan["limits"]
-                    if limits["users"] == -1:
-                        st.markdown("👥 Unlimited users")
-                    else:
-                        st.markdown(f"👥 Up to {limits['users']} users")
-                    
-                    if limits["incidents_per_month"] == -1:
-                        st.markdown("📊 Unlimited incidents")
-                    else:
-                        st.markdown(f"📊 {limits['incidents_per_month']} incidents/month")
-                    
-                    st.markdown(f"💾 {limits['storage_gb']}GB storage")
-                    
-                    # Subscribe button
-                    if st.button(f"Subscribe to {plan['name']}", key=f"subscribe_{plan_id}"):
-                        create_checkout_session(plan_id)
+            plans = response.json()["plans"]
         else:
-            st.error("Failed to load subscription plans")
+            st.error("Failed to load plans")
+            return
     except Exception as e:
         st.error(f"Error loading plans: {str(e)}")
+        return
+    
+    # Display plans in columns
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("### 🚀 Basic Plan")
+        st.markdown(f"**${plans['basic']['price']}/month**")
+        st.markdown("Perfect for single locations")
+        
+        st.markdown("**Features:**")
+        for feature in plans['basic']['features']:
+            st.markdown(f"✅ {feature}")
+        
+        if st.button("Subscribe to Basic", key="basic_sub", type="primary"):
+            create_checkout_session("basic")
+    
+    with col2:
+        st.markdown("### ⚡ Pro Plan")
+        st.markdown(f"**${plans['pro']['price']}/month**")
+        st.markdown("Ideal for multiple locations")
+        
+        st.markdown("**Features:**")
+        for feature in plans['pro']['features']:
+            st.markdown(f"✅ {feature}")
+        
+        if st.button("Subscribe to Pro", key="pro_sub", type="primary"):
+            create_checkout_session("pro")
+    
+    with col3:
+        st.markdown("### 🏢 Enterprise Plan")
+        st.markdown(f"**${plans['enterprise']['price']}/month**")
+        st.markdown("For large retail chains")
+        
+        st.markdown("**Features:**")
+        for feature in plans['enterprise']['features']:
+            st.markdown(f"✅ {feature}")
+        
+        if st.button("Subscribe to Enterprise", key="enterprise_sub", type="primary"):
+            create_checkout_session("enterprise")
+    
+    st.markdown("---")
+    st.info("💡 **Need help choosing?** Contact our sales team for a custom plan tailored to your needs.")
 
 def create_checkout_session(plan_id: str):
     """Create a Stripe checkout session."""
@@ -95,7 +106,10 @@ def display_my_subscription():
             if data["subscription"] is None:
                 st.info("No active subscription found.")
                 st.markdown("### Get Started")
-                display_subscription_plans()
+                # Only show plans if not already shown in this session
+                if "plans_shown" not in st.session_state:
+                    st.session_state.plans_shown = True
+                    display_subscription_plans()
                 return
             
             subscription = data["subscription"]
@@ -266,6 +280,10 @@ def billing_page():
     """Main billing page."""
     st.title("💳 Billing & Subscription")
     
+    # Reset plans shown state for fresh display
+    if "plans_shown" in st.session_state:
+        del st.session_state.plans_shown
+    
     # 🎯 Check if user is admin
     user_info = st.session_state.get("user")
     if user_info and user_info.get("role") == "admin":
@@ -303,7 +321,18 @@ def billing_page():
         
         return
     
-    # Navigation tabs for non-admin users
+    # 🚫 Check if user is employee (no billing access)
+    if user_info and user_info.get("role") == "employee":
+        st.warning("⚠️ **Employee Access**: Billing is managed by your administrator.")
+        st.info("Please contact your administrator for subscription and billing questions.")
+        
+        if st.button("🏠 Return to Dashboard"):
+            st.switch_page("dashboard.py")
+        
+        return
+    
+    # ✅ Staff users can access billing
+    # Navigation tabs for staff users
     tab1, tab2, tab3 = st.tabs(["My Subscription", "Available Plans", "Usage Stats"])
     
     with tab1:
