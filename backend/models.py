@@ -37,9 +37,19 @@ class User(Base):
     hashed_password = Column(String)
     email = Column(String, unique=True, nullable=True)
     role = Column(String, default="employee")  # employee | staff | admin
-    store_id = Column(Integer, nullable=True)  # store assignment (optional FK)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=True)  # store assignment (optional FK)
+    
+    # 💳 Billing fields
+    stripe_customer_id = Column(String, nullable=True)  # Stripe customer ID
+    subscription_id = Column(String, nullable=True)     # Stripe subscription ID
+    plan_id = Column(String, default="basic")           # Current plan (basic, pro, enterprise)
+    subscription_status = Column(String, default="inactive")  # active, past_due, canceled, etc.
+    trial_ends_at = Column(DateTime, nullable=True)     # Trial expiration
+    billing_cycle_start = Column(DateTime, nullable=True)  # Current billing period start
+    billing_cycle_end = Column(DateTime, nullable=True)    # Current billing period end
 
     incidents = relationship("Incident", back_populates="user", cascade="all, delete-orphan")
+    store = relationship("Store")  # Relationship to assigned store
 
 # 🏬 Store table (optional)
 class Store(Base):

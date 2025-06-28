@@ -29,6 +29,8 @@ class UserInfo(BaseModel):
     username: str
     email: Optional[EmailStr] = None
     role: ValidRoles
+    subscription_status: Optional[str] = "inactive"
+    plan_id: Optional[str] = "basic"
 
 
 # ===========================
@@ -94,6 +96,8 @@ class IncidentOut(BaseModel):
     offender: Optional[str]
     pdf_path: Optional[str]
     image_url: Optional[str]
+    user_id: Optional[int]
+    reported_by: Optional[str]  # Username of the person who reported
 
     class Config:
         orm_mode = True
