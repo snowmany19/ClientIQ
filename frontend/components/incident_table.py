@@ -78,6 +78,11 @@ def render_incident_table(df: pd.DataFrame):
         display_columns.append('summary')
         column_renames['summary'] = '🧠 Summary'
 
+    # Add reported_by column if available
+    if 'reported_by' in filtered_df.columns:
+        display_columns.append('reported_by')
+        column_renames['reported_by'] = '👤 Reported By'
+
     display_df = filtered_df[display_columns].rename(columns=column_renames)
     display_df = display_df.sort_values(by='📅 Time', ascending=False)
 
