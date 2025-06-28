@@ -18,14 +18,14 @@ SUBSCRIPTION_PLANS = {
         "currency": "usd",
         "interval": "month",
         "features": [
-            "Up to 5 users",
-            "Basic incident reporting",
-            "AI-powered summaries",
-            "PDF reports",
+            "Up to 100 incidents per month",
+            "AI-powered incident summaries",
+            "PDF report generation",
+            "Basic analytics dashboard",
             "Email support"
         ],
         "limits": {
-            "users": 5,
+            "users": 1,  # Single user focused
             "incidents_per_month": 100,
             "storage_gb": 1
         }
@@ -37,15 +37,15 @@ SUBSCRIPTION_PLANS = {
         "currency": "usd",
         "interval": "month",
         "features": [
-            "Up to 25 users",
-            "Advanced analytics",
+            "Up to 500 incidents per month",
+            "Advanced analytics and charts",
             "Role-based access control",
             "Priority support",
             "Custom branding",
             "API access"
         ],
         "limits": {
-            "users": 25,
+            "users": 5,  # Small team
             "incidents_per_month": 500,
             "storage_gb": 10
         }
@@ -57,7 +57,7 @@ SUBSCRIPTION_PLANS = {
         "currency": "usd",
         "interval": "month",
         "features": [
-            "Unlimited users",
+            "Unlimited incidents per month",
             "Advanced security features",
             "Custom integrations",
             "Dedicated support",
