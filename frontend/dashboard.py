@@ -152,7 +152,7 @@ st.caption(f"👤 Logged in as **{user['username']}** ({user_role.capitalize()})
 # 🏬 Display store assignment
 if user.get('store'):
     store_info = user['store']
-    st.info(f"📍 **Store Assignment**: {store_info['name']} - {store_info['location']}")
+    st.info(f"📍 **Store Assignment**: {store_info['store_number']} - {store_info['location']}")
 elif user_role == "admin":
     st.info("👑 **Admin Access**: You can access all store locations")
 else:
@@ -271,15 +271,16 @@ if can_submit_incidents:
                 if st.session_state.accessible_stores:
                     if len(st.session_state.accessible_stores) == 1:
                         # User has only one store - auto-fill
-                        store_name = st.text_input("🏬 Store Name or ID", value=st.session_state.accessible_stores[0]["name"], disabled=True)
-                        st.caption(f"📍 Assigned to: {st.session_state.accessible_stores[0]['name']}")
+                        store_name = st.text_input("🏬 Store", value=st.session_state.accessible_stores[0]["store_number"], disabled=True)
+                        st.caption(f"📍 Assigned to: {st.session_state.accessible_stores[0]['store_number']} - {st.session_state.accessible_stores[0]['location']}")
                     else:
                         # User has multiple stores - show dropdown
-                        store_options = [store["name"] for store in st.session_state.accessible_stores]
+                        store_options = [f"{store['store_number']} - {store['location']}" for store in st.session_state.accessible_stores]
                         selected_store = st.selectbox("🏬 Select Store", store_options)
-                        store_name = selected_store
+                        # Extract store number from selection
+                        store_name = selected_store.split(" - ")[0] if " - " in selected_store else selected_store
                 else:
-                    store_name = st.text_input("🏬 Store Name or ID")
+                    store_name = st.text_input("🏬 Store")
                 
                 location = st.text_input("📍 Location")
                 offender = st.text_input("🧍 Offender (if known)")
@@ -400,7 +401,7 @@ with st.sidebar:
         # Show store assignment
         if st.session_state.user.get('store'):
             store_info = st.session_state.user['store']
-            st.markdown(f"**🏬 Store:** {store_info['name']}")
+            st.markdown(f"**🏬 Store:** {store_info['store_number']}")
             st.caption(f"📍 {store_info['location']}")
         elif user_role == "admin":
             st.markdown("**🏬 Store:** All Locations")

@@ -217,13 +217,13 @@ def get_accessible_stores(
     if current_user.role == "admin":
         # Admins can access all stores
         stores = db.query(Store).all()
-        return [{"id": store.id, "name": store.name, "location": store.location} for store in stores]
+        return [{"id": store.id, "store_number": f"Store #{store.id:03d}", "name": store.name, "location": store.location} for store in stores]
     elif current_user.role in ["employee", "staff"]:
         # Employees and staff can only access their assigned store
         if current_user.store_id is not None:
             store = db.query(Store).filter(Store.id == current_user.store_id).first()
             if store:
-                return [{"id": store.id, "name": store.name, "location": store.location}]
+                return [{"id": store.id, "store_number": f"Store #{store.id:03d}", "name": store.name, "location": store.location}]
         return []
     else:
         return []

@@ -95,6 +95,7 @@ def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get
     if user.store_id and user.store:
         store_info = {
             "id": user.store.id,
+            "store_number": f"Store #{user.store.id:03d}",  # Format as Store #001, #002, etc.
             "name": user.store.name,
             "location": user.store.location
         }
