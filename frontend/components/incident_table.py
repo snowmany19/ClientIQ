@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 
-API_URL = "http://localhost:8000"
+API_URL = "http://localhost:8000/api"
 
 def render_incident_table(df: pd.DataFrame):
     #st.subheader("📋 Incident Log")

@@ -17,7 +17,7 @@ from components.charts import render_charts
 from components.incident_table import render_incident_table
 from utils.api import get_jwt_token, get_user_info, submit_incident, get_accessible_stores, get_incidents_with_pagination, get_pagination_info
 
-API_URL = "http://localhost:8000"
+API_URL = "http://localhost:8000/api"
 
 # -----------------------------------
 # 🔐 Session Setup
@@ -294,9 +294,11 @@ if can_submit_incidents:
             submitted = st.form_submit_button("Submit Incident")
 
     if submitted:
+        # DEBUG: Print the token before submitting
+        st.write("DEBUG: Token before incident submit:", st.session_state.get("token"))
         with st.spinner("Submitting..."):
             token = st.session_state.get("token")
-            res = submit_incident(description, store_name, location, offender, file, token)
+            res = submit_incident(token, description, store_name, location, offender, file)
 
             if res and res.status_code == 200:
                 result = res.json()
@@ -308,7 +310,7 @@ if can_submit_incidents:
                 st.markdown(f"**🔥 Severity:** {result.get('severity', 'N/A')}")
                 st.markdown(f"**👤 Reported By:** {result.get('reported_by', 'N/A')}")
 
-                pdf_url = f"{API_URL}/static/reports/{result.get('pdf_path', '').split('/')[-1]}"
+                pdf_url = f"http://localhost:8000/static/reports/{result.get('pdf_path', '').split('/')[-1]}"
                 try:
                     pdf_res = requests.get(pdf_url)
                     if pdf_res.status_code == 200:

@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 load_dotenv()
 
 # 🧠 Get DB URL (PostgreSQL preferred)
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./incidentiq.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./a_incident.db")
 
 # 🛠 Engine setup
 if DATABASE_URL.startswith("sqlite"):

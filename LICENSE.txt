@@ -1,5 +1,5 @@
 © 2025 Security Flaw Solutions LLC. All rights reserved.
-IncidentIQ is a proprietary product developed and owned by Security Flaw Solutions LLC.
+A.I.ncident📊 - AI Incident Management Dashboard is a proprietary product developed and owned by Security Flaw Solutions LLC.
 Unauthorized use, distribution, or modification is prohibited.
 
 This software is proprietary and confidential.

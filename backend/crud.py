@@ -1,9 +1,9 @@
 # CRUD operations
 # crud.py
-# Reusable database operations for IncidentIQ (CRUD: Create, Read, Update, Delete)
+# Reusable database operations for A.I.ncident📊 - AI Incident Management Dashboard (CRUD: Create, Read, Update, Delete)
 
 from sqlalchemy.orm import Session
-from incidentiq import models, schemas
+from a_incident import models, schemas
 from typing import List, Optional
 from datetime import datetime
 

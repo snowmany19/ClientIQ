@@ -2,7 +2,7 @@ import requests
 import streamlit as st
 from typing import Optional, Dict, Any, List
 
-API_URL = "http://localhost:8000"
+API_URL = "http://localhost:8000/api"
 
 def handle_api_error(response, operation: str) -> str:
     """Handle API errors and return user-friendly messages."""
@@ -19,7 +19,7 @@ def get_jwt_token(username: str, password: str) -> Optional[str]:
         return None
     
     try:
-        res = requests.post(f"{API_URL}/api/login", data={
+        res = requests.post(f"{API_URL}/login", data={
             "username": username,
             "password": password
         }, timeout=10)
@@ -54,7 +54,7 @@ def get_user_info(token: str) -> Optional[Dict[str, Any]]:
     
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        res = requests.get(f"{API_URL}/api/me", headers=headers, timeout=10)
+        res = requests.get(f"{API_URL}/me", headers=headers, timeout=10)
         
         if res.status_code == 200:
             return res.json()
@@ -97,7 +97,7 @@ def submit_incident(token: str, description: str, store: str, location: str, off
             files["file"] = file
         
         res = requests.post(
-            f"{API_URL}/api/incidents/",
+            f"{API_URL}/incidents/",
             data=data,
             files=files,
             headers=headers,
@@ -124,7 +124,7 @@ def get_accessible_stores(token: str) -> Optional[List[Dict[str, Any]]]:
     
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        res = requests.get(f"{API_URL}/api/incidents/stores/accessible", headers=headers, timeout=10)
+        res = requests.get(f"{API_URL}/incidents/stores/accessible", headers=headers, timeout=10)
         
         if res.status_code == 200:
             return res.json()
@@ -150,7 +150,7 @@ def get_incidents_with_pagination(token: str, skip: int = 0, limit: int = 50) ->
         return None
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        res = requests.get(f"{API_URL}/api/incidents/?skip={skip}&limit={limit}", headers=headers, timeout=10)
+        res = requests.get(f"{API_URL}/incidents/?skip={skip}&limit={limit}", headers=headers, timeout=10)
         if res.status_code == 200:
             return res.json()
         elif res.status_code == 402:
@@ -175,7 +175,7 @@ def get_pagination_info(token: str) -> Optional[Dict[str, Any]]:
     headers = {"Authorization": f"Bearer {token}"}
     
     try:
-        res = requests.get(f"{API_URL}/api/incidents/pagination-info", headers=headers, timeout=10)
+        res = requests.get(f"{API_URL}/incidents/pagination-info", headers=headers, timeout=10)
         
         if res.status_code == 200:
             return res.json()
