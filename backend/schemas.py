@@ -23,6 +23,7 @@ class StoreOut(StoreBase):
 
 class StoreInfo(BaseModel):
     id: int
+    store_number: str
     name: str
     location: str
 
