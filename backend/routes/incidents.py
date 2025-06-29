@@ -13,6 +13,8 @@ from utils.image_uploader import save_image
 from utils.pdf import generate_pdf
 from utils.summary_generator import summarize_incident, classify_severity
 from utils.email_alerts import send_email_alert
+import tzlocal
+import os
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
 
@@ -25,8 +27,11 @@ def can_access_store(user: User, store_name: str, db: Session) -> bool:
         # Check if user's store matches the incident store
         if user.store_id is not None:
             user_store = db.query(Store).filter(Store.id == user.store_id).first()
-            if user_store and user_store.name == store_name:
-                return True
+            if user_store is not None:
+                # Compare store numbers (e.g., "066" vs "066")
+                user_store_number = f"Store #{user_store.id:03d}"
+                if user_store_number == store_name:
+                    return True
         # Fallback: check if store_name matches user's assigned store
         return getattr(user, 'store_name', None) == store_name
     
@@ -94,7 +99,23 @@ def create_incident(
         )
     
     image_path = save_image(file) if file else None
-    summary, tags = summarize_incident(description)
+    
+    # Get store object by store number (e.g., "066" -> store ID 66)
+    store_obj = None
+    if store.startswith("Store #"):
+        try:
+            store_id = int(store.split("#")[1])
+            store_obj = db.query(Store).filter(Store.id == store_id).first()
+        except (ValueError, IndexError):
+            pass
+    
+    store_location = str(store_obj.location) if store_obj is not None and store_obj.location is not None else str(store)
+    
+    # Use system local time
+    local_tz = tzlocal.get_localzone()
+    current_time = datetime.now(local_tz).strftime("%B %d, %Y at %I:%M %p %Z")
+    
+    summary, tags = summarize_incident(description, store_location, current_time)
     severity = classify_severity(summary)
 
     incident_data = {
@@ -177,7 +198,9 @@ def get_all_incidents(
         if current_user.store_id is not None:
             user_store = db.query(Store).filter(Store.id == current_user.store_id).first()
             if user_store:
-                query = db.query(Incident).filter(Incident.store_name == user_store.name)
+                # Filter by store number (e.g., "Store #066") instead of store name
+                user_store_number = f"Store #{user_store.id:03d}"
+                query = db.query(Incident).filter(Incident.store_name == user_store_number)
             else:
                 # Fallback: no store assigned, return empty
                 return []
@@ -243,8 +266,10 @@ def get_pagination_info(
     elif current_user.role in ["employee", "staff"]:
         if current_user.store_id is not None:
             user_store = db.query(Store).filter(Store.id == current_user.store_id).first()
-            if user_store:
-                query = db.query(Incident).filter(Incident.store_name == user_store.name)
+            if user_store is not None:
+                # Filter by store number (e.g., "Store #066") instead of store name
+                user_store_number = f"Store #{user_store.id:03d}"
+                query = db.query(Incident).filter(Incident.store_name == user_store_number)
             else:
                 return {"total": 0, "pages": 0}
         else:
@@ -290,3 +315,62 @@ def get_incident_by_id(
         incident.reported_by = "Unknown"
     
     return incident
+
+# 🗑️ DELETE /incidents/{incident_id} — Delete incident
+@router.delete("/{incident_id}")
+def delete_incident(
+    incident_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
+):
+    """
+    Delete an incident (admin/staff only)
+    """
+    # 🔐 Check permissions
+    if current_user.role == "employee":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Employees cannot delete incidents."
+        )
+    
+    # 🔍 Get incident
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found."
+        )
+    
+    # 🔐 RBAC: Check if user can delete this incident
+    if current_user.role == "staff":
+        # Staff can only delete incidents from their store
+        if current_user.store_id is not None:
+            user_store = db.query(Store).filter(Store.id == current_user.store_id).first()
+            if user_store:
+                user_store_number = f"Store #{user_store.id:03d}"
+                if incident.store_name != user_store_number:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="You can only delete incidents from your assigned store."
+                    )
+    
+    try:
+        # Delete associated files if they exist
+        if incident.image_url and os.path.exists(incident.image_url):
+            os.remove(incident.image_url)
+        if incident.pdf_path and os.path.exists(incident.pdf_path):
+            os.remove(incident.pdf_path)
+        
+        # Delete incident from database
+        db.delete(incident)
+        db.commit()
+        
+        return {"message": "Incident deleted successfully."}
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete incident: {str(e)}"
+        )

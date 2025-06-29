@@ -13,7 +13,16 @@ FIXED_TAGS = [
     "Customer Complaint", "Other", "Fraud"
 ]
 
-def summarize_incident(description: str):
+def summarize_incident(description: str, store_location: str = None, incident_time: str = None):
+    # Format the time and location for the prompt
+    time_context = ""
+    if incident_time:
+        time_context = f"Time: {incident_time}\n"
+    
+    location_context = ""
+    if store_location:
+        location_context = f"Location: {store_location}\n"
+    
     prompt = f"""
 You are a professional asset protection analyst responsible for documenting incidents at a national retail chain.
 
@@ -25,6 +34,9 @@ Your task is to:
 5. Assign 1 to 5 tags from this fixed list:
 {', '.join(FIXED_TAGS)}
 
+IMPORTANT: Use the actual date, time, and location provided below. Do not use placeholders like [Date] or [Store Location].
+
+{time_context}{location_context}
 Do not add tags not found in the list. Avoid sensationalism or vague language. Be direct and use proper terminology.
 
 Respond strictly in this JSON format:

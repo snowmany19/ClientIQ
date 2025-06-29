@@ -370,34 +370,21 @@ with st.sidebar:
     st.title("🚨 IncidentIQ")
     
     # Role-based navigation
-    if user_role == "admin":
-        # Admin sees everything
-        page = st.selectbox(
-            "Navigation",
-            ["Dashboard", "Report Incident", "Billing"],
-            index=0
-        )
-    elif user_role == "staff":
-        # Staff can access billing
-        page = st.selectbox(
-            "Navigation",
-            ["Dashboard", "Report Incident", "Billing"],
-            index=0
-        )
-    else:
-        # Employees only see incident reporting
-        page = st.selectbox(
-            "Navigation",
-            ["Dashboard", "Report Incident"],
-            index=0
-        )
-    
+    nav_options = ["Dashboard", "Report Incident"]
+    if user_role in ["admin", "staff"]:
+        nav_options.append("Billing")
+    if user_role in ["admin", "staff"]:
+        nav_options.append("User Management")
+    page = st.selectbox(
+        "Navigation",
+        nav_options,
+        index=0
+    )
     # User info
     st.markdown("---")
     if st.session_state.user:
         st.markdown(f"**User:** {st.session_state.user.get('username', 'Unknown')}")
         st.markdown(f"**Role:** {st.session_state.user.get('role', 'Unknown')}")
-        
         # Show store assignment
         if st.session_state.user.get('store'):
             store_info = st.session_state.user['store']
@@ -407,7 +394,6 @@ with st.sidebar:
             st.markdown("**🏬 Store:** All Locations")
         else:
             st.markdown("**🏬 Store:** Not Assigned")
-        
         # Show subscription status for staff
         if user_role in ["admin", "staff"]:
             subscription_status = st.session_state.user.get("subscription_status", "unknown")
@@ -422,11 +408,24 @@ with st.sidebar:
     else:
         st.markdown("**User:** Unknown")
         st.markdown("**Role:** Unknown")
-    
+    # Change Password button
+    if st.button("🔑 Change Password"):
+        st.session_state.show_change_pw = True
     # Logout button
     if st.button("Logout"):
         st.session_state.clear()
         st.rerun()
+    # Change Password Modal
+    if st.session_state.get("show_change_pw", False):
+        with st.form("change_pw_form", clear_on_submit=True):
+            st.subheader("Change Password")
+            current_pw = st.text_input("Current Password", type="password")
+            new_pw = st.text_input("New Password", type="password")
+            confirm_pw = st.text_input("Confirm New Password", type="password")
+            submit_pw = st.form_submit_button("Update Password")
+            if submit_pw:
+                if new_pw != confirm_pw:
+                    st.error("New passwords do not match.")
 
 # Page routing
 if page == "Dashboard":
@@ -438,6 +437,10 @@ elif page == "Report Incident":
     # The incident form is already in the main content area
 elif page == "Billing":
     st.switch_page("pages/billing.py")
+elif page == "User Management":
+    # Import and show user management component
+    from components.user_management import user_management_page
+    user_management_page()
 
 
 

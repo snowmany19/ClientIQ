@@ -35,28 +35,56 @@ def get_my_subscription(
     db: Session = Depends(get_db)
 ):
     """Get current user's subscription details."""
-    if not current_user.subscription_id:
+    # Check if user is admin (automatic premium access)
+    if current_user.role == "admin":
+        plan = SUBSCRIPTION_PLANS.get("enterprise", {})  # Give admin enterprise features
         return {
-            "subscription": None,
-            "plan": None,
-            "message": "No active subscription"
+            "subscription": {
+                "status": "active",
+                "plan_id": "enterprise"
+            },
+            "plan": plan,
+            "features": get_plan_features("enterprise"),
+            "limits": get_usage_limits("enterprise")
         }
     
-    try:
-        stripe_subscription = get_subscription(current_user.subscription_id)
-        plan = SUBSCRIPTION_PLANS.get(current_user.plan_id, {})
-        
+    # Check if user has an active subscription
+    if current_user.subscription_id is not None:
+        try:
+            stripe_subscription = get_subscription(str(current_user.subscription_id))
+            plan = SUBSCRIPTION_PLANS.get(str(current_user.plan_id), {})
+            
+            return {
+                "subscription": stripe_subscription,
+                "plan": plan,
+                "features": get_plan_features(str(current_user.plan_id)),
+                "limits": get_usage_limits(str(current_user.plan_id))
+            }
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to retrieve subscription: {str(e)}"
+            )
+    
+    # Check if user has an active plan (for staff users who might have been assigned a plan)
+    if current_user.plan_id is not None and current_user.subscription_status == "active":
+        plan = SUBSCRIPTION_PLANS.get(str(current_user.plan_id), {})
         return {
-            "subscription": stripe_subscription,
+            "subscription": {
+                "status": "active",
+                "plan_id": str(current_user.plan_id)
+            },
             "plan": plan,
-            "features": get_plan_features(current_user.plan_id),
-            "limits": get_usage_limits(current_user.plan_id)
+            "features": get_plan_features(str(current_user.plan_id)),
+            "limits": get_usage_limits(str(current_user.plan_id))
         }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to retrieve subscription: {str(e)}"
-        )
+    
+    # No active subscription
+    return {
+        "subscription": None,
+        "plan": None,
+        "message": "No active subscription"
+    }
 
 @router.post("/create-checkout-session")
 def create_checkout_session_route(
@@ -79,8 +107,8 @@ def create_checkout_session_route(
             db.commit()
         
         # Create checkout session
-        success_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:8501')}/billing/success"
-        cancel_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:8501')}/billing/cancel"
+        success_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:8501')}/__billing_success"
+        cancel_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:8501')}/__billing_cancel"
         
         checkout_url = create_checkout_session(
             current_user.stripe_customer_id,

@@ -1,0 +1,10 @@
+
+#TEST USERS (STORE 001)
+
+Admin:     username=admin, password=admin123
+John Doe:  username=johndoe, password=test123 (Store #001)
+Manager:   username=manager1, password=test123 (Store #066)
+Employee:  username=employee1, password=test123 (Store #001)
+
+#PILOT USER (STORE 066)
+Jaclyn1:   username=Jaclyn1, password=test123 (Store #066)
