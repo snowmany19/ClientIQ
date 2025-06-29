@@ -53,12 +53,12 @@ def setup_logging(log_level: str = "INFO", log_file: str = "logs/app.log"):
         )
         # Set formatter for all handlers
         fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        logger = logging.getLogger("incidentiq")
+        logger = logging.getLogger("a_incident")
         for handler in logger.handlers:
             handler.setFormatter(logging.Formatter(fmt))
         return logger
 
-def get_logger(name: str = "incidentiq"):
+def get_logger(name: str = "a_incident") -> logging.Logger:
     if USE_STRUCTLOG:
         return structlog.get_logger(name)
     else:

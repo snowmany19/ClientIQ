@@ -1,4 +1,4 @@
-# models.py — SQLAlchemy models for the IncidentIQ system
+# models.py — SQLAlchemy models for the A.I.ncident📊 - AI Incident Management Dashboard system
 
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship

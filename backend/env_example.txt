@@ -1,5 +1,5 @@
 # ========================================
-# 🔒 INCIDENTIQ PRODUCTION ENVIRONMENT
+# 🔒 A.I.NCIDENT PRODUCTION ENVIRONMENT
 # ========================================
 # Copy this file to .env and update with your actual values
 # NEVER commit .env files to version control
@@ -7,9 +7,9 @@
 # ========================================
 # 🗄️ DATABASE CONFIGURATION
 # ========================================
-DATABASE_URL=sqlite:///./incidentiq.db
+DATABASE_URL=sqlite:///./a_incident.db
 # For production, use PostgreSQL:
-# DATABASE_URL=postgresql://user:password@localhost/incidentiq
+# DATABASE_URL=postgresql://user:password@localhost/a_incident
 
 # ========================================
 # 🔐 JWT CONFIGURATION

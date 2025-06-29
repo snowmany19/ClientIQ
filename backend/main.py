@@ -31,7 +31,7 @@ rate_limiter = RateLimiter(settings.rate_limit_requests)
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
-    logger.info("Starting IncidentIQ backend...")
+    logger.info("Starting A.I.ncident📊 - AI Incident Management Dashboard backend...")
     
     # Create tables if they don't exist
     Base.metadata.create_all(bind=engine)
@@ -41,16 +41,16 @@ async def lifespan(app: FastAPI):
     os.makedirs("static/reports", exist_ok=True)
     os.makedirs("logs", exist_ok=True)
     
-    logger.info("IncidentIQ backend started successfully!")
+    logger.info("A.I.ncident📊 - AI Incident Management Dashboard backend started successfully!")
     
     yield
     
     # Shutdown
-    logger.info("Shutting down IncidentIQ backend...")
+    logger.info("Shutting down A.I.ncident📊 - AI Incident Management Dashboard backend...")
 
 # ✅ FastAPI app with lifespan
 app = FastAPI(
-    title="IncidentIQ API",
+    title="A.I.ncident📊 - AI Incident Management Dashboard API",
     description="Production-ready incident management API",
     version="1.0.0",
     lifespan=lifespan
@@ -135,7 +135,7 @@ async def log_requests(request: Request, call_next):
 # ✅ Health check
 @app.get("/")
 def read_root():
-    return {"message": "IncidentIQ backend is operational.", "version": "1.0.0"}
+    return {"message": "A.I.ncident📊 - AI Incident Management Dashboard backend is operational.", "version": "1.0.0"}
 
 # 🔍 Schema verification on startup
 @app.on_event("startup")

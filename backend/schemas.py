@@ -1,5 +1,5 @@
 # schemas.py
-# ✅ Pydantic schemas for IncidentIQ
+# ✅ Pydantic schemas for A.I.ncident📊 - AI Incident Management Dashboard
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List, Literal

@@ -110,7 +110,7 @@ def create_checkout_session(plan_id: str):
             st.markdown("**What happens next:**")
             st.markdown("1. Click the button above to go to Stripe")
             st.markdown("2. Complete your payment on Stripe's secure checkout")
-            st.markdown("3. You'll be redirected back to IncidentIQ")
+            st.markdown("3. You'll be redirected back to A.I.ncident📊 - AI Incident Management Dashboard")
             st.markdown("4. Your subscription will be activated immediately")
             
         else:
@@ -336,7 +336,7 @@ def billing_page():
     user_info = st.session_state.get("user")
     if user_info and user_info.get("role") == "admin":
         st.success("👑 **Admin Access**: You have automatic premium access to all features!")
-        st.info("As an administrator, you don't need to subscribe to any plan. You have full access to all IncidentIQ features.")
+        st.info("As an administrator, you don't need to subscribe to any plan. You have full access to all A.I.ncident📊 - AI Incident Management Dashboard features.")
         
         # Show admin features
         st.markdown("### 🚀 Your Admin Features")
@@ -395,7 +395,7 @@ def billing_page():
 def billing_success_page():
     """Page shown after successful subscription."""
     st.title("✅ Subscription Successful!")
-    st.success("Thank you for subscribing to IncidentIQ!")
+    st.success("Thank you for subscribing to A.I.ncident📊 - AI Incident Management Dashboard!")
     
     st.markdown("### What's Next?")
     st.markdown("1. **Start Reporting Incidents** - Use the dashboard to create your first incident report")

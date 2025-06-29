@@ -11,7 +11,7 @@ class Settings:
     
     def __init__(self):
         # 🗝️ Environment Variables
-        self.database_url = os.getenv("DATABASE_URL", "sqlite:///./incidentiq.db")
+        self.database_url = os.getenv("DATABASE_URL", "sqlite:///./a_incident.db")
         self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
         self.stripe_secret_key = os.getenv("STRIPE_SECRET_KEY", "")
         self.stripe_webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "")

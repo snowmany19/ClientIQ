@@ -126,7 +126,7 @@ class Transaction(Base):
 
 ### **Branding**
 1. **Update app title:**
-   - Change "IncidentIQ" to your brand name
+   - Change "A.I.ncident📊 - AI Incident Management Dashboard" to your brand name
    - Update favicon and logos
 
 2. **Color scheme:**

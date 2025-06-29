@@ -1,6 +1,6 @@
-# 🚀 IncidentIQ Production Deployment Guide
+# 🚀 A.I.ncident📊 - AI Incident Management Dashboard Production Deployment Guide
 
-This guide provides step-by-step instructions for deploying IncidentIQ to production for a $25k+ sale on Flippa or Acquire.
+This guide provides step-by-step instructions for deploying A.I.ncident📊 - AI Incident Management Dashboard to production for a $25k+ sale on Flippa or Acquire.
 
 ## 📋 Pre-Deployment Checklist
 
@@ -36,9 +36,9 @@ sudo apt install python3 python3-pip python3-venv nginx postgresql postgresql-co
 
 ### Create Application User
 ```bash
-sudo adduser incidentiq
-sudo usermod -aG sudo incidentiq
-sudo su - incidentiq
+sudo adduser a_incident
+sudo usermod -aG sudo a_incident
+sudo su - a_incident
 ```
 
 ## 🗄️ Step 2: Database Setup
@@ -54,9 +54,9 @@ sudo systemctl enable postgresql
 ```bash
 sudo -u postgres psql
 
-CREATE DATABASE incidentiq_prod;
-CREATE USER incidentiq_user WITH PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE incidentiq_prod TO incidentiq_user;
+CREATE DATABASE a_incident_prod;
+CREATE USER a_incident_user WITH PASSWORD 'your_secure_password';
+GRANT ALL PRIVILEGES ON DATABASE a_incident_prod TO a_incident_user;
 \q
 ```
 
@@ -73,8 +73,8 @@ python3 -c "import secrets; print(secrets.token_urlsafe(16))"
 
 ### Create Production Environment File
 ```bash
-# /home/incidentiq/incidentiq/.env
-DATABASE_URL=postgresql://incidentiq_user:your_secure_password@localhost/incidentiq_prod
+# /home/a_incident/a_incident/.env
+DATABASE_URL=postgresql://a_incident_user:your_secure_password@localhost/a_incident_prod
 SECRET_KEY=your_32_character_jwt_secret_here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
@@ -111,9 +111,9 @@ FRONTEND_URL=https://yourdomain.com
 
 ### Clone and Setup Application
 ```bash
-cd /home/incidentiq
-git clone https://github.com/yourusername/incidentiq.git
-cd incidentiq
+cd /home/a_incident
+git clone https://github.com/yourusername/a_incident.git
+cd a_incident
 
 # Create virtual environment
 python3 -m venv venv
@@ -146,7 +146,7 @@ sudo systemctl enable nginx
 
 ### Configure Nginx for Backend
 ```bash
-sudo nano /etc/nginx/sites-available/incidentiq-backend
+sudo nano /etc/nginx/sites-available/a_incident-backend
 ```
 
 ```nginx
@@ -163,7 +163,7 @@ server {
     }
 
     location /static/ {
-        alias /home/incidentiq/incidentiq/backend/static/;
+        alias /home/a_incident/a_incident/backend/static/;
         expires 30d;
         add_header Cache-Control "public, immutable";
     }
@@ -172,7 +172,7 @@ server {
 
 ### Configure Nginx for Frontend
 ```bash
-sudo nano /etc/nginx/sites-available/incidentiq-frontend
+sudo nano /etc/nginx/sites-available/a_incident-frontend
 ```
 
 ```nginx
@@ -195,8 +195,8 @@ server {
 
 ### Enable Sites
 ```bash
-sudo ln -s /etc/nginx/sites-available/incidentiq-backend /etc/nginx/sites-enabled/
-sudo ln -s /etc/nginx/sites-available/incidentiq-frontend /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/a_incident-backend /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/a_incident-frontend /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -217,21 +217,21 @@ sudo certbot --nginx -d yourdomain.com -d api.yourdomain.com
 
 ### Backend Service
 ```bash
-sudo nano /etc/systemd/system/incidentiq-backend.service
+sudo nano /etc/systemd/system/a_incident-backend.service
 ```
 
 ```ini
 [Unit]
-Description=IncidentIQ Backend
+Description=A.I.ncident📊 - AI Incident Management Dashboard Backend
 After=network.target
 
 [Service]
 Type=exec
-User=incidentiq
-Group=incidentiq
-WorkingDirectory=/home/incidentiq/incidentiq/backend
-Environment=PATH=/home/incidentiq/incidentiq/venv/bin
-ExecStart=/home/incidentiq/incidentiq/venv/bin/gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 127.0.0.1:8000
+User=a_incident
+Group=a_incident
+WorkingDirectory=/home/a_incident/a_incident/backend
+Environment=PATH=/home/a_incident/a_incident/venv/bin
+ExecStart=/home/a_incident/a_incident/venv/bin/gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 127.0.0.1:8000
 Restart=always
 RestartSec=10
 
@@ -241,21 +241,21 @@ WantedBy=multi-user.target
 
 ### Frontend Service
 ```bash
-sudo nano /etc/systemd/system/incidentiq-frontend.service
+sudo nano /etc/systemd/system/a_incident-frontend.service
 ```
 
 ```ini
 [Unit]
-Description=IncidentIQ Frontend
+Description=A.I.ncident📊 - AI Incident Management Dashboard Frontend
 After=network.target
 
 [Service]
 Type=exec
-User=incidentiq
-Group=incidentiq
-WorkingDirectory=/home/incidentiq/incidentiq/frontend
-Environment=PATH=/home/incidentiq/incidentiq/venv/bin
-ExecStart=/home/incidentiq/incidentiq/venv/bin/streamlit run dashboard.py --server.port 8501 --server.address 127.0.0.1
+User=a_incident
+Group=a_incident
+WorkingDirectory=/home/a_incident/a_incident/frontend
+Environment=PATH=/home/a_incident/a_incident/venv/bin
+ExecStart=/home/a_incident/a_incident/venv/bin/streamlit run dashboard.py --server.port 8501 --server.address 127.0.0.1
 Restart=always
 RestartSec=10
 
@@ -266,10 +266,10 @@ WantedBy=multi-user.target
 ### Start Services
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable incidentiq-backend
-sudo systemctl enable incidentiq-frontend
-sudo systemctl start incidentiq-backend
-sudo systemctl start incidentiq-frontend
+sudo systemctl enable a_incident-backend
+sudo systemctl enable a_incident-frontend
+sudo systemctl start a_incident-backend
+sudo systemctl start a_incident-frontend
 ```
 
 ## 📊 Step 8: Monitoring and Logging
@@ -281,20 +281,20 @@ sudo apt install htop iotop nethogs -y
 
 ### Setup Log Rotation
 ```bash
-sudo nano /etc/logrotate.d/incidentiq
+sudo nano /etc/logrotate.d/a_incident
 ```
 
 ```
-/home/incidentiq/incidentiq/backend/logs/*.log {
+/home/a_incident/a_incident/backend/logs/*.log {
     daily
     missingok
     rotate 30
     compress
     delaycompress
     notifempty
-    create 644 incidentiq incidentiq
+    create 644 a_incident a_incident
     postrotate
-        systemctl reload incidentiq-backend
+        systemctl reload a_incident-backend
     endscript
 }
 ```
@@ -303,28 +303,28 @@ sudo nano /etc/logrotate.d/incidentiq
 
 ### Database Backup Script
 ```bash
-sudo nano /home/incidentiq/backup_db.sh
+sudo nano /home/a_incident/backup_db.sh
 ```
 
 ```bash
 #!/bin/bash
-BACKUP_DIR="/home/incidentiq/backups"
+BACKUP_DIR="/home/a_incident/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
-DB_NAME="incidentiq_prod"
+DB_NAME="a_incident_prod"
 
 mkdir -p $BACKUP_DIR
-pg_dump $DB_NAME > $BACKUP_DIR/incidentiq_$DATE.sql
-gzip $BACKUP_DIR/incidentiq_$DATE.sql
+pg_dump $DB_NAME > $BACKUP_DIR/a_incident_$DATE.sql
+gzip $BACKUP_DIR/a_incident_$DATE.sql
 
 # Keep only last 7 days of backups
-find $BACKUP_DIR -name "incidentiq_*.sql.gz" -mtime +7 -delete
+find $BACKUP_DIR -name "a_incident_*.sql.gz" -mtime +7 -delete
 ```
 
 ### Setup Cron Job
 ```bash
-chmod +x /home/incidentiq/backup_db.sh
+chmod +x /home/a_incident/backup_db.sh
 crontab -e
-# Add: 0 2 * * * /home/incidentiq/backup_db.sh
+# Add: 0 2 * * * /home/a_incident/backup_db.sh
 ```
 
 ## 🧪 Step 10: Testing
@@ -332,7 +332,7 @@ crontab -e
 ### Test Backend
 ```bash
 curl https://api.yourdomain.com/
-# Should return: {"message": "IncidentIQ backend is operational.", "version": "1.0.0"}
+# Should return: {"message": "A.I.ncident📊 - AI Incident Management Dashboard backend is operational.", "version": "1.0.0"}
 ```
 
 ### Test Frontend
@@ -418,7 +418,7 @@ gzip_types text/plain text/css application/json application/javascript text/xml 
 
 ## 🎉 Ready for Sale!
 
-With these improvements, your IncidentIQ application is now:
+With these improvements, your A.I.ncident📊 - AI Incident Management Dashboard application is now:
 
 - **Production-ready** with enterprise-grade security
 - **Scalable** with proper database and caching

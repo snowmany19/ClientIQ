@@ -7,7 +7,7 @@ from models import Base, Incident, Store
 import os
 
 # Database URL
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./incidentiq.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./a_incident.db")
 
 def assign_incidents_to_store():
     """Assign all existing incidents to store ID 001."""

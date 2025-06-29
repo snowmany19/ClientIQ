@@ -1,5 +1,5 @@
 # backend/init_db.py
-# Database initialization script for IncidentIQ
+# Database initialization script for A.I.ncident📊 - AI Incident Management Dashboard
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -8,11 +8,11 @@ from utils.auth_utils import get_password_hash
 import os
 
 # Database URL
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./incidentiq.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./a_incident.db")
 
 def init_database():
     """Initialize the database with clean test data."""
-    print("🗄️ Initializing IncidentIQ database...")
+    print("🗄️ Initializing A.I.ncident📊 - AI Incident Management Dashboard database...")
     
     # Create engine and tables
     engine = create_engine(DATABASE_URL)
@@ -44,35 +44,35 @@ def init_database():
                 "password": "admin123",
                 "role": "admin",
                 "store_id": None,  # Admin has no store restriction
-                "email": "admin@incidentiq.com"
+                "email": "admin@a_incident.com"
             },
             {
                 "username": "johndoe",
                 "password": "test123",
                 "role": "staff",
                 "store_id": 1,  # Assigned to Store #001
-                "email": "john@incidentiq.com"
+                "email": "john@a_incident.com"
             },
             {
                 "username": "manager1",
                 "password": "test123",
                 "role": "staff",
                 "store_id": 66,  # Assigned to Store #066
-                "email": "manager@incidentiq.com"
+                "email": "manager@a_incident.com"
             },
             {
                 "username": "employee1",
                 "password": "test123",
                 "role": "employee",
                 "store_id": 1,  # Assigned to Store #001
-                "email": "employee@incidentiq.com"
+                "email": "employee@a_incident.com"
             },
             {
                 "username": "Jaclyn1",
                 "password": "test123",
                 "role": "staff",
                 "store_id": 66,  # Assigned to Store #066
-                "email": "jaclyn@incidentiq.com"
+                "email": "jaclyn@a_incident.com"
             },
         ]
         

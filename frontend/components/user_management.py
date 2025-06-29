@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+from utils.api import get_accessible_stores
 
 API_URL = "http://localhost:8000/api"
 
@@ -53,21 +54,44 @@ def user_management_page():
     # Edit User Modal
     if st.session_state.get("edit_user"):
         user_to_edit = st.session_state.edit_user
+        token = st.session_state.get("token")
+        stores = get_accessible_stores(token) or []
+        store_options = [
+            (s["id"], f"Store #{s['store_number']} - {s['location']}") for s in stores
+        ]
+        store_options_display = ["No Store"] + [label for _, label in store_options]
+        current_store_id = user_to_edit.get('store_id')
+        if current_store_id:
+            current_store_label = next((label for sid, label in store_options if sid == current_store_id), "No Store")
+        else:
+            current_store_label = "No Store"
         with st.form("edit_user_form", clear_on_submit=True):
             st.subheader(f"Edit User: {user_to_edit['username']}")
             edit_username = st.text_input("Username", value=user_to_edit['username'])
             edit_email = st.text_input("Email", value=user_to_edit.get('email', ''))
             edit_password = st.text_input("New Password (leave blank to keep current)", type="password")
-            
             # Role selection based on current user permissions
             if user_role == "admin":
                 edit_role = st.selectbox("Role", ["admin", "staff", "employee"], 
                                        index=["admin", "staff", "employee"].index(user_to_edit['role']))
+                selected_store_label = st.selectbox("Store Assignment", store_options_display, index=store_options_display.index(current_store_label) if current_store_label in store_options_display else 0)
+                if selected_store_label == "No Store":
+                    edit_store_id = None
+                else:
+                    edit_store_id = next((sid for sid, label in store_options if label == selected_store_label), None)
             elif user_role == "staff":
                 edit_role = st.selectbox("Role", ["employee"], index=0)
+                # Staff can only see their own store
+                if user_info.get('store'):
+                    store_info = user_info['store']
+                    st.info(f"Store Assignment: {store_info['store_number']} - {store_info['location']}")
+                    edit_store_id = store_info['id']
+                else:
+                    st.error("You must be assigned to a store to edit users.")
+                    st.stop()
             else:
                 edit_role = "employee"
-            
+                edit_store_id = user_to_edit.get('store_id')
             col1, col2 = st.columns(2)
             with col1:
                 if st.form_submit_button("Update User"):
@@ -75,7 +99,8 @@ def user_management_page():
                         "username": edit_username,
                         "email": edit_email,
                         "password": edit_password if edit_password else "",
-                        "role": edit_role
+                        "role": edit_role,
+                        "store_id": edit_store_id
                     }
                     try:
                         resp = requests.put(f"{API_URL}/users/{user_to_edit.get('id')}", 

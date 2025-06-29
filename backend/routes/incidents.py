@@ -136,7 +136,7 @@ def create_incident(
     incident = Incident(
         description=description,
         summary=summary,
-        tags=tags,
+        tags=",".join(tags) if isinstance(tags, list) else tags,
         severity=severity,
         image_url=image_path,
         pdf_path=pdf_path,
@@ -154,7 +154,7 @@ def create_incident(
         "timestamp": incident.timestamp,
         "description": incident.description,
         "summary": summary,
-        "tags": tags,
+        "tags": ",".join(tags) if isinstance(tags, list) else tags,
         "severity": incident.severity,
         "store_name": incident.store_name,
         "location": incident.location,
