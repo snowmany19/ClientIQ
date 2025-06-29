@@ -1,6 +1,6 @@
 # routes/auth.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
@@ -19,22 +19,23 @@ from database import get_db
 from models import User, Store
 from schemas import Token, UserInfo, UserCreate
 from utils.auth_utils import (
-    verify_password, create_access_token, get_password_hash, get_current_user, require_role
+    verify_password, create_access_token, get_password_hash, get_current_user, 
+    require_role, validate_password
 )
 from utils.email_alerts import send_email_alert
+from utils.logger import get_logger, log_security_event
+from core.config import get_settings
+
+# Get settings and logger
+settings = get_settings()
+logger = get_logger("auth")
 
 router = APIRouter(tags=["Auth"])
 
 # 🔐 Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# 🔑 JWT settings
-SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-
 
 # 🔧 Utility functions
 def verify_password(plain_password, hashed_password):
@@ -42,28 +43,56 @@ def verify_password(plain_password, hashed_password):
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.jwt_expiration_minutes))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 def authenticate_user(db: Session, username: str, password: str):
     user = db.query(User).filter(User.username == username).first()
-    if not user or not verify_password(password, user.hashed_password):
-        return False
+    if not user:
+        return None
+    if not verify_password(password, user.hashed_password):
+        return None
     return user
 
 # 🚪 POST /login
 @router.post("/login", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(), 
+    db: Session = Depends(get_db),
+    request: Request = None
+):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
+        # Log failed login attempt
+        if request:
+            client_ip = request.client.host if request.client else "unknown"
+            log_security_event(
+                logger,
+                event="failed_login",
+                user_id=str(None),
+                ip_address=client_ip,
+                details={"username": form_data.username}
+            )
+        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    # Log successful login
+    if request:
+        client_ip = request.client.host if request.client else "unknown"
+        log_security_event(
+            logger,
+            event="successful_login",
+            user_id=str(user.id),
+            ip_address=client_ip,
+            details={"username": user.username, "role": user.role}
+        )
+
+    access_token_expires = timedelta(minutes=settings.jwt_expiration_minutes)
     access_token = create_access_token(
         data={"sub": user.username, "user_id": user.id, "role": user.role},
         expires_delta=access_token_expires
@@ -75,13 +104,12 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 @router.get("/me", response_model=UserInfo)
 def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
         username = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token payload")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
-
 
     username = payload.get("sub")
     user = db.query(User).filter(User.username == username).first()
@@ -115,6 +143,14 @@ def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get
 # 🆕 POST /register — Create a new user
 @router.post("/register", response_model=UserInfo)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    # Validate password strength
+    is_valid, errors = validate_password(user.password)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Password validation failed: {'; '.join(errors)}"
+        )
+    
     db_user = db.query(User).filter(User.username == user.username).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
@@ -151,7 +187,7 @@ def create_user_with_permissions(
     """
     Create a new user with role-based permissions:
     - Admins can create all roles (admin, staff, employee)
-    - Pro users can create staff and employee roles (max 5 users per org)
+    - Pro users can create staff and employee roles (max 5 users per org/plan)
     - Employees cannot create users
     - New users inherit creator's plan and subscription status
     """
@@ -161,6 +197,7 @@ def create_user_with_permissions(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Employees cannot create new users. Please contact your administrator."
         )
+    
     # 🔐 Check if current user can create the requested role
     if current_user.role == "staff":
         if user.role not in ["employee"]:
@@ -179,6 +216,7 @@ def create_user_with_permissions(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to create users."
         )
+    
     # 🔍 Check if username/email already exists
     existing_user = db.query(User).filter(User.username == user.username).first()
     if existing_user:
@@ -186,6 +224,7 @@ def create_user_with_permissions(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already exists."
         )
+    
     if user.email:
         existing_email = db.query(User).filter(User.email == user.email).first()
         if existing_email:
@@ -193,11 +232,15 @@ def create_user_with_permissions(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered."
             )
-    if len(user.password) < 6:
+    
+    # Validate password strength
+    is_valid, errors = validate_password(user.password)
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 6 characters long."
+            detail=f"Password validation failed: {'; '.join(errors)}"
         )
+    
     # 🚦 Enforce Pro user limit (max 5 users per org/plan)
     if current_user.plan_id == "pro":
         pro_user_count = db.query(User).filter(User.plan_id == "pro", User.subscription_status == "active").count()
@@ -206,6 +249,7 @@ def create_user_with_permissions(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Pro plan allows a maximum of 5 users. Upgrade to Enterprise for unlimited users."
             )
+    
     # 🏗️ Create the new user, inheriting plan/subscription from creator
     hashed_password = get_password_hash(user.password)
     new_user = User(
@@ -217,10 +261,18 @@ def create_user_with_permissions(
         plan_id=current_user.plan_id,
         subscription_status=current_user.subscription_status
     )
+    
     try:
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
+        
+        # Log user creation
+        logger.info("User created", 
+                   created_by=str(current_user.id), 
+                   new_user_id=str(new_user.id), 
+                   role=new_user.role)
+        
         return {
             "id": new_user.id,
             "username": new_user.username,
@@ -231,6 +283,7 @@ def create_user_with_permissions(
         }
     except Exception as e:
         db.rollback()
+        logger.error("Failed to create user", error=str(e), created_by=str(current_user.id))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create user: {str(e)}"
@@ -253,15 +306,23 @@ def change_password(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Current password is incorrect."
         )
-    if len(new_password) < 6:
+    
+    # Validate new password strength
+    is_valid, errors = validate_password(new_password)
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be at least 6 characters long."
+            detail=f"Password validation failed: {'; '.join(errors)}"
         )
+    
     # Update password
     current_user.hashed_password = get_password_hash(new_password)
     db.add(current_user)
     db.commit()
+    
+    # Log password change
+    logger.info("Password changed", user_id=str(current_user.id))
+    
     return {"message": "Password updated successfully."}
 
 # 👥 GET /users — List users (admin/staff only)
@@ -353,11 +414,11 @@ def seed_default_users(db: Session = Depends(get_db)):
     
     # Now create users with store assignments
     defaults = [
-        {"username": "admin", "password": "admin123", "role": "admin", "store_id": None},  # Admin has no store restriction
-        {"username": "manager1", "password": "test123", "role": "staff", "store_id": 1},   # Staff at Downtown Store
-        {"username": "manager2", "password": "test123", "role": "staff", "store_id": 2},   # Staff at Mall Location
-        {"username": "employee1", "password": "test123", "role": "employee", "store_id": 1}, # Employee at Downtown Store
-        {"username": "employee2", "password": "test123", "role": "employee", "store_id": 2}, # Employee at Mall Location
+        {"username": "admin", "password": "Admin123!", "role": "admin", "store_id": None},  # Admin has no store restriction
+        {"username": "manager1", "password": "Manager123!", "role": "staff", "store_id": 1},   # Staff at Downtown Store
+        {"username": "manager2", "password": "Manager123!", "role": "staff", "store_id": 2},   # Staff at Mall Location
+        {"username": "employee1", "password": "Employee123!", "role": "employee", "store_id": 1}, # Employee at Downtown Store
+        {"username": "employee2", "password": "Employee123!", "role": "employee", "store_id": 2}, # Employee at Mall Location
     ]
     created = []
 

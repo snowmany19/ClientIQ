@@ -6,9 +6,11 @@ import requests
 from datetime import datetime
 from streamlit_extras.let_it_rain import rain
 from streamlit.components.v1 import iframe
+from PIL import Image
+import os
 
 # ✅ MUST be first Streamlit call
-st.set_page_config(page_title="IncidentIQ Dashboard", layout="wide")
+st.set_page_config(page_title="A.I.ncident📊 - AI Incident Management Dashboard", layout="wide")
 
 from components.filters import apply_filters
 from components.charts import render_charts
@@ -57,7 +59,7 @@ def fetch_incidents_with_pagination(token: str, page: int = 0, limit: int = 50):
 def handle_incident_fetch_error(error_msg: str):
     """Handle incident fetch errors, including 402 Payment Required."""
     if "Payment required" in error_msg or "402" in error_msg:
-        st.error("❌ Payment required. Please subscribe to continue using IncidentIQ.")
+        st.error("❌ Payment required. Please subscribe to continue using A.I.ncident📊 - AI Incident Management Dashboard.")
         st.info("Redirecting to billing page...")
         st.switch_page("pages/billing.py")
     else:
@@ -67,7 +69,7 @@ def handle_incident_fetch_error(error_msg: str):
 # 🔐 Login Flow
 # -----------------------------------
 if not st.session_state.token:
-    st.title("🔐 IncidentIQ Login")
+    st.title("🔐 A.I.ncident📊 - AI Incident Management Dashboard Login")
 
     with st.form("login_form"):
         username = st.text_input("Username")
@@ -99,7 +101,7 @@ if st.session_state.token and st.session_state.user is None:
         if user_role == "admin":
             st.session_state.admin_bypass = True
         elif subscription_status not in ["active", "trialing"]:
-            st.warning("⚠️ Active subscription required to access IncidentIQ.")
+            st.warning("⚠️ Active subscription required to access A.I.ncident📊 - AI Incident Management Dashboard.")
             st.info("Please subscribe to continue using the platform.")
             if st.button("💳 Go to Billing"):
                 st.switch_page("pages/billing.py")
@@ -145,7 +147,7 @@ else:
 # -----------------------------------
 # 🎨 Dashboard Header
 # -----------------------------------
-st.title("📊 IncidentIQ - Incident Management Dashboard")
+st.title("📊 A.I.ncident📊 - AI Incident Management Dashboard")
 st.caption(f"🕒 Last updated: {datetime.now().strftime('%A, %B %d, %Y at %I:%M %p')}")
 st.caption(f"👤 Logged in as **{user['username']}** ({user_role.capitalize()})")
 
@@ -340,7 +342,7 @@ if can_submit_incidents:
                     st.session_state.token = None
                     st.rerun()
                 elif res.status_code == 402:
-                    st.error("❌ Payment required. Please subscribe to continue using IncidentIQ.")
+                    st.error("❌ Payment required. Please subscribe to continue using A.I.ncident📊 - AI Incident Management Dashboard.")
                     st.info("Redirecting to billing page...")
                     st.switch_page("pages/billing.py")
                 elif res.status_code >= 500:
@@ -367,9 +369,7 @@ with st.sidebar:
 
 # Sidebar navigation
 with st.sidebar:
-    st.title("🚨 IncidentIQ")
-    
-    # Role-based navigation
+    st.title("🚨 A.I.ncident📊 - AI Incident Management Dashboard")
     nav_options = ["Dashboard", "Report Incident"]
     if user_role in ["admin", "staff"]:
         nav_options.append("Billing")
@@ -380,52 +380,6 @@ with st.sidebar:
         nav_options,
         index=0
     )
-    # User info
-    st.markdown("---")
-    if st.session_state.user:
-        st.markdown(f"**User:** {st.session_state.user.get('username', 'Unknown')}")
-        st.markdown(f"**Role:** {st.session_state.user.get('role', 'Unknown')}")
-        # Show store assignment
-        if st.session_state.user.get('store'):
-            store_info = st.session_state.user['store']
-            st.markdown(f"**🏬 Store:** {store_info['store_number']}")
-            st.caption(f"📍 {store_info['location']}")
-        elif user_role == "admin":
-            st.markdown("**🏬 Store:** All Locations")
-        else:
-            st.markdown("**🏬 Store:** Not Assigned")
-        # Show subscription status for staff
-        if user_role in ["admin", "staff"]:
-            subscription_status = st.session_state.user.get("subscription_status", "unknown")
-            if user_role == "admin":
-                st.markdown("**Status:** 👑 Admin Premium")
-            elif subscription_status == "active":
-                st.markdown("**Status:** ✅ Active Subscription")
-            elif subscription_status == "trialing":
-                st.markdown("**Status:** 🧪 Trial Active")
-            else:
-                st.markdown("**Status:** ❌ No Active Subscription")
-    else:
-        st.markdown("**User:** Unknown")
-        st.markdown("**Role:** Unknown")
-    # Change Password button
-    if st.button("🔑 Change Password"):
-        st.session_state.show_change_pw = True
-    # Logout button
-    if st.button("Logout"):
-        st.session_state.clear()
-        st.rerun()
-    # Change Password Modal
-    if st.session_state.get("show_change_pw", False):
-        with st.form("change_pw_form", clear_on_submit=True):
-            st.subheader("Change Password")
-            current_pw = st.text_input("Current Password", type="password")
-            new_pw = st.text_input("New Password", type="password")
-            confirm_pw = st.text_input("Confirm New Password", type="password")
-            submit_pw = st.form_submit_button("Update Password")
-            if submit_pw:
-                if new_pw != confirm_pw:
-                    st.error("New passwords do not match.")
 
 # Page routing
 if page == "Dashboard":
