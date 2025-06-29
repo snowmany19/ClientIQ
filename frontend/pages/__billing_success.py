@@ -10,5 +10,10 @@ st.set_page_config(
     layout="wide"
 )
 
-# Success page
+# Check authentication
+if "token" not in st.session_state or not st.session_state.token:
+    st.error("Please log in to access this page.")
+    st.stop()
+
+# Main success page
 billing_success_page() 

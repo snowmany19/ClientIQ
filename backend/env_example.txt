@@ -1,5 +1,5 @@
 # Database Configuration
-DATABASE_URL=postgresql://username:password@localhost/incidentiq
+DATABASE_URL=sqlite:///./incidentiq.db
 
 # JWT Configuration
 SECRET_KEY=your-secret-key-here

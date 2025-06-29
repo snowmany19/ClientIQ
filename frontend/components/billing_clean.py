@@ -1,4 +1,4 @@
-# frontend/components/billing.py
+# frontend/components/billing_clean.py
 
 import streamlit as st
 import requests
@@ -12,17 +12,18 @@ def get_auth_headers():
     """Get authentication headers for API requests."""
     token = st.session_state.get("token")
     if not token:
-        st.error("❌ No authentication token found. Please log in.")
-        return None  # Don't stop, just return None
-    
-    # Debug: Show token info (first 20 chars for security)
-    st.write(f"🔑 Token found: {token[:20]}...")
-    
+        st.error("Not authenticated. Please log in.")
+        st.stop()
     return {"Authorization": f"Bearer {token}"}
 
 def display_subscription_plans():
     """Display available subscription plans."""
     st.header("📋 Available Plans")
+    
+    # Initialize button counter for unique keys
+    if "plan_button_counter" not in st.session_state:
+        st.session_state.plan_button_counter = 0
+    st.session_state.plan_button_counter += 1
     
     # Get plans from backend
     try:
@@ -48,7 +49,7 @@ def display_subscription_plans():
         for feature in plans['basic']['features']:
             st.markdown(f"✅ {feature}")
         
-        if st.button("Subscribe to Basic", key="basic_sub_button", type="primary"):
+        if st.button("Subscribe to Basic", key=f"basic_sub_{st.session_state.plan_button_counter}", type="primary"):
             create_checkout_session("basic")
     
     with col2:
@@ -60,7 +61,7 @@ def display_subscription_plans():
         for feature in plans['pro']['features']:
             st.markdown(f"✅ {feature}")
         
-        if st.button("Subscribe to Pro", key="pro_sub_button", type="primary"):
+        if st.button("Subscribe to Pro", key=f"pro_sub_{st.session_state.plan_button_counter}", type="primary"):
             create_checkout_session("pro")
     
     with col3:
@@ -72,7 +73,7 @@ def display_subscription_plans():
         for feature in plans['enterprise']['features']:
             st.markdown(f"✅ {feature}")
         
-        if st.button("Subscribe to Enterprise", key="enterprise_sub_button", type="primary"):
+        if st.button("Subscribe to Enterprise", key=f"enterprise_sub_{st.session_state.plan_button_counter}", type="primary"):
             create_checkout_session("enterprise")
     
     st.markdown("---")
@@ -90,10 +91,6 @@ def create_checkout_session(plan_id: str):
         if response.status_code == 200:
             data = response.json()
             checkout_url = data["checkout_url"]
-            
-            # Store checkout URL in session state
-            st.session_state.stripe_checkout_url = checkout_url
-            st.session_state.show_stripe_redirect = True
             
             st.success("✅ Checkout session created successfully!")
             st.info("Click the button below to complete your purchase on Stripe.")
@@ -114,13 +111,12 @@ def create_checkout_session(plan_id: str):
             st.markdown("4. Your subscription will be activated immediately")
             
         else:
-            st.error(f"❌ Failed to create checkout session: {response.status_code}")
+            st.error("❌ Failed to create checkout session")
             try:
                 error_data = response.json()
                 st.error(f"Error: {error_data.get('detail', 'Unknown error')}")
             except:
                 st.error(f"HTTP {response.status_code}: {response.text}")
-            
     except Exception as e:
         st.error(f"❌ Error creating checkout session: {str(e)}")
 
@@ -172,7 +168,7 @@ def display_my_subscription():
             # Limits
             st.markdown("**Limits:**")
             if limits["users"] == -1:
-                st.markdown("�� Unlimited users")
+                st.markdown("👥 Unlimited users")
             else:
                 st.markdown(f"👥 Up to {limits['users']} users")
             
@@ -187,11 +183,11 @@ def display_my_subscription():
             col1, col2 = st.columns(2)
             
             with col1:
-                if st.button("Manage Billing", key="manage_billing_button"):
+                if st.button("Manage Billing", key=f"manage_billing_{st.session_state.plan_button_counter}"):
                     open_billing_portal()
             
             with col2:
-                if st.button("Cancel Subscription", key="cancel_sub_button", type="secondary"):
+                if st.button("Cancel Subscription", key=f"cancel_sub_{st.session_state.plan_button_counter}", type="secondary"):
                     cancel_subscription()
         else:
             st.error("Failed to load subscription details")
@@ -236,7 +232,7 @@ def open_billing_portal():
 
 def cancel_subscription():
     """Cancel current subscription."""
-    if st.button("Confirm Cancellation", key="confirm_cancel_button", type="primary"):
+    if st.button("Confirm Cancellation", key=f"confirm_cancel_{st.session_state.plan_button_counter}", type="primary"):
         try:
             response = requests.post(f"{API_BASE_URL}/billing/cancel-subscription", headers=get_auth_headers())
             if response.status_code == 200:

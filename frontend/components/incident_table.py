@@ -1,5 +1,8 @@
 import streamlit as st
 import pandas as pd
+import requests
+
+API_URL = "http://localhost:8000"
 
 def render_incident_table(df: pd.DataFrame):
     #st.subheader("📋 Incident Log")
@@ -88,6 +91,61 @@ def render_incident_table(df: pd.DataFrame):
 
     # 📊 Show table
     st.dataframe(display_df, use_container_width=True, height=550)
+
+    # 🗑️ Delete functionality for admin/staff
+    user_info = st.session_state.get("user")
+    user_role = user_info.get("role", "employee") if user_info else "employee"
+    
+    if user_role in ["admin", "staff"]:
+        with st.expander("🗑️ Delete Incidents (Admin/Staff Only)", expanded=False):
+            st.info("Select incidents to delete")
+            
+            # Create a list of incidents with checkboxes
+            for idx, row in filtered_df.iterrows():
+                incident_id = row.get('id')
+                if incident_id:
+                    col1, col2 = st.columns([4, 1])
+                    with col1:
+                        st.markdown(f"**{row['timestamp_display']}** - {row['location']} - {row['description'][:50]}...")
+                    with col2:
+                        if st.button(f"Delete", key=f"delete_incident_{incident_id}"):
+                            st.session_state.delete_incident_id = incident_id
+                            st.session_state.delete_incident_info = f"{row['timestamp_display']} - {row['location']}"
+
+    # Delete confirmation
+    if st.session_state.get("delete_incident_id"):
+        incident_id = st.session_state.delete_incident_id
+        incident_info = st.session_state.delete_incident_info
+        
+        st.warning(f"Are you sure you want to delete this incident?")
+        st.info(f"Incident: {incident_info}")
+        st.error("This action cannot be undone!")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Confirm Delete"):
+                token = st.session_state.get("token")
+                headers = {"Authorization": f"Bearer {token}"}
+                
+                try:
+                    resp = requests.delete(f"{API_URL}/incidents/{incident_id}", headers=headers)
+                    if resp.status_code == 200:
+                        st.success("Incident deleted successfully!")
+                        st.session_state.delete_incident_id = None
+                        st.session_state.delete_incident_info = None
+                        st.rerun()
+                    else:
+                        try:
+                            st.error(resp.json().get("detail", "Failed to delete incident."))
+                        except:
+                            st.error("Failed to delete incident.")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        with col2:
+            if st.button("Cancel"):
+                st.session_state.delete_incident_id = None
+                st.session_state.delete_incident_info = None
+                st.rerun()
 
     # ⬇️ CSV Export
     csv = filtered_df.to_csv(index=False)

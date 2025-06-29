@@ -48,6 +48,7 @@ class UserOut(UserBase):
         orm_mode = True
 
 class UserInfo(BaseModel):
+    id: int
     username: str
     email: Optional[EmailStr] = None
     role: ValidRoles

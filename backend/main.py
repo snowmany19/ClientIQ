@@ -2,6 +2,7 @@
 
 import os
 import sys
+import time
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,5 +50,23 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")
 def read_root():
     return {"message": "IncidentIQ backend is operational."}
+
+# 🚀 Startup event to ensure clean imports
+@app.on_event("startup")
+async def startup_event():
+    # Small delay to ensure all imports are properly loaded
+    time.sleep(0.1)
+    
+    # Verify UserInfo schema is properly loaded
+    try:
+        from schemas import UserInfo
+        if 'id' not in UserInfo.model_fields:
+            print("⚠️ Warning: UserInfo schema missing 'id' field")
+        else:
+            print("✅ UserInfo schema loaded correctly with 'id' field")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not verify UserInfo schema: {e}")
+    
+    print("✅ IncidentIQ backend started successfully!")
 
 
