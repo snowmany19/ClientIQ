@@ -149,6 +149,15 @@ st.title("📊 IncidentIQ - Incident Management Dashboard")
 st.caption(f"🕒 Last updated: {datetime.now().strftime('%A, %B %d, %Y at %I:%M %p')}")
 st.caption(f"👤 Logged in as **{user['username']}** ({user_role.capitalize()})")
 
+# 🏬 Display store assignment
+if user.get('store'):
+    store_info = user['store']
+    st.info(f"📍 **Store Assignment**: {store_info['name']} - {store_info['location']}")
+elif user_role == "admin":
+    st.info("👑 **Admin Access**: You can access all store locations")
+else:
+    st.warning("⚠️ **No Store Assignment**: Please contact your administrator to assign you to a store location.")
+
 # 🎯 Show admin premium access indicator
 if user_role == "admin":
     st.success("👑 **Admin Access**: You have automatic premium access to all features!")
@@ -387,6 +396,16 @@ with st.sidebar:
     if st.session_state.user:
         st.markdown(f"**User:** {st.session_state.user.get('username', 'Unknown')}")
         st.markdown(f"**Role:** {st.session_state.user.get('role', 'Unknown')}")
+        
+        # Show store assignment
+        if st.session_state.user.get('store'):
+            store_info = st.session_state.user['store']
+            st.markdown(f"**🏬 Store:** {store_info['name']}")
+            st.caption(f"📍 {store_info['location']}")
+        elif user_role == "admin":
+            st.markdown("**🏬 Store:** All Locations")
+        else:
+            st.markdown("**🏬 Store:** Not Assigned")
         
         # Show subscription status for staff
         if user_role in ["admin", "staff"]:

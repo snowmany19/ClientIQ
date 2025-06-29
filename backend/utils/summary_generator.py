@@ -15,18 +15,21 @@ FIXED_TAGS = [
 
 def summarize_incident(description: str):
     prompt = f"""
-You are a professional security analyst responsible for documenting incidents at a national retail chain.
+You are a professional asset protection analyst responsible for documenting incidents at a national retail chain.
 
 Your task is to:
-1. Write a factual, concise summary suitable for a report sent to law enforcement or internal security.
-2. Assign 1 to 5 tags from this fixed list:
+1. Write a factual, concise summary suitable for an internal asset protection report
+2. Include: what happened, when and where it occurred, involved individuals, and likely cause
+3. Add a closing recommendation for store leadership
+4. Use a formal, professional tone
+5. Assign 1 to 5 tags from this fixed list:
 {', '.join(FIXED_TAGS)}
 
 Do not add tags not found in the list. Avoid sensationalism or vague language. Be direct and use proper terminology.
 
 Respond strictly in this JSON format:
 {{
-  "summary": "<clear summary>",
+  "summary": "<formal summary with recommendation>",
   "tags": ["Tag1", "Tag2", ...]
 }}
 
