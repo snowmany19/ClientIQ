@@ -28,16 +28,25 @@ def summarize_incident(description: str, location: str, timestamp: str) -> Tuple
     prompt = f"""
 You are an incident management AI assistant. Analyze the following security incident and provide:
 1. A concise summary (2-3 sentences)
-2. Relevant tags (comma-separated)
+2. Relevant tags (choose ONLY from the allowed tags list)
 
 Incident Details:
 - Description: {description}
 - Location: {location}
 - Timestamp: {timestamp}
 
+ALLOWED TAGS (choose only from these):
+{', '.join(FIXED_TAGS)}
+
+Rules:
+- Choose 1-3 most relevant tags from the allowed list above
+- Do NOT create new tags
+- Do NOT use tags not in the allowed list
+- Separate multiple tags with commas
+
 Respond in this exact format:
 SUMMARY: [your summary here]
-TAGS: [tag1, tag2, tag3, etc.]
+TAGS: [tag1, tag2, tag3]
 """
 
     try:
@@ -51,7 +60,7 @@ TAGS: [tag1, tag2, tag3, etc.]
         content = response.choices[0].message.content
         if content is None:
             logger.error("Empty response from GPT")
-            return f"Incident reported at {location} on {timestamp}. {description[:100]}...", ["incident", "security"]
+            return f"Incident reported at {location} on {timestamp}. {description[:100]}...", ["Other"]
         
         content = content.strip()
         
@@ -65,14 +74,19 @@ TAGS: [tag1, tag2, tag3, etc.]
                 summary = line.replace('SUMMARY:', '').strip()
             elif line.startswith('TAGS:'):
                 tags_str = line.replace('TAGS:', '').strip()
-                tags = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
+                raw_tags = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
+                # Filter to only allow tags from FIXED_TAGS
+                tags = [tag for tag in raw_tags if tag in FIXED_TAGS]
+                # If no valid tags found, use "Other"
+                if not tags:
+                    tags = ["Other"]
         
         return summary, tags
         
     except Exception as e:
         logger.error(f"GPT tag/summary generation failed: {e}")
         # Fallback response
-        return f"Incident reported at {location} on {timestamp}. {description[:100]}...", ["incident", "security"]
+        return f"Incident reported at {location} on {timestamp}. {description[:100]}...", ["Other"]
 
 def classify_severity(summary: str) -> int:
     prompt = f"""
