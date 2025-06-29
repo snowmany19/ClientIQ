@@ -90,12 +90,22 @@ def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get
     # 🎯 Admins always have "active" subscription status
     subscription_status = "active" if user.role == "admin" else user.subscription_status
 
+    # 🏬 Get store information if assigned
+    store_info = None
+    if user.store_id and user.store:
+        store_info = {
+            "id": user.store.id,
+            "name": user.store.name,
+            "location": user.store.location
+        }
+
     return {
         "username": user.username, 
         "email": user.email, 
         "role": user.role,
         "subscription_status": subscription_status,
-        "plan_id": user.plan_id
+        "plan_id": user.plan_id,
+        "store": store_info
     }
 
 

@@ -6,6 +6,27 @@ from typing import Optional, List, Literal
 from datetime import datetime
 
 # ===========================
+# ✅ Store Schemas
+# ===========================
+
+class StoreBase(BaseModel):
+    name: str
+    location: str
+
+class StoreCreate(StoreBase):
+    pass
+
+class StoreOut(StoreBase):
+    id: int
+    class Config:
+        orm_mode = True
+
+class StoreInfo(BaseModel):
+    id: int
+    name: str
+    location: str
+
+# ===========================
 # ✅ User Schemas
 # ===========================
 
@@ -31,23 +52,7 @@ class UserInfo(BaseModel):
     role: ValidRoles
     subscription_status: Optional[str] = "inactive"
     plan_id: Optional[str] = "basic"
-
-
-# ===========================
-# ✅ Store Schemas
-# ===========================
-
-class StoreBase(BaseModel):
-    name: str
-    location: str
-
-class StoreCreate(StoreBase):
-    pass
-
-class StoreOut(StoreBase):
-    id: int
-    class Config:
-        orm_mode = True
+    store: Optional[StoreInfo] = None
 
 
 # ===========================
