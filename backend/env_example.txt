@@ -1,18 +1,37 @@
-# Database Configuration
+# ========================================
+# 🔒 INCIDENTIQ PRODUCTION ENVIRONMENT
+# ========================================
+# Copy this file to .env and update with your actual values
+# NEVER commit .env files to version control
+
+# ========================================
+# 🗄️ DATABASE CONFIGURATION
+# ========================================
 DATABASE_URL=sqlite:///./incidentiq.db
+# For production, use PostgreSQL:
+# DATABASE_URL=postgresql://user:password@localhost/incidentiq
 
-# JWT Configuration
-SECRET_KEY=your-secret-key-here
+# ========================================
+# 🔐 JWT CONFIGURATION
+# ========================================
+# Generate a secure secret: python -c "import secrets; print(secrets.token_urlsafe(32))"
+SECRET_KEY=your-32-character-secret-key-here-make-it-long-and-random
 ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+ACCESS_TOKEN_EXPIRE_MINUTES=60
 
-# OpenAI Configuration
+# ========================================
+# 🤖 OPENAI CONFIGURATION
+# ========================================
 OPENAI_API_KEY=your-openai-api-key-here
 
-# CORS Configuration
+# ========================================
+# 🌐 CORS CONFIGURATION
+# ========================================
 FRONTEND_URL=http://localhost:8501
 
-# Stripe Configuration
+# ========================================
+# 💳 STRIPE CONFIGURATION
+# ========================================
 STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key_here
 STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key_here
 STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
@@ -20,4 +39,49 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
 # Stripe Price IDs (create these in your Stripe dashboard)
 STRIPE_BASIC_PRICE_ID=price_basic_plan_id_here
 STRIPE_PRO_PRICE_ID=price_pro_plan_id_here
-STRIPE_ENTERPRISE_PRICE_ID=price_enterprise_plan_id_here 
+STRIPE_ENTERPRISE_PRICE_ID=price_enterprise_plan_id_here
+
+# ========================================
+# 🔒 SECURITY SETTINGS
+# ========================================
+# Password requirements
+PASSWORD_MIN_LENGTH=8
+PASSWORD_REQUIRE_UPPERCASE=true
+PASSWORD_REQUIRE_LOWERCASE=true
+PASSWORD_REQUIRE_DIGITS=true
+PASSWORD_REQUIRE_SPECIAL=true
+
+# Rate limiting
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=60
+
+# ========================================
+# 🔧 ENVIRONMENT SETTINGS
+# ========================================
+ENVIRONMENT=development
+DEBUG=false
+
+# ========================================
+# 📊 LOGGING CONFIGURATION
+# ========================================
+LOG_LEVEL=INFO
+LOG_FILE=logs/app.log
+
+# ========================================
+# 📧 EMAIL SETTINGS (OPTIONAL)
+# ========================================
+EMAIL_HOST=
+EMAIL_PORT=587
+EMAIL_USERNAME=
+EMAIL_PASSWORD=
+
+# ========================================
+# 🚀 PRODUCTION DEPLOYMENT
+# ========================================
+# For production deployment, set:
+# ENVIRONMENT=production
+# DEBUG=false
+# Use a proper database (PostgreSQL)
+# Set up proper CORS origins
+# Configure email settings
+# Set up monitoring and logging 

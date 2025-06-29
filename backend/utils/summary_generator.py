@@ -2,9 +2,16 @@ import os
 import json
 import re
 from openai import OpenAI
+from typing import Tuple, List
+from core.config import get_settings
+from utils.logger import get_logger
+
+# Get settings and logger
+settings = get_settings()
+logger = get_logger("summary_generator")
 
 # 🔐 Load API client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=settings.openai_api_key)
 
 # 🌿 Allowed tags
 FIXED_TAGS = [
@@ -13,69 +20,59 @@ FIXED_TAGS = [
     "Customer Complaint", "Other", "Fraud"
 ]
 
-def summarize_incident(description: str, store_location: str = None, incident_time: str = None):
-    # Format the time and location for the prompt
-    time_context = ""
-    if incident_time:
-        time_context = f"Time: {incident_time}\n"
-    
-    location_context = ""
-    if store_location:
-        location_context = f"Location: {store_location}\n"
-    
+def summarize_incident(description: str, location: str, timestamp: str) -> Tuple[str, List[str]]:
+    """
+    Generate a summary and tags for an incident using OpenAI GPT-4.
+    Returns (summary, tags_list)
+    """
     prompt = f"""
-You are a professional asset protection analyst responsible for documenting incidents at a national retail chain.
+You are an incident management AI assistant. Analyze the following security incident and provide:
+1. A concise summary (2-3 sentences)
+2. Relevant tags (comma-separated)
 
-Your task is to:
-1. Write a factual, concise summary suitable for an internal asset protection report
-2. Include: what happened, when and where it occurred, involved individuals, and likely cause
-3. Add a closing recommendation for store leadership
-4. Use a formal, professional tone
-5. Assign 1 to 5 tags from this fixed list:
-{', '.join(FIXED_TAGS)}
+Incident Details:
+- Description: {description}
+- Location: {location}
+- Timestamp: {timestamp}
 
-IMPORTANT: Use the actual date, time, and location provided below. Do not use placeholders like [Date] or [Store Location].
-
-{time_context}{location_context}
-Do not add tags not found in the list. Avoid sensationalism or vague language. Be direct and use proper terminology.
-
-Respond strictly in this JSON format:
-{{
-  "summary": "<formal summary with recommendation>",
-  "tags": ["Tag1", "Tag2", ...]
-}}
-
-Incident Description:
-'{description}'
+Respond in this exact format:
+SUMMARY: [your summary here]
+TAGS: [tag1, tag2, tag3, etc.]
 """
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3
+            temperature=0.3,
+            max_tokens=200
         )
-
-        # 🧠 Extract content and clean JSON
-        content = response.choices[0].message.content.strip()
-        match = re.search(r"\{.*\}", content, re.DOTALL)
-        if not match:
-            raise ValueError("No JSON found in GPT response")
-
-        json_text = match.group(0)
-        result = json.loads(json_text)
-
-        summary = result.get("summary", "").strip()
-        tags = [tag for tag in result.get("tags", []) if tag in FIXED_TAGS]
-
-        if not tags:
-            tags = ["Other"]
-
-        return summary, ", ".join(tags)
-
+        
+        content = response.choices[0].message.content
+        if content is None:
+            logger.error("Empty response from GPT")
+            return f"Incident reported at {location} on {timestamp}. {description[:100]}...", ["incident", "security"]
+        
+        content = content.strip()
+        
+        # Parse response
+        lines = content.split('\n')
+        summary = ""
+        tags = []
+        
+        for line in lines:
+            if line.startswith('SUMMARY:'):
+                summary = line.replace('SUMMARY:', '').strip()
+            elif line.startswith('TAGS:'):
+                tags_str = line.replace('TAGS:', '').strip()
+                tags = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
+        
+        return summary, tags
+        
     except Exception as e:
-        print(f"❌ GPT tag/summary generation failed: {e}")
-        return f"GPT error: {e}", "Other"
+        logger.error(f"GPT tag/summary generation failed: {e}")
+        # Fallback response
+        return f"Incident reported at {location} on {timestamp}. {description[:100]}...", ["incident", "security"]
 
 def classify_severity(summary: str) -> int:
     prompt = f"""
@@ -101,9 +98,13 @@ Respond ONLY with a single integer from 1 to 5.
             messages=[{"role": "user", "content": prompt}],
             temperature=0
         )
-        return int(response.choices[0].message.content.strip())
+        content = response.choices[0].message.content
+        if content is None:
+            logger.error("Empty response from GPT for severity classification")
+            return 3  # Default fallback
+        return int(content.strip())
     except Exception as e:
-        print(f"⚠️ Severity scoring failed: {e}")
+        logger.warning(f"Severity scoring failed: {e}")
         return 3  # Default fallback
 
 

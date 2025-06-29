@@ -107,10 +107,10 @@ def create_checkout_session_route(
             db.commit()
         
         # Create checkout session
-        success_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:8501')}/__billing_success"
-        cancel_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:8501')}/__billing_cancel"
+        success_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:8501')}/_billing_success_page"
+        cancel_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:8501')}/_billing_cancel_page"
         
-        checkout_url = create_checkout_session(
+        checkout_session = create_checkout_session(
             current_user.stripe_customer_id,
             plan_id,
             success_url,
@@ -118,7 +118,7 @@ def create_checkout_session_route(
         )
         
         return {
-            "checkout_url": checkout_url,
+            "checkout_url": checkout_session,
             "message": "Checkout session created successfully"
         }
     except Exception as e:
