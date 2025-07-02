@@ -1,114 +1,156 @@
-📌 **Legal Notice**  
+📋 **Legal Notice**  
 This project, including all code and content, is the property of Security Flaw Solutions LLC. Unauthorized use or distribution is prohibited.
 
-# SaaS Engine Template
+# IncidentIQ (A.I.ncident) — SaaS Incident Management Platform
 
-A complete, modular SaaS engine built with FastAPI and Streamlit. Includes Stripe billing, role-based access control, and production-ready architecture.
-
-## 🚀 Features
-
-### **Core Engine:**
-- ✅ **FastAPI Backend** - Production-ready API
-- ✅ **Streamlit Frontend** - Modern dashboard
-- ✅ **Stripe Billing** - Complete subscription system
-- ✅ **Role-Based Access** - Admin/Staff/Employee roles
-- ✅ **Database Migrations** - Alembic with SQLAlchemy
-- ✅ **File Upload** - Image and document handling
-- ✅ **PDF Generation** - Automated report creation
-- ✅ **Admin Bypass** - Premium admin access
-
-### **Security & Production:**
-- ✅ **JWT Authentication** - Secure token-based auth
-- ✅ **Input Validation** - Comprehensive data validation
-- ✅ **Error Handling** - Production-grade error management
-- ✅ **CORS Configuration** - Cross-origin resource sharing
-- ✅ **Environment Config** - Secure configuration management
-
-## 🛠️ Tech Stack
-
-- **Backend:** FastAPI, SQLAlchemy, Alembic, Stripe
-- **Frontend:** Streamlit, Plotly, Pandas
-- **Database:** SQLite (easily switchable to PostgreSQL)
-- **Authentication:** JWT with role-based permissions
-- **Billing:** Stripe subscriptions and webhooks
-- **File Storage:** Local storage (easily switchable to S3)
-
-## 🎯 Use Cases
-
-This engine can be adapted for:
-- **CRM Systems** - Customer relationship management
-- **Project Management** - Task and project tracking
-- **Inventory Systems** - Product and stock management
-- **Booking Systems** - Appointment and reservation management
-- **Content Management** - Document and media management
-- **Analytics Dashboards** - Data visualization and reporting
-- **Support Ticket Systems** - Customer support tracking
-- **HR Management** - Employee and HR processes
-
-## 🚀 Quick Start
-
-1. **Clone the repository**
-2. **Set up environment:**
-   ```bash
-   cd backend
-   cp .env.example .env
-   # Add your Stripe keys to .env
-   ```
-3. **Install dependencies:**
-   ```bash
-   # Backend
-   cd backend && pip install -r requirements.txt
-   
-   # Frontend
-   cd frontend && pip install -r requirements.txt
-   ```
-4. **Run the application:**
-   ```bash
-   # Backend
-   cd backend && uvicorn main:app --reload
-   
-   # Frontend
-   cd frontend && streamlit run dashboard.py
-   ```
-
-## 🔧 Customization
-
-### **Change the Domain:**
-1. Update models in `backend/models.py`
-2. Modify schemas in `backend/schemas.py`
-3. Update routes in `backend/routes/`
-4. Customize frontend in `frontend/`
-
-### **Add New Features:**
-1. Create new models and migrations
-2. Add API routes
-3. Update frontend components
-4. Test thoroughly
-
-## 💰 Monetization Ready
-
-- **Stripe Integration** - Complete subscription billing
-- **Role-Based Pricing** - Different plans for different users
-- **Usage Tracking** - Monitor feature usage
-- **Admin Oversight** - Manage subscriptions and users
-
-## 📄 License
-
-© 2025 Security Flaw Solutions LLC. All rights reserved.
-
-This SaaS Engine Template is proprietary software developed and owned by Security Flaw Solutions LLC. Unauthorized use, distribution, or modification is prohibited.
-
-This software is proprietary and confidential. Unauthorized copying or distribution is prohibited.
-
-You may not modify, distribute, sublicense, or reuse this code without explicit written permission.
-
-© 2025 Security Flaw Solutions LLC. All rights reserved.
-
-## 🤝 Support
-
-For customization and support, contact the developer.
-@sfshkhalsa@gmail.com
+A production-ready, modular SaaS platform for incident management, built with FastAPI (backend), Streamlit (frontend), PostgreSQL, and Stripe. Includes robust RBAC, PDF reporting, file uploads, and subscription billing.
 
 ---
 
-**Ready to build your next SaaS in hours, not months!** 🚀
+## 🚀 Features
+- **FastAPI Backend** — Secure, scalable REST API
+- **Streamlit Frontend** — Modern, interactive dashboard
+- **PostgreSQL Database** — Production-grade relational DB
+- **Stripe Billing** — Subscription management & webhooks
+- **Role-Based Access** — Admin, Staff, Employee
+- **PDF Generation** — Automated incident reports
+- **File Uploads** — Secure image/document handling
+- **Comprehensive Validation & Error Handling**
+- **Production-Ready Config & Logging**
+
+---
+
+## 🏁 Quick Start (Local Development)
+
+### 1. **Clone the Repository**
+```bash
+git clone <your-repo-url>
+cd IncidentIQ_Demo
+```
+
+### 2. **Set Up PostgreSQL Locally**
+```bash
+# Install PostgreSQL (if not already installed)
+# macOS: brew install postgresql
+# Ubuntu: sudo apt-get install postgresql
+# Windows: Use the official installer
+
+# Start PostgreSQL service
+# macOS: brew services start postgresql
+# Ubuntu: sudo service postgresql start
+
+# Create database and user
+psql postgres
+# In psql shell:
+CREATE DATABASE incidentiq_db;
+CREATE USER incidentiq_user WITH PASSWORD 'yourpassword';
+GRANT ALL PRIVILEGES ON DATABASE incidentiq_db TO incidentiq_user;
+\q
+```
+
+### 3. **Configure Environment Variables**
+```bash
+cd backend
+cp env_example.txt .env
+# Edit .env and set:
+# DATABASE_URL=postgresql://incidentiq_user:yourpassword@localhost:5432/incidentiq_db
+# (Fill in all other required secrets: Stripe, OpenAI, etc.)
+```
+
+### 4. **Install Dependencies**
+```bash
+# Backend
+cd backend
+pip install -r requirements.txt
+
+# Frontend
+cd ../frontend
+pip install -r requirements.txt
+```
+
+### 5. **Run Database Migrations**
+```bash
+cd ../backend
+alembic upgrade head
+```
+
+### 6. **Seed the Database (Optional)**
+```bash
+python init_db.py
+```
+
+### 7. **Run the Application**
+```bash
+# Backend (FastAPI)
+uvicorn main:app --reload
+
+# Frontend (Streamlit)
+cd ../frontend
+streamlit run dashboard.py
+```
+
+---
+
+## 🏭 Production Deployment
+- Set `ENVIRONMENT=production` and `DEBUG=false` in `.env`
+- Use a secure, production PostgreSQL instance
+- Set strong secrets for `SECRET_KEY`, Stripe, and OpenAI
+- Configure CORS and email settings as needed
+- Use a process manager (e.g., Gunicorn, systemd) for backend
+- Use HTTPS in production
+- See `PRODUCTION_DEPLOYMENT.md` for advanced deployment
+
+---
+
+## 🧑‍💻 Handoff & Ownership
+- All code, data, and configuration are now ready for transfer
+- `.env` contains all secrets and environment-specific settings (never commit this file)
+- See `PERFORMANCE_NOTES.md` for scaling and optimization
+- See `SECURITY_AUDIT_REPORT.md` for security best practices
+- All migration/test scripts are included in `backend/`
+- For questions, contact the original developer (see Support)
+- **Please review the [Terms of Sale](TERMS_OF_SALE.md) before completing your purchase.**
+
+---
+
+## 🧪 Testing
+- Run all backend tests:
+  ```bash
+  cd backend
+  pip install -r requirements-test.txt
+  python run_tests.py
+  ```
+- Coverage reports are generated in `backend/htmlcov/`
+
+---
+
+## 🛠️ Troubleshooting
+- **401 Unauthorized:** Ensure users exist in PostgreSQL (migrate from SQLite if needed)
+- **DB Connection Errors:** Check `DATABASE_URL` and that PostgreSQL is running
+- **Migrations Fail:** Ensure Alembic is configured for PostgreSQL and DB is empty/clean
+- **Stripe/OpenAI Issues:** Double-check API keys in `.env`
+- **Frontend Not Loading:** Ensure Streamlit is running and CORS is configured
+
+---
+
+## Terms of Sale
+By purchasing, you agree to the [Terms of Sale](TERMS_OF_SALE.md), which outline final sale, warranty, intellectual property, and buyer responsibilities.
+
+---
+
+## 📄 License
+© 2025 Security Flaw Solutions LLC. All rights reserved.
+
+This software is proprietary and confidential. Unauthorized copying, distribution, or modification is prohibited.
+
+Use of this software is also subject to the [Terms of Sale](TERMS_OF_SALE.md).
+
+---
+
+## 🤝 Support
+For customization, support, or handoff questions, contact:
+- **Email:** sfshkhalsa@gmail.com
+
+---
+
+**Ready for handoff. Build, scale, and monetize with confidence!** 🚀

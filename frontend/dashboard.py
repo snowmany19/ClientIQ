@@ -8,9 +8,19 @@ from streamlit_extras.let_it_rain import rain
 from streamlit.components.v1 import iframe
 from PIL import Image
 import os
+import base64
+import time
 
 # ✅ MUST be first Streamlit call
 st.set_page_config(page_title="A.I.ncident📊 - AI Incident Management Dashboard", layout="wide")
+
+# --- ROBUST LOGO PATH ---
+LOGO_PATH = os.path.join(os.path.dirname(__file__), "static", "images", "ai_logo.png")
+
+def get_base64_logo(path):
+    with open(path, "rb") as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
 
 from components.filters import apply_filters
 from components.charts import render_charts
@@ -32,6 +42,28 @@ if "current_page" not in st.session_state:
     st.session_state.current_page = 0
 if "pagination_info" not in st.session_state:
     st.session_state.pagination_info = None
+if "show_rain_animation" not in st.session_state:
+    st.session_state.show_rain_animation = False
+if "rain_start_time" not in st.session_state:
+    st.session_state.rain_start_time = None
+
+# --- LOGO IN SIDEBAR ---
+with st.sidebar:
+    st.image(LOGO_PATH, width=40)
+
+# -----------------------------------
+# 🔐 Logout Function
+# -----------------------------------
+def logout():
+    """Clear session state and return to login."""
+    st.session_state.token = None
+    st.session_state.user = None
+    st.session_state.accessible_stores = None
+    st.session_state.current_page = 0
+    st.session_state.pagination_info = None
+    st.session_state.show_rain_animation = False
+    st.session_state.rain_start_time = None
+    st.rerun()
 
 # -----------------------------------
 # 📥 Fetch Incidents with Pagination
@@ -69,6 +101,8 @@ def handle_incident_fetch_error(error_msg: str):
 # 🔐 Login Flow
 # -----------------------------------
 if not st.session_state.token:
+    # Large logo above login form
+    st.image(LOGO_PATH, width=180)
     st.title("🔐 A.I.ncident📊 - AI Incident Management Dashboard Login")
 
     with st.form("login_form"):
@@ -147,9 +181,20 @@ else:
 # -----------------------------------
 # 🎨 Dashboard Header
 # -----------------------------------
-st.title("📊 A.I.ncident📊 - AI Incident Management Dashboard")
-st.caption(f"🕒 Last updated: {datetime.now().strftime('%A, %B %d, %Y at %I:%M %p')}")
-st.caption(f"👤 Logged in as **{user['username']}** ({user_role.capitalize()})")
+# --- LOGO AND TITLE IN A BANNER AT TOP OF DASHBOARD ---
+if st.session_state.token:
+    logo_b64 = get_base64_logo(LOGO_PATH)
+    st.markdown(
+        f'''
+        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; margin-top: 1rem;">
+            <img src="data:image/png;base64,{logo_b64}" width="180" style="margin-right: 32px;"/>
+            <h1 style="margin: 0; font-size: 2.5rem;">A.I.ncident - AI Incident Management Dashboard</h1>
+        </div>
+        ''',
+        unsafe_allow_html=True
+    )
+    st.caption(f"🕒 Last updated: {datetime.now().strftime('%A, %B %d, %Y at %I:%M %p')}")
+    st.caption(f"👤 Logged in as **{user['username']}** ({user_role.capitalize()})")
 
 # 🏬 Display store assignment
 if user.get('store'):
@@ -298,63 +343,78 @@ if can_submit_incidents:
         st.write("DEBUG: Token before incident submit:", st.session_state.get("token"))
         with st.spinner("Submitting..."):
             token = st.session_state.get("token")
-            res = submit_incident(token, description, store_name, location, offender, file)
+            if token and store_name:  # Add null checks
+                res = submit_incident(token, description, store_name, location, offender, file)
 
-            if res and res.status_code == 200:
-                result = res.json()
-                st.success("✅ Incident submitted!")
-                rain(emoji="📄", font_size=54, falling_speed=5, animation_length="infinite")
+                if res and res.status_code == 200:
+                    result = res.json()
+                    st.success("✅ Incident submitted!")
+                    
+                    # Start rain animation with 2-second duration
+                    st.session_state.show_rain_animation = True
+                    st.session_state.rain_start_time = time.time()
+                    rain(emoji="📄", font_size=54, falling_speed=5, animation_length="infinite")
 
-                st.markdown(f"**📝 Summary:** {result.get('summary', 'N/A')}")
-                st.markdown(f"**🏷️ Tags:** {result.get('tags', 'N/A')}")
-                st.markdown(f"**🔥 Severity:** {result.get('severity', 'N/A')}")
-                st.markdown(f"**👤 Reported By:** {result.get('reported_by', 'N/A')}")
+                    st.markdown(f"**📝 Summary:** {result.get('summary', 'N/A')}")
+                    st.markdown(f"**🏷️ Tags:** {result.get('tags', 'N/A')}")
+                    st.markdown(f"**🔥 Severity:** {result.get('severity', 'N/A')}")
+                    st.markdown(f"**👤 Reported By:** {result.get('reported_by', 'N/A')}")
 
-                pdf_url = f"http://localhost:8000/static/reports/{result.get('pdf_path', '').split('/')[-1]}"
-                try:
-                    pdf_res = requests.get(pdf_url)
-                    if pdf_res.status_code == 200:
-                        st.markdown("### 👀 PDF Preview")
-                        # Use st.download_button for PDF instead of iframe (Chrome blocks local PDFs)
-                        st.download_button(
-                            label="📄 Download Incident PDF",
-                            data=pdf_res.content,
-                            file_name=result.get("pdf_path", "incident.pdf").split("/")[-1],
-                            mime="application/pdf"
-                        )
-                        st.info("💡 PDF preview is disabled for security. Click the download button above to view the report.")
-                    else:
-                        st.warning("⚠️ PDF not found.")
-                except Exception as e:
-                    st.error(f"PDF fetch failed: {e}")
-            else:
-                # Handle different error types
-                if res is None:
-                    st.error("❌ Failed to connect to server. Please check your connection.")
-                elif res.status_code == 400:
+                    pdf_url = f"http://localhost:8000/static/reports/{result.get('pdf_path', '').split('/')[-1]}"
                     try:
-                        error_data = res.json()
-                        st.error(f"❌ Validation Error: {error_data.get('detail', 'Invalid data provided')}")
-                    except:
-                        st.error("❌ Invalid data provided. Please check your input.")
-                elif res.status_code == 403:
-                    st.error("❌ Access denied. You can only submit incidents for your assigned store.")
-                elif res.status_code == 401:
-                    st.error("❌ Authentication required. Please log in again.")
-                    st.session_state.token = None
-                    st.rerun()
-                elif res.status_code == 402:
-                    st.error("❌ Payment required. Please subscribe to continue using A.I.ncident📊 - AI Incident Management Dashboard.")
-                    st.info("Redirecting to billing page...")
-                    st.switch_page("pages/billing.py")
-                elif res.status_code >= 500:
-                    st.error("❌ Server error. Please try again later.")
+                        pdf_res = requests.get(pdf_url)
+                        if pdf_res.status_code == 200:
+                            st.markdown("### 👀 PDF Preview")
+                            # Use st.download_button for PDF instead of iframe (Chrome blocks local PDFs)
+                            st.download_button(
+                                label="📄 Download Incident PDF",
+                                data=pdf_res.content,
+                                file_name=result.get("pdf_path", "incident.pdf").split("/")[-1],
+                                mime="application/pdf"
+                            )
+                            st.info("💡 PDF preview is disabled for security. Click the download button above to view the report.")
+                        else:
+                            st.warning("⚠️ PDF not found.")
+                    except Exception as e:
+                        st.error(f"PDF fetch failed: {e}")
                 else:
-                    st.error(f"❌ Failed to submit incident. Status: {res.status_code}")
-                    try:
-                        st.json(res.json())
-                    except:
-                        st.text(res.text)
+                    # Handle different error types
+                    if res is None:
+                        st.error("❌ Failed to connect to server. Please check your connection.")
+                    elif res.status_code == 400:
+                        try:
+                            error_data = res.json()
+                            st.error(f"❌ Validation Error: {error_data.get('detail', 'Invalid data provided')}")
+                        except:
+                            st.error("❌ Invalid data provided. Please check your input.")
+                    elif res.status_code == 403:
+                        st.error("❌ Access denied. You can only submit incidents for your assigned store.")
+                    elif res.status_code == 401:
+                        st.error("❌ Authentication required. Please log in again.")
+                        st.session_state.token = None
+                        st.rerun()
+                    elif res.status_code == 402:
+                        st.error("❌ Payment required. Please subscribe to continue using A.I.ncident📊 - AI Incident Management Dashboard.")
+                        st.info("Redirecting to billing page...")
+                        st.switch_page("pages/billing.py")
+                    elif res.status_code >= 500:
+                        st.error("❌ Server error. Please try again later.")
+                    else:
+                        st.error(f"❌ Failed to submit incident. Status: {res.status_code}")
+                        try:
+                            st.json(res.json())
+                        except:
+                            st.text(res.text)
+            else:
+                st.error("❌ Missing authentication token or store information.")
+
+    # Check if rain animation should be stopped (after 2 seconds)
+    if st.session_state.show_rain_animation and st.session_state.rain_start_time:
+        elapsed_time = time.time() - st.session_state.rain_start_time
+        if elapsed_time >= 2.0:  # Stop after 2 seconds
+            st.session_state.show_rain_animation = False
+            st.session_state.rain_start_time = None
+            st.rerun()  # Refresh to stop animation
 
     if submitted and res and res.status_code == 200:
         # Clear cache and refresh data
@@ -369,9 +429,21 @@ with st.sidebar:
         st.session_state.pagination_info = None
         st.rerun()
 
-# Sidebar navigation
+# Sidebar navigation and logout
 with st.sidebar:
     st.title("🚨 A.I.ncident📊 - AI Incident Management Dashboard")
+    
+    # User info section
+    st.markdown("---")
+    st.markdown(f"**👤 {user['username']}**")
+    st.markdown(f"**🔑 {user_role.capitalize()}**")
+    
+    # Logout button
+    if st.button("🚪 Logout", type="primary"):
+        logout()
+    
+    st.markdown("---")
+    
     nav_options = ["Dashboard", "Report Incident"]
     if user_role in ["admin", "staff"]:
         nav_options.append("Billing")
