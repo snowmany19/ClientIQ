@@ -1,25 +1,30 @@
-# Terms of Sale – A.I.ncident
+Terms of Sale – A.I.ncident  
+Copyright (c) 2025 Security Flaw Solutions LLC
 
-By purchasing this software, the buyer agrees to the following terms:
+By purchasing this software, the buyer (“Licensee”) agrees to the following terms:
 
-## 1. Final Sale
-All sales are **final and non-refundable**. The product is delivered as-is, with no obligation for post-sale support or modifications unless explicitly agreed upon in writing prior to the sale.
+1. FINAL SALE  
+All sales are final and non-refundable. The software is delivered as-is, with no obligation for post-sale support, updates, or modifications unless explicitly agreed upon in writing before the sale.
 
-## 2. No Warranty
-This software is sold without warranties or guarantees of any kind. It is provided "as-is" and "as available", and the seller shall not be liable for any damages resulting from its use.
+2. NO WARRANTY  
+This software is sold without warranties or guarantees of any kind. It is provided “as-is” and “as available.” Security Flaw Solutions LLC is not liable for any damages or losses resulting from its use, deployment, or integration.
 
-## 3. Intellectual Property
-The buyer receives a license to use, modify, and commercialize this software for their own purposes. The seller retains rights to the core modular engine and may reuse or resell engine components in future projects.
+3. INTELLECTUAL PROPERTY  
+The Licensee receives a license to use, modify, and commercialize the A.I.ncident software within the agreed vertical.  
+Security Flaw Solutions LLC retains full ownership of the core modular engine and reserves the right to reuse or resell engine components in other verticals or projects.
 
-## 4. Support & Customizations
-Ongoing support, feature additions, and deployment help are **not included** in the sale. However, optional services may be negotiated separately.
+4. SUPPORT & CUSTOMIZATIONS  
+Post-sale support, deployment assistance, custom features, or integrations are not included in the base sale.  
+Optional services may be offered by Security Flaw Solutions LLC for an additional fee if negotiated separately.
 
-## 5. Buyer Responsibility
-The buyer is responsible for:
-- Setting up their own hosting environment
-- Adding their own API keys (e.g., Stripe, GPT)
-- Modifying business-specific logic such as prompts or store logic
+5. BUYER RESPONSIBILITY  
+The Licensee is solely responsible for:
+
+- Hosting and deployment  
+- Providing and managing their own API keys (e.g., Stripe, OpenAI)  
+- Adapting prompts, branding, and business-specific logic as needed  
 
 ---
 
-**By completing the purchase, the buyer confirms they have read and agree to these terms.** 
+By completing the purchase, the Licensee confirms they have read, understood, and agreed to these terms.
+
