@@ -88,7 +88,7 @@ def render_incident_table(df: pd.DataFrame):
     columns_to_show = [c for c in ['Incident ID', 'Time', 'Tags', 'Severity', 'Location', 'Description', 'Summary', 'Reported By'] if c in display_df.columns]
     st.markdown("### 📋 Incident Log")
     # Always style Severity column
-    styled_df = display_df[columns_to_show].style.applymap(color_severity, subset=['Severity'])
+    styled_df = display_df[columns_to_show].style.map(color_severity, subset=['Severity'])
     st.dataframe(styled_df, use_container_width=True, hide_index=True)
     # Row selection via selectbox
     incident_ids = display_df['Incident ID'].tolist()
