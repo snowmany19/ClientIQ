@@ -101,12 +101,13 @@ def handle_incident_fetch_error(error_msg: str):
 # 🔐 Login Flow
 # -----------------------------------
 if not st.session_state.token:
-    # Centered and larger logo above login form
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.image(LOGO_PATH, width=250)
-    
-    st.title("A.I.ncident - AI Incident Management Dashboard Login")
+    # Centered logo and title above login form
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <img src="data:image/png;base64,{}" width="250" style="margin-bottom: 1rem;">
+        <h1 style="margin: 0; font-size: 2rem;">A.I.ncident - AI Incident Management Dashboard Login</h1>
+    </div>
+    """.format(get_base64_logo(LOGO_PATH)), unsafe_allow_html=True)
 
     with st.form("login_form"):
         username = st.text_input("Username")
