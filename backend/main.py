@@ -17,6 +17,7 @@ from database import engine, Base
 from core.config import get_settings
 from utils.logger import setup_logging, get_logger, log_api_request, log_error
 from utils.rate_limiter import RateLimiter, rate_limit_middleware, get_client_ip
+from utils.exceptions import custom_exception_handler, IncidentIQException
 
 # Get settings
 settings = get_settings()
@@ -76,12 +77,7 @@ app.middleware("http")(rate_limit_middleware(rate_limiter))
 # 🌐 CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8501",  # Streamlit default port
-        "http://127.0.0.1:8501",  # Alternative localhost
-        "http://localhost:3000",  # React default (if using React frontend)
-        "http://127.0.0.1:3000",  # Alternative React localhost
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -89,6 +85,9 @@ app.add_middleware(
 
 # 📂 Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# 🚨 Add custom exception handler
+app.add_exception_handler(Exception, custom_exception_handler)
 
 # 📊 Request Logging Middleware
 @app.middleware("http")
