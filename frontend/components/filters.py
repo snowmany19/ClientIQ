@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 
@@ -7,19 +6,19 @@ def apply_filters(incident_df: pd.DataFrame) -> pd.DataFrame:
         st.warning("No incident data available for filtering.")
         return incident_df
 
-    st.sidebar.header("🔍 Filter Incidents")
+    st.sidebar.header("Filter Incidents")
 
-    # 💣 Optional: Clear filters button
-    if st.sidebar.button("🔄 Clear All Filters"):
+    # Optional: Clear filters button
+    if st.sidebar.button("Clear All Filters"):
         st.session_state["filter_tags"] = []
         st.session_state["filter_severity"] = []
         st.session_state["filter_location"] = []
 
-    # 🕒 Ensure timestamp is datetime
+    # Ensure timestamp is datetime
     if not pd.api.types.is_datetime64_any_dtype(incident_df['timestamp']):
         incident_df['timestamp'] = pd.to_datetime(incident_df['timestamp'], errors='coerce')
 
-    # 🗓 Date range (default to full range)
+    # Date range (default to full range)
     min_date = incident_df['timestamp'].min().date()
     max_date = incident_df['timestamp'].max().date()
     date_range = st.sidebar.date_input(
@@ -29,7 +28,7 @@ def apply_filters(incident_df: pd.DataFrame) -> pd.DataFrame:
         max_value=max_date
     )
 
-    # 🏷 Normalize tags
+    # Normalize tags
     def parse_tags(t):
         if isinstance(t, list):
             return t
@@ -39,12 +38,12 @@ def apply_filters(incident_df: pd.DataFrame) -> pd.DataFrame:
 
     incident_df['tags'] = incident_df['tags'].apply(parse_tags)
 
-    # 🎯 Filter options
+    # Filter options
     all_tags = sorted({tag for tag_list in incident_df['tags'] for tag in tag_list})
     severity_options = sorted(incident_df['severity'].dropna().unique().tolist())
     location_options = sorted(incident_df['location'].dropna().unique().tolist())
 
-    # 🧠 Initialize session state once (no default= needed)
+    # Initialize session state once (no default= needed)
     if "filter_tags" not in st.session_state:
         st.session_state["filter_tags"] = []
     if "filter_severity" not in st.session_state:
@@ -52,12 +51,12 @@ def apply_filters(incident_df: pd.DataFrame) -> pd.DataFrame:
     if "filter_location" not in st.session_state:
         st.session_state["filter_location"] = []
 
-    # 🎛️ Filters using session state
+    # Filters using session state
     selected_tags = st.sidebar.multiselect("Tags", options=all_tags, key="filter_tags")
     selected_severity = st.sidebar.multiselect("Severity", options=severity_options, key="filter_severity")
     selected_locations = st.sidebar.multiselect("Location", options=location_options, key="filter_location")
 
-    # 🧮 Start with full DataFrame
+    # Start with full DataFrame
     filtered_df = incident_df.copy()
 
     if date_range and len(date_range) == 2:
@@ -71,11 +70,17 @@ def apply_filters(incident_df: pd.DataFrame) -> pd.DataFrame:
         filtered_df = filtered_df[
             filtered_df['tags'].apply(lambda tags: any(tag in tags for tag in selected_tags))
         ]
+        if not isinstance(filtered_df, pd.DataFrame):
+            filtered_df = pd.DataFrame(filtered_df)
 
     if selected_severity:
         filtered_df = filtered_df[filtered_df['severity'].isin(selected_severity)]
+        if not isinstance(filtered_df, pd.DataFrame):
+            filtered_df = pd.DataFrame(filtered_df)
 
     if selected_locations:
         filtered_df = filtered_df[filtered_df['location'].isin(selected_locations)]
+        if not isinstance(filtered_df, pd.DataFrame):
+            filtered_df = pd.DataFrame(filtered_df)
 
     return filtered_df

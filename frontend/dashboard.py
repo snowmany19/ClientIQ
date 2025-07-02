@@ -12,7 +12,7 @@ import base64
 import time
 
 # ✅ MUST be first Streamlit call
-st.set_page_config(page_title="A.I.ncident📊 - AI Incident Management Dashboard", layout="wide")
+st.set_page_config(page_title="A.I.ncident - AI Incident Management Dashboard", layout="wide")
 
 # --- ROBUST LOGO PATH ---
 LOGO_PATH = os.path.join(os.path.dirname(__file__), "static", "images", "ai_logo.png")
@@ -91,11 +91,11 @@ def fetch_incidents_with_pagination(token: str, page: int = 0, limit: int = 50):
 def handle_incident_fetch_error(error_msg: str):
     """Handle incident fetch errors, including 402 Payment Required."""
     if "Payment required" in error_msg or "402" in error_msg:
-        st.error("❌ Payment required. Please subscribe to continue using A.I.ncident📊 - AI Incident Management Dashboard.")
+        st.error("Payment required. Please subscribe to continue using A.I.ncident - AI Incident Management Dashboard.")
         st.info("Redirecting to billing page...")
         st.switch_page("pages/billing.py")
     else:
-        st.error(f"❌ {error_msg}")
+        st.error(f"{error_msg}")
 
 # -----------------------------------
 # 🔐 Login Flow
@@ -103,21 +103,21 @@ def handle_incident_fetch_error(error_msg: str):
 if not st.session_state.token:
     # Large logo above login form
     st.image(LOGO_PATH, width=180)
-    st.title("🔐 A.I.ncident📊 - AI Incident Management Dashboard Login")
+    st.title("A.I.ncident - AI Incident Management Dashboard Login")
 
     with st.form("login_form"):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Login")
+        submitted = st.form_submit_button("Login", type="primary")
 
         if submitted:
             token = get_jwt_token(username, password)
             if token:
                 st.session_state.token = token
-                st.success("✅ Logged in successfully!")
+                st.success("Logged in successfully!")
                 st.rerun()  # Refresh to load user info
             else:
-                st.error("❌ Login failed. Please check your username and password.")
+                st.error("Login failed. Please check your username and password.")
 
     st.stop()
 
@@ -135,9 +135,9 @@ if st.session_state.token and st.session_state.user is None:
         if user_role == "admin":
             st.session_state.admin_bypass = True
         elif subscription_status not in ["active", "trialing"]:
-            st.warning("⚠️ Active subscription required to access A.I.ncident📊 - AI Incident Management Dashboard.")
+            st.warning("Active subscription required to access A.I.ncident - AI Incident Management Dashboard.")
             st.info("Please subscribe to continue using the platform.")
-            if st.button("💳 Go to Billing"):
+            if st.button("Go to Billing", type="primary"):
                 st.switch_page("pages/billing.py")
             st.stop()
 
@@ -193,8 +193,8 @@ if st.session_state.token:
         ''',
         unsafe_allow_html=True
     )
-    st.caption(f"🕒 Last updated: {datetime.now().strftime('%A, %B %d, %Y at %I:%M %p')}")
-    st.caption(f"👤 Logged in as **{user['username']}** ({user_role.capitalize()})")
+    st.caption(f"Last updated: {datetime.now().strftime('%A, %B %d, %Y at %I:%M %p')}")
+    st.caption(f"Logged in as **{user['username']}** ({user_role.capitalize()})")
 
 # 🏬 Display store assignment
 if user.get('store'):
@@ -329,14 +329,14 @@ if can_submit_incidents:
                 else:
                     store_name = st.text_input("🏬 Store")
                 
-                location = st.text_input("📍 Location")
-                offender = st.text_input("🧍 Offender (if known)")
+                location = st.text_input("Location")
+                offender = st.text_input("Offender (if known)")
 
             with col2:
-                description = st.text_area("📝 Description", height=170)
-                file = st.file_uploader("📷 Upload Evidence Photo (JPG, PNG)", type=["jpg", "jpeg", "png"])
+                description = st.text_area("Description", height=170)
+                file = st.file_uploader("Upload Evidence Photo (JPG, PNG)", type=["jpg", "jpeg", "png"])
 
-            submitted = st.form_submit_button("Submit Incident")
+            submitted = st.form_submit_button("Submit Incident", type="primary")
 
     if submitted:
         with st.spinner("Submitting..."):
@@ -346,23 +346,23 @@ if can_submit_incidents:
 
                 if res and res.status_code == 200:
                     result = res.json()
-                    st.success("✅ Incident submitted!")
+                    st.success("Incident submitted successfully!")
                     
                     # Start rain animation with 2-second duration
                     st.session_state.show_rain_animation = True
                     st.session_state.rain_start_time = time.time()
-                    rain(emoji="📄", font_size=54, falling_speed=5, animation_length="infinite")
+                    rain(emoji="📄", font_size=54, falling_speed=5, animation_length="2")
 
-                    st.markdown(f"**📝 Summary:** {result.get('summary', 'N/A')}")
-                    st.markdown(f"**🏷️ Tags:** {result.get('tags', 'N/A')}")
-                    st.markdown(f"**🔥 Severity:** {result.get('severity', 'N/A')}")
-                    st.markdown(f"**👤 Reported By:** {result.get('reported_by', 'N/A')}")
+                    st.markdown(f"**Summary:** {result.get('summary', 'N/A')}")
+                    st.markdown(f"**Tags:** {result.get('tags', 'N/A')}")
+                    st.markdown(f"**Severity:** {result.get('severity', 'N/A')}")
+                    st.markdown(f"**Reported By:** {result.get('reported_by', 'N/A')}")
 
                     pdf_url = f"http://localhost:8000/static/reports/{result.get('pdf_path', '').split('/')[-1]}"
                     try:
                         pdf_res = requests.get(pdf_url)
                         if pdf_res.status_code == 200:
-                            st.markdown("### 👀 PDF Preview")
+                            st.markdown("### PDF Preview")
                             # Use st.download_button for PDF instead of iframe (Chrome blocks local PDFs)
                             st.download_button(
                                 label="📄 Download Incident PDF",
@@ -370,49 +370,43 @@ if can_submit_incidents:
                                 file_name=result.get("pdf_path", "incident.pdf").split("/")[-1],
                                 mime="application/pdf"
                             )
-                            st.info("💡 PDF preview is disabled for security. Click the download button above to view the report.")
+                            st.info("PDF preview is disabled for security. Click the download button above to view the report.")
                         else:
-                            st.warning("⚠️ PDF not found.")
+                            st.warning("PDF not found.")
                     except Exception as e:
                         st.error(f"PDF fetch failed: {e}")
                 else:
                     # Handle different error types
                     if res is None:
-                        st.error("❌ Failed to connect to server. Please check your connection.")
+                        st.error("Failed to connect to server. Please check your connection.")
                     elif res.status_code == 400:
                         try:
                             error_data = res.json()
-                            st.error(f"❌ Validation Error: {error_data.get('detail', 'Invalid data provided')}")
+                            st.error(f"Validation Error: {error_data.get('detail', 'Invalid data provided')}")
                         except:
-                            st.error("❌ Invalid data provided. Please check your input.")
+                            st.error("Invalid data provided. Please check your input.")
                     elif res.status_code == 403:
-                        st.error("❌ Access denied. You can only submit incidents for your assigned store.")
+                        st.error("Access denied. You can only submit incidents for your assigned store.")
                     elif res.status_code == 401:
-                        st.error("❌ Authentication required. Please log in again.")
+                        st.error("Authentication required. Please log in again.")
                         st.session_state.token = None
                         st.rerun()
                     elif res.status_code == 402:
-                        st.error("❌ Payment required. Please subscribe to continue using A.I.ncident📊 - AI Incident Management Dashboard.")
+                        st.error("Payment required. Please subscribe to continue using A.I.ncident - AI Incident Management Dashboard.")
                         st.info("Redirecting to billing page...")
                         st.switch_page("pages/billing.py")
                     elif res.status_code >= 500:
-                        st.error("❌ Server error. Please try again later.")
+                        st.error("Server error. Please try again later.")
                     else:
-                        st.error(f"❌ Failed to submit incident. Status: {res.status_code}")
+                        st.error(f"Failed to submit incident. Status: {res.status_code}")
                         try:
                             st.json(res.json())
                         except:
                             st.text(res.text)
             else:
-                st.error("❌ Missing authentication token or store information.")
+                st.error("Missing authentication token or store information.")
 
-    # Check if rain animation should be stopped (after 2 seconds)
-    if st.session_state.show_rain_animation and st.session_state.rain_start_time:
-        elapsed_time = time.time() - st.session_state.rain_start_time
-        if elapsed_time >= 2.0:  # Stop after 2 seconds
-            st.session_state.show_rain_animation = False
-            st.session_state.rain_start_time = None
-            st.rerun()  # Refresh to stop animation
+    # Animation will stop automatically after 2 seconds
 
     if submitted and res and res.status_code == 200:
         # Clear cache and refresh data
@@ -429,7 +423,7 @@ with st.sidebar:
 
 # Sidebar navigation and logout
 with st.sidebar:
-    st.title("🚨 A.I.ncident📊 - AI Incident Management Dashboard")
+    st.title("A.I.ncident - AI Incident Management Dashboard")
     
     # User info section
     st.markdown("---")
