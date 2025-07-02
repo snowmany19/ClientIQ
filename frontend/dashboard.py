@@ -339,8 +339,6 @@ if can_submit_incidents:
             submitted = st.form_submit_button("Submit Incident")
 
     if submitted:
-        # DEBUG: Print the token before submitting
-        st.write("DEBUG: Token before incident submit:", st.session_state.get("token"))
         with st.spinner("Submitting..."):
             token = st.session_state.get("token")
             if token and store_name:  # Add null checks
