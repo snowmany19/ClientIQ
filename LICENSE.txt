@@ -1,11 +1,57 @@
-© 2025 Security Flaw Solutions LLC. All rights reserved.
-A.I.ncident📊 - AI Incident Management Dashboard is a proprietary product developed and owned by Security Flaw Solutions LLC.
-Unauthorized use, distribution, or modification is prohibited.
+Copyright (c) 2025 Security Flaw Solutions LLC
 
-This software is proprietary and confidential.
-Unauthorized copying or distribution is prohibited.
-Developed by Security Flaw Solutions LLC.
+This license governs the use and resale of the A.I.ncident software application.
 
-You may not modify, distribute, sublicense, or reuse this code without explicit written permission.
+---
 
-© 2025 Security Flaw Solutions LLC. All rights reserved.
+## 1. Grant of License
+
+Upon purchase, the buyer (“Licensee”) is granted a **perpetual, non-exclusive, transferable license** to:
+
+- Use, deploy, and modify the A.I.ncident codebase for commercial or internal purposes
+- Rebrand, customize, and operate the software in their chosen business vertical
+- Sell or operate the platform as their own product within that vertical
+
+---
+
+## 2. Brand & Vertical Ownership
+
+The Licensee has exclusive rights to the **A.I.ncident name, logo, and visual branding** delivered at the time of sale.
+
+The seller will not:
+- Launch, sell, or market a competing product using the same name or targeting the same industry vertical
+- Interfere with the Licensee's use or resale of the product within that vertical
+
+---
+
+## 3. Modular Engine IP Retention
+
+The seller retains full rights to the **underlying modular engine and architecture** used to build A.I.ncident.
+
+This means:
+- The seller may reuse core components, logic, and structure to create and sell different SaaS products in other industries or use cases
+- The buyer may not extract and resell the core engine itself as a SaaS template, framework, or general-purpose starter kit
+
+---
+
+## 4. No Warranty & Final Sale
+
+This product is provided **“as-is” without warranty** of any kind.
+
+- The sale is **final and non-refundable**
+- The seller is not liable for issues arising from usage, hosting, integration, or third-party services (e.g., Stripe, OpenAI)
+- Ongoing support or development is not included unless separately agreed in writing
+
+---
+
+## 5. Optional Paid Services
+
+Deployment help, feature extensions, or additional consulting may be offered at the seller’s discretion after sale, and are not included in this license.
+
+---
+
+## 6. Acceptance
+
+By completing the purchase and using the codebase, the buyer confirms they understand and accept these terms.
+
+

@@ -1,18 +1,26 @@
 # ========================================
-# 🔒 A.I.NCIDENT PRODUCTION ENVIRONMENT
+# 🚀 IncidentIQ (A.I.ncident) ENVIRONMENT EXAMPLE
 # ========================================
 # Copy this file to .env and update with your actual values
 # NEVER commit .env files to version control
+#
+# Quick Start:
+# 1. Set DATABASE_URL for PostgreSQL (see below)
+# 2. Fill in all required secrets (Stripe, OpenAI, etc.)
+# 3. Set ENVIRONMENT=production for production deployment
+# 4. Run: alembic upgrade head
+# 5. Run: python init_db.py (to seed demo data)
+# ========================================
 
 # ========================================
 # 🗄️ DATABASE CONFIGURATION
 # ========================================
-DATABASE_URL=sqlite:///./a_incident.db
-# For production, use PostgreSQL:
-# DATABASE_URL=postgresql://user:password@localhost/a_incident
+DATABASE_URL=postgresql://incidentiq_user:yourpassword@localhost:5432/incidentiq_db
+# For local testing only (not recommended for production):
+# DATABASE_URL=sqlite:///./incidentiq.db
 
 # ========================================
-# 🔐 JWT CONFIGURATION
+# 🔑 JWT CONFIGURATION
 # ========================================
 # Generate a secure secret: python -c "import secrets; print(secrets.token_urlsafe(32))"
 SECRET_KEY=your-32-character-secret-key-here-make-it-long-and-random
@@ -20,7 +28,7 @@ ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
 # ========================================
-# 🤖 OPENAI CONFIGURATION
+# 🤖 OPENAI CONFIGURATION (Optional)
 # ========================================
 OPENAI_API_KEY=your-openai-api-key-here
 
@@ -59,7 +67,7 @@ RATE_LIMIT_REQUESTS=100
 RATE_LIMIT_WINDOW=60
 
 # ========================================
-# 🔧 ENVIRONMENT SETTINGS
+# 🛠️ ENVIRONMENT SETTINGS
 # ========================================
 ENVIRONMENT=development
 DEBUG=false
