@@ -1,7 +1,7 @@
 # Incident routes
 # routes/incidents.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List, Optional
@@ -13,10 +13,18 @@ from utils.image_uploader import save_image
 from utils.pdf import generate_pdf
 from utils.summary_generator import summarize_incident, classify_severity
 from utils.email_alerts import send_email_alert
+from utils.logger import get_logger
+from utils.validation import InputValidator, ValidationException
 import tzlocal
 import os
+from fastapi.responses import FileResponse
+import shutil
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
+REPORTS_DIR = "static/reports"
+
+# Initialize logger
+logger = get_logger("incidents")
 
 # 🔐 RBAC: Check if user can access store data
 def can_access_store(user: User, store_name: str, db: Session) -> bool:
@@ -48,51 +56,18 @@ def create_incident(
     current_user: User = Depends(get_current_user),
     _: User = Depends(require_active_subscription),
 ):
-    # 🔍 Input Validation
-    if not description or len(description.strip()) < 10:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Description must be at least 10 characters long."
-        )
-    
-    if len(description) > 2000:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Description must be less than 2000 characters."
-        )
-    
-    # Basic validation - just ensure fields are not empty
-    if not store or not store.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Store name is required."
-        )
-    
-    if not location or not location.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Location is required."
-        )
-    
-    # File validation
-    if file:
-        # Check file size (max 10MB)
-        if file.size and file.size > 10 * 1024 * 1024:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File size must be less than 10MB."
-            )
-        
-        # Check file type
-        allowed_types = ["image/jpeg", "image/jpg", "image/png"]
-        if file.content_type not in allowed_types:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Only JPG and PNG files are allowed."
-            )
-    
+    # 🔍 Input Validation (centralized)
+    try:
+        validated_description = InputValidator.validate_incident_description(description)
+        validated_store = InputValidator.validate_store_name(store)
+        validated_location = InputValidator.validate_location(location)
+        validated_offender = InputValidator.validate_offender(offender)
+        InputValidator.validate_file_upload(file)
+    except ValidationException as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
     # 🔐 RBAC: Check if user can submit incidents for this store
-    if not can_access_store(current_user, store, db):
+    if not can_access_store(current_user, validated_store, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access denied. You can only submit incidents for your assigned store."
@@ -115,7 +90,7 @@ def create_incident(
     local_tz = tzlocal.get_localzone()
     current_time = datetime.now(local_tz).strftime("%B %d, %Y at %I:%M %p %Z")
     
-    summary, tags = summarize_incident(description, store_location, current_time)
+    summary, tags = summarize_incident(validated_description, store_location, current_time)
     severity = classify_severity(summary)
 
     incident_data = {
@@ -125,7 +100,7 @@ def create_incident(
         "location": location,
         "offender": offender,
         "tags": tags,
-        "description": description,
+        "description": validated_description,
         "summary": summary,
         "image_path": image_path,
         "username": current_user.username
@@ -134,7 +109,7 @@ def create_incident(
     pdf_path = generate_pdf(incident_data)
 
     incident = Incident(
-        description=description,
+        description=validated_description,
         summary=summary,
         tags=",".join(tags) if isinstance(tags, list) else tags,
         severity=severity,
@@ -149,6 +124,15 @@ def create_incident(
     db.commit()
     db.refresh(incident)
 
+    # --- PDF RENAMING PATCH ---
+    if os.path.exists(pdf_path):
+        new_pdf_name = f"incident_{incident.id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
+        new_pdf_path = os.path.join(REPORTS_DIR, new_pdf_name)
+        shutil.move(pdf_path, new_pdf_path)
+        setattr(incident, 'pdf_path', str(new_pdf_path))
+        db.commit()
+    # --- END PATCH ---
+
     return {
         "id": incident.id,
         "timestamp": incident.timestamp,
@@ -159,7 +143,7 @@ def create_incident(
         "store_name": incident.store_name,
         "location": incident.location,
         "offender": incident.offender,
-        "pdf_path": pdf_path,
+        "pdf_path": incident.pdf_path,
         "image_url": incident.image_url,
         "user_id": incident.user_id,
         "reported_by": current_user.username,
@@ -197,7 +181,7 @@ def get_all_incidents(
         # Employees and staff can only see incidents from their store
         if current_user.store_id is not None:
             user_store = db.query(Store).filter(Store.id == current_user.store_id).first()
-            if user_store:
+            if user_store is not None:
                 # Filter by store number (e.g., "Store #066") instead of store name
                 user_store_number = f"Store #{user_store.id:03d}"
                 query = db.query(Incident).filter(Incident.store_name == user_store_number)
@@ -357,9 +341,9 @@ def delete_incident(
     
     try:
         # Delete associated files if they exist
-        if incident.image_url and os.path.exists(incident.image_url):
+        if incident.image_url and isinstance(incident.image_url, str) and os.path.exists(incident.image_url):
             os.remove(incident.image_url)
-        if incident.pdf_path and os.path.exists(incident.pdf_path):
+        if incident.pdf_path and isinstance(incident.pdf_path, str) and os.path.exists(incident.pdf_path):
             os.remove(incident.pdf_path)
         
         # Delete incident from database
@@ -370,7 +354,49 @@ def delete_incident(
         
     except Exception as e:
         db.rollback()
+        logger.error(f"Failed to delete incident {incident_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete incident: {str(e)}"
         )
+
+@router.api_route("/api/incident/{incident_id}/pdf", methods=["GET", "HEAD"])
+def get_incident_pdf(
+    incident_id: int,
+    last_incident_id: int = Query(None),
+    user: User = Depends(get_current_user),
+    db = Depends(get_db),
+):
+    # Fetch incident from DB
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    # RBAC logic - use the same logic as other routes
+    if user.role == "employee":
+        if last_incident_id is None or incident_id != last_incident_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        if incident.user_id != user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif user.role == "staff":
+        # Use the same store access logic as other routes
+        if not can_access_store(user, str(incident.store_name), db):
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif user.role == "admin":
+        pass  # Full access
+    else:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # File path logic
+    filename_prefix = f"incident_{incident_id}_"
+    files = [f for f in os.listdir(REPORTS_DIR) if f.startswith(filename_prefix) and f.endswith(".pdf")]
+    if not files:
+        raise HTTPException(status_code=404, detail="PDF not found")
+    file_path = os.path.join(REPORTS_DIR, files[0])
+
+    # Security: Only serve .pdf, sanitize (check only the filename)
+    filename = os.path.basename(file_path)
+    if not filename.endswith(".pdf") or ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid file path")
+
+    return FileResponse(file_path, media_type="application/pdf", filename=filename)

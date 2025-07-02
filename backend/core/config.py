@@ -44,6 +44,22 @@ class Settings:
         self.log_level = os.getenv("LOG_LEVEL", "INFO")
         self.log_file = os.getenv("LOG_FILE", "logs/app.log")
         
+        # 🌐 CORS Configuration
+        self.frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8501")
+        self.cors_origins = os.getenv("CORS_ORIGINS", "").split(",") if os.getenv("CORS_ORIGINS") else []
+        
+        # Default CORS origins for development
+        if not self.cors_origins:
+            self.cors_origins = [
+                "http://localhost:8501",  # Streamlit default
+                "http://127.0.0.1:8501",  # Alternative localhost
+                "http://localhost:3000",  # React default
+                "http://127.0.0.1:3000",  # Alternative React localhost
+            ]
+            # Add frontend URL if it's not already in the list
+            if self.frontend_url not in self.cors_origins:
+                self.cors_origins.append(self.frontend_url)
+        
         # Validate critical settings
         self._validate_settings()
     

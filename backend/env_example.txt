@@ -28,6 +28,9 @@ OPENAI_API_KEY=your-openai-api-key-here
 # 🌐 CORS CONFIGURATION
 # ========================================
 FRONTEND_URL=http://localhost:8501
+# Comma-separated list of allowed origins for CORS
+# Example: CORS_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
+CORS_ORIGINS=
 
 # ========================================
 # 💳 STRIPE CONFIGURATION
@@ -82,6 +85,4 @@ EMAIL_PASSWORD=
 # ENVIRONMENT=production
 # DEBUG=false
 # Use a proper database (PostgreSQL)
-# Set up proper CORS origins
-# Configure email settings
-# Set up monitoring and logging 
+# Configure email settings (Optional)

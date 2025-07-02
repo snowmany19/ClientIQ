@@ -25,6 +25,7 @@ from utils.auth_utils import (
 from utils.email_alerts import send_email_alert
 from utils.logger import get_logger, log_security_event
 from core.config import get_settings
+from utils.validation import InputValidator, ValidationException
 
 # Get settings and logger
 settings = get_settings()
@@ -143,23 +144,30 @@ def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get
 # 🆕 POST /register — Create a new user
 @router.post("/register", response_model=UserInfo)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    # Validate password strength
-    is_valid, errors = validate_password(user.password)
+    # Centralized input validation
+    try:
+        validated_username = InputValidator.validate_username(user.username)
+        validated_email = InputValidator.validate_email(user.email) if user.email else None
+        validated_password = InputValidator.validate_password(user.password)
+    except ValidationException as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
+    is_valid, errors = validate_password(validated_password)
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Password validation failed: {'; '.join(errors)}"
         )
     
-    db_user = db.query(User).filter(User.username == user.username).first()
+    db_user = db.query(User).filter(User.username == validated_username).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
 
-    hashed_pw = get_password_hash(user.password)
+    hashed_pw = get_password_hash(validated_password)
     new_user = User(
-        username=user.username,
+        username=validated_username,
         hashed_password=hashed_pw,
-        email=user.email,
+        email=validated_email,
         role=user.role or "employee",
         store_id=user.store_id
     )
@@ -191,6 +199,14 @@ def create_user_with_permissions(
     - Employees cannot create users
     - New users inherit creator's plan and subscription status
     """
+    # Centralized input validation
+    try:
+        validated_username = InputValidator.validate_username(user.username)
+        validated_email = InputValidator.validate_email(user.email) if user.email else None
+        validated_password = InputValidator.validate_password(user.password)
+    except ValidationException as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
     # 🔐 Check if current user can create users
     if current_user.role == "employee":
         raise HTTPException(
@@ -218,23 +234,23 @@ def create_user_with_permissions(
         )
     
     # 🔍 Check if username/email already exists
-    existing_user = db.query(User).filter(User.username == user.username).first()
-    if existing_user:
+    existing_user = db.query(User).filter(User.username == validated_username).first()
+    if existing_user is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already exists."
         )
     
-    if user.email:
-        existing_email = db.query(User).filter(User.email == user.email).first()
-        if existing_email:
+    if validated_email is not None:
+        existing_email = db.query(User).filter(User.email == validated_email).first()
+        if existing_email is not None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered."
             )
     
     # Validate password strength
-    is_valid, errors = validate_password(user.password)
+    is_valid, errors = validate_password(validated_password)
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -251,11 +267,11 @@ def create_user_with_permissions(
             )
     
     # 🏗️ Create the new user, inheriting plan/subscription from creator
-    hashed_password = get_password_hash(user.password)
+    hashed_password = get_password_hash(validated_password)
     new_user = User(
-        username=user.username,
+        username=validated_username,
         hashed_password=hashed_password,
-        email=user.email,
+        email=validated_email,
         role=user.role,
         store_id=user.store_id,
         plan_id=current_user.plan_id,
@@ -268,10 +284,7 @@ def create_user_with_permissions(
         db.refresh(new_user)
         
         # Log user creation
-        logger.info("User created", 
-                   created_by=str(current_user.id), 
-                   new_user_id=str(new_user.id), 
-                   role=new_user.role)
+        logger.info(f"User created: created_by={current_user.id}, new_user_id={new_user.id}, role={new_user.role}")
         
         return {
             "id": new_user.id,
@@ -283,7 +296,7 @@ def create_user_with_permissions(
         }
     except Exception as e:
         db.rollback()
-        logger.error("Failed to create user", error=str(e), created_by=str(current_user.id))
+        logger.error(f"Failed to create user: {str(e)} (created_by={current_user.id})", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create user: {str(e)}"
@@ -480,16 +493,16 @@ def edit_user(
     # Update user fields
     if user_update.username != user_to_edit.username:
         existing = db.query(User).filter(User.username == user_update.username).first()
-        if existing:
+        if existing is not None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Username already exists."
             )
         user_to_edit.username = user_update.username
     
-    if user_update.email and user_update.email != user_to_edit.email:
+    if user_update.email is not None and user_update.email != user_to_edit.email:
         existing = db.query(User).filter(User.email == user_update.email).first()
-        if existing:
+        if existing is not None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already exists."
@@ -500,7 +513,7 @@ def edit_user(
     user_to_edit.store_id = user_update.store_id
     
     # Update password if provided
-    if user_update.password and len(user_update.password) >= 6:
+    if user_update.password is not None and len(user_update.password) >= 6:
         user_to_edit.hashed_password = get_password_hash(user_update.password)
     
     try:

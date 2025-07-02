@@ -26,8 +26,8 @@ def summarize_incident(description: str, location: str, timestamp: str) -> Tuple
     Returns (summary, tags_list)
     """
     prompt = f"""
-You are an incident management AI assistant. Analyze the following security incident and provide:
-1. A concise summary (2-3 sentences)
+Summarize this incident for an internal asset protection report. Include a concise description of what happened, when and where it occurred, involved individuals, and the likely cause. Add a closing recommendation for store leadership. Use a formal, professional tone.
+1. A detailed summary (3-15 sentences)
 2. Relevant tags (choose ONLY from the allowed tags list)
 
 Incident Details:
@@ -39,7 +39,7 @@ ALLOWED TAGS (choose only from these):
 {', '.join(FIXED_TAGS)}
 
 Rules:
-- Choose 1-3 most relevant tags from the allowed list above
+- Choose 1-5 most relevant tags from the allowed list above
 - Do NOT create new tags
 - Do NOT use tags not in the allowed list
 - Separate multiple tags with commas
@@ -53,8 +53,8 @@ TAGS: [tag1, tag2, tag3]
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=200
+            temperature=0.4,
+            max_tokens=500
         )
         
         content = response.choices[0].message.content
