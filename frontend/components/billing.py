@@ -15,9 +15,6 @@ def get_auth_headers():
         st.error("❌ No authentication token found. Please log in.")
         return None  # Don't stop, just return None
     
-    # Debug: Show token info (first 20 chars for security)
-    st.write(f"🔑 Token found: {token[:20]}...")
-    
     return {"Authorization": f"Bearer {token}"}
 
 def display_subscription_plans():
