@@ -101,8 +101,11 @@ def handle_incident_fetch_error(error_msg: str):
 # 🔐 Login Flow
 # -----------------------------------
 if not st.session_state.token:
-    # Large logo above login form
-    st.image(LOGO_PATH, width=180)
+    # Centered and larger logo above login form
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.image(LOGO_PATH, width=250)
+    
     st.title("A.I.ncident - AI Incident Management Dashboard Login")
 
     with st.form("login_form"):
@@ -118,6 +121,19 @@ if not st.session_state.token:
                 st.rerun()  # Refresh to load user info
             else:
                 st.error("Login failed. Please check your username and password.")
+
+    # Forgot password button below the form
+    st.markdown("---")
+    if st.button("Forgot Password?", type="secondary"):
+        st.info("Please contact your administrator to reset your password.")
+    
+    # Security statement at the bottom
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; padding: 20px; color: #6c757d; font-size: 14px;">
+        <strong>Secure AI-powered reporting. GDPR-aware. Modular backend. No PII stored by default.</strong>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.stop()
 
