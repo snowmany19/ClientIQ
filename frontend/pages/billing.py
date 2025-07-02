@@ -5,7 +5,7 @@ from components.billing import billing_page
 
 # Page configuration
 st.set_page_config(
-    page_title="Billing - IncidentIQ",
+    page_title="Billing - A.I.ncident",
     page_icon="💳",
     layout="wide"
 )
