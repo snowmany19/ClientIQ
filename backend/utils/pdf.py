@@ -4,6 +4,11 @@ import os
 
 class IncidentPDF(FPDF):
     def header(self):
+        # Add logo at the top center
+        logo_path = os.path.join(os.path.dirname(__file__), "..", "static", "images", "ai_logo.png")
+        if os.path.exists(logo_path):
+            self.image(logo_path, x=80, y=10, w=50)  # Centered, adjust w as needed
+            self.ln(35)  # Space below logo
         self.set_font("Arial", "B", 14)
         self.cell(0, 10, "Incident Report", border=False, ln=True, align="C")
         self.ln(10)
