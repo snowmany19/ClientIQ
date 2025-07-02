@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 import requests
 from datetime import datetime
-from streamlit_extras.let_it_rain import rain
+
 from streamlit.components.v1 import iframe
 from PIL import Image
 import os
@@ -42,10 +42,7 @@ if "current_page" not in st.session_state:
     st.session_state.current_page = 0
 if "pagination_info" not in st.session_state:
     st.session_state.pagination_info = None
-if "show_rain_animation" not in st.session_state:
-    st.session_state.show_rain_animation = False
-if "rain_start_time" not in st.session_state:
-    st.session_state.rain_start_time = None
+
 
 # --- LOGO IN SIDEBAR ---
 with st.sidebar:
@@ -61,8 +58,7 @@ def logout():
     st.session_state.accessible_stores = None
     st.session_state.current_page = 0
     st.session_state.pagination_info = None
-    st.session_state.show_rain_animation = False
-    st.session_state.rain_start_time = None
+
     st.rerun()
 
 # -----------------------------------
@@ -364,11 +360,6 @@ if can_submit_incidents:
                 if res and res.status_code == 200:
                     result = res.json()
                     st.success("Incident submitted successfully!")
-                    
-                    # Start rain animation with 2-second duration
-                    st.session_state.show_rain_animation = True
-                    st.session_state.rain_start_time = time.time()
-                    rain(emoji="📄", font_size=54, falling_speed=5, animation_length="2")
 
                     st.markdown(f"**Summary:** {result.get('summary', 'N/A')}")
                     st.markdown(f"**Tags:** {result.get('tags', 'N/A')}")
@@ -423,7 +414,7 @@ if can_submit_incidents:
             else:
                 st.error("Missing authentication token or store information.")
 
-    # Animation will stop automatically after 2 seconds
+
 
     if submitted and res and res.status_code == 200:
         # Clear cache and refresh data
