@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
+from utils.api import export_incidents_csv
 
 API_URL = "http://localhost:8000/api"
 
@@ -24,7 +25,7 @@ def color_severity(val):
         color = "white"
     return f"background-color: {color}; font-weight: bold;"
 
-def render_incident_table(df: pd.DataFrame):
+def render_incident_table(df: pd.DataFrame, user, token):
     if df.empty:
         st.info("No incidents to display.")
         return

@@ -25,7 +25,7 @@ def get_base64_logo(path):
 from components.filters import apply_filters
 from components.charts import render_charts
 from components.incident_table import render_incident_table
-from utils.api import get_jwt_token, get_user_info, submit_incident, get_accessible_stores, get_incidents_with_pagination, get_pagination_info
+from utils.api import get_jwt_token, get_user_info, submit_incident, get_accessible_stores, get_incidents_with_pagination, get_pagination_info, export_incidents_csv
 
 API_URL = "http://localhost:8000/api"
 
@@ -277,7 +277,7 @@ if can_view_dashboard:
             
             st.caption(f"📄 Showing page {current_page} of {pages} (Total: {total} incidents)")
         
-        render_incident_table(filtered_df)
+        render_incident_table(filtered_df, user, st.session_state.token)
         
         # Pagination controls
         if st.session_state.pagination_info and st.session_state.pagination_info.get("pages", 0) > 1:
@@ -306,6 +306,12 @@ if can_view_dashboard:
                     st.session_state.current_page = pages - 1
                     st.session_state.pagination_info = None  # Reset to refetch
                     st.rerun()
+
+    # After all sidebar filters are defined:
+    if user and user.get("role") in ["admin", "staff"]:
+        st.sidebar.markdown("---")
+        if st.sidebar.button("Export Trends and Log", key="export_csv_btn_sidebar"):
+            export_incidents_csv(st.session_state.token, filtered_df)
 else:
     st.info("👤 **Employee View**: You can submit incidents but cannot view the dashboard. Contact your manager for access to incident reports and analytics.")
 
