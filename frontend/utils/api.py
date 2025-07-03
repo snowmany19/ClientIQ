@@ -1,6 +1,7 @@
 import requests
 import streamlit as st
 from typing import Optional, Dict, Any, List
+from urllib.parse import urlencode
 
 API_URL = "http://localhost:8000/api"
 
@@ -192,4 +193,26 @@ def get_pagination_info(token: str) -> Optional[Dict[str, Any]]:
     except Exception as e:
         st.error(f"Pagination info fetch failed: Unexpected error - {str(e)}")
         return None
+
+def export_incidents_csv(token, filters):
+    """
+    Export incidents as CSV using the current filters.
+    Downloads the CSV file to the user's browser.
+    """
+    base_url = st.secrets.get("BACKEND_URL", "http://localhost:8000")
+    endpoint = f"{base_url}/api/incidents/export-csv"
+    headers = {"Authorization": f"Bearer {token}", "accept": "text/csv"}
+    params = urlencode(filters)
+    url = f"{endpoint}?{params}" if params else endpoint
+    response = requests.get(url, headers=headers, stream=True)
+    if response.status_code == 200:
+        # Use Streamlit to trigger download
+        st.download_button(
+            label="Download CSV",
+            data=response.content,
+            file_name="incidents_export.csv",
+            mime="text/csv"
+        )
+    else:
+        st.error(f"Failed to export CSV: {response.status_code} {response.text}")
 
