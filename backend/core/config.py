@@ -65,14 +65,24 @@ class Settings:
     
     def _validate_settings(self):
         """Validate critical security settings."""
-        # Generate secure secret if not provided
+        # Enhanced JWT secret validation and management
         if not self.jwt_secret_key or self.jwt_secret_key == "super-secret-key" or len(self.jwt_secret_key) < 32:
             if self.environment == "production":
-                raise ValueError("JWT secret key must be at least 32 characters and not the default value")
+                raise ValueError("JWT secret key must be at least 32 characters and not the default value. Use: openssl rand -hex 32")
             else:
                 # In development, generate a secure secret automatically
                 self.jwt_secret_key = secrets.token_urlsafe(32)
                 print("⚠️  WARNING: Generated secure JWT secret for development. Set SECRET_KEY in .env for production.")
+        
+        # Additional security validations
+        if self.environment == "production":
+            # Ensure all critical secrets are set in production
+            if not self.openai_api_key:
+                raise ValueError("OPENAI_API_KEY must be set in production")
+            if not self.stripe_secret_key:
+                raise ValueError("STRIPE_SECRET_KEY must be set in production")
+            if not self.stripe_webhook_secret:
+                raise ValueError("STRIPE_WEBHOOK_SECRET must be set in production")
         
         if self.environment not in ['development', 'staging', 'production']:
             raise ValueError("Environment must be development, staging, or production")
