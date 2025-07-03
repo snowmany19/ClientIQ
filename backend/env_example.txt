@@ -15,37 +15,36 @@
 # ========================================
 # 🗄️ DATABASE CONFIGURATION
 # ========================================
-DATABASE_URL=postgresql://incidentiq_user:yourpassword@localhost:5432/incidentiq_db
+DATABASE_URL=postgresql://aincident_user:your_secure_password@localhost/aincident_prod
 # For local testing only (not recommended for production):
 # DATABASE_URL=sqlite:///./incidentiq.db
 
 # ========================================
 # 🔑 JWT CONFIGURATION
 # ========================================
-# Generate a secure secret: python -c "import secrets; print(secrets.token_urlsafe(32))"
-SECRET_KEY=your-32-character-secret-key-here-make-it-long-and-random
+# Generate a secure secret: openssl rand -hex 32
+SECRET_KEY=751e453a4f7a98b8a5572826aba8e417bb3ef359673a1469e706ac4e2cdc9c44
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
 # ========================================
 # 🤖 OPENAI CONFIGURATION (Optional)
 # ========================================
-OPENAI_API_KEY=your-openai-api-key-here
+OPENAI_API_KEY=your_openai_api_key_here
 
 # ========================================
 # 🌐 CORS CONFIGURATION
 # ========================================
-FRONTEND_URL=http://localhost:8501
+FRONTEND_URL=https://yourdomain.com
 # Comma-separated list of allowed origins for CORS
-# Example: CORS_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
-CORS_ORIGINS=
+CORS_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
 
 # ========================================
 # 💳 STRIPE CONFIGURATION
 # ========================================
-STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key_here
+STRIPE_SECRET_KEY=your_stripe_secret_key_here
 STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key_here
-STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret_here
 
 # Stripe Price IDs (create these in your Stripe dashboard)
 STRIPE_BASIC_PRICE_ID=price_basic_plan_id_here
@@ -69,7 +68,7 @@ RATE_LIMIT_WINDOW=60
 # ========================================
 # 🛠️ ENVIRONMENT SETTINGS
 # ========================================
-ENVIRONMENT=development
+ENVIRONMENT=production
 DEBUG=false
 
 # ========================================
@@ -81,10 +80,10 @@ LOG_FILE=logs/app.log
 # ========================================
 # 📧 EMAIL SETTINGS (OPTIONAL)
 # ========================================
-EMAIL_HOST=
+EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_USERNAME=
-EMAIL_PASSWORD=
+EMAIL_USERNAME=your_email@gmail.com
+EMAIL_PASSWORD=your_app_password
 
 # ========================================
 # 🚀 PRODUCTION DEPLOYMENT
