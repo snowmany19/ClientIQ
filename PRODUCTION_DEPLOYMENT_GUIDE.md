@@ -4,14 +4,20 @@
 
 This guide provides comprehensive instructions for deploying the A.I.ncident AI Incident Management Dashboard to production environments. The system consists of a FastAPI backend and Streamlit frontend with PostgreSQL database and Stripe billing integration.
 
+**Quick Start Options:**
+- 🚀 **VPS Deployment** (Traditional) - Full control, manual setup
+- ☁️ **Cloud Platform Deployment** - Automated, managed services
+- 🐳 **Docker Deployment** - Containerized, portable
+- 🏗️ **CI/CD Pipeline** - Automated deployment
+
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
-2. [System Architecture](#system-architecture)
-3. [Environment Setup](#environment-setup)
-4. [Database Setup](#database-setup)
-5. [Backend Deployment](#backend-deployment)
-6. [Frontend Deployment](#frontend-deployment)
+2. [Deployment Options](#deployment-options)
+3. [VPS Deployment (Traditional)](#vps-deployment-traditional)
+4. [Cloud Platform Deployment](#cloud-platform-deployment)
+5. [Docker Deployment](#docker-deployment)
+6. [CI/CD Pipeline Setup](#cicd-pipeline-setup)
 7. [SSL/TLS Configuration](#ssltls-configuration)
 8. [Monitoring & Logging](#monitoring--logging)
 9. [Backup & Recovery](#backup--recovery)
@@ -52,7 +58,38 @@ curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
 ```
 
-## System Architecture
+## Deployment Options
+
+### 🚀 VPS Deployment (Traditional)
+**Best for**: Full control, custom configurations, cost optimization
+**Time**: 2-4 hours
+**Difficulty**: Intermediate
+
+### ☁️ Cloud Platform Deployment
+**Best for**: Quick setup, managed services, scalability
+**Time**: 30-60 minutes
+**Difficulty**: Easy
+
+**Supported Platforms:**
+- **Railway** - Recommended for quick deployment
+- **Render** - Free tier available
+- **Heroku** - Enterprise features
+- **DigitalOcean App Platform** - Simple deployment
+- **AWS Elastic Beanstalk** - Enterprise scale
+
+### 🐳 Docker Deployment
+**Best for**: Consistent environments, easy scaling, microservices
+**Time**: 1-2 hours
+**Difficulty**: Intermediate
+
+### 🏗️ CI/CD Pipeline
+**Best for**: Automated deployments, team development, continuous delivery
+**Time**: 2-3 hours
+**Difficulty**: Advanced
+
+## VPS Deployment (Traditional)
+
+### System Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -67,9 +104,9 @@ sudo apt-get install -y nodejs
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## Environment Setup
+### Environment Setup
 
-### 1. Create Application User
+#### 1. Create Application User
 
 ```bash
 # Create dedicated user for the application
@@ -78,7 +115,7 @@ sudo usermod -aG sudo aincident
 sudo su - aincident
 ```
 
-### 2. Clone Repository
+#### 2. Clone Repository
 
 ```bash
 # Clone the repository
@@ -89,7 +126,7 @@ cd IncidentIQ_Demo
 sudo chown -R aincident:aincident /home/aincident/IncidentIQ_Demo
 ```
 
-### 3. Create Virtual Environments
+#### 3. Create Virtual Environments
 
 ```bash
 # Backend virtual environment
@@ -107,9 +144,9 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## Database Setup
+### Database Setup
 
-### 1. PostgreSQL Configuration
+#### 1. PostgreSQL Configuration
 
 ```bash
 # Switch to postgres user
@@ -123,7 +160,7 @@ ALTER USER aincident_user CREATEDB;
 \q
 ```
 
-### 2. Database Migration
+#### 2. Database Migration
 
 ```bash
 cd backend
@@ -139,9 +176,9 @@ alembic upgrade head
 python init_db.py
 ```
 
-## Backend Deployment
+### Backend Deployment
 
-### 1. Environment Configuration
+#### 1. Environment Configuration
 
 Create `/home/aincident/IncidentIQ_Demo/backend/.env`:
 
@@ -180,7 +217,7 @@ EMAIL_USERNAME=your_email@gmail.com
 EMAIL_PASSWORD=your_app_password
 ```
 
-### 2. Create Systemd Service
+#### 2. Create Systemd Service
 
 Create `/etc/systemd/system/aincident-backend.service`:
 
@@ -205,7 +242,7 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-### 3. Start Backend Service
+#### 3. Start Backend Service
 
 ```bash
 # Enable and start service
@@ -215,9 +252,9 @@ sudo systemctl start aincident-backend
 sudo systemctl status aincident-backend
 ```
 
-## Frontend Deployment
+### Frontend Deployment
 
-### 1. Environment Configuration
+#### 1. Environment Configuration
 
 Create `/home/aincident/IncidentIQ_Demo/frontend/.env`:
 
@@ -234,7 +271,7 @@ STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=true
 STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
 ```
 
-### 2. Create Systemd Service
+#### 2. Create Systemd Service
 
 Create `/etc/systemd/system/aincident-frontend.service`:
 
@@ -259,7 +296,7 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-### 3. Start Frontend Service
+#### 3. Start Frontend Service
 
 ```bash
 # Enable and start service
@@ -267,6 +304,232 @@ sudo systemctl daemon-reload
 sudo systemctl enable aincident-frontend
 sudo systemctl start aincident-frontend
 sudo systemctl status aincident-frontend
+```
+
+## Cloud Platform Deployment
+
+### Railway Deployment (Recommended)
+
+**Time**: 15-30 minutes
+
+#### 1. Prepare Repository
+
+```bash
+# Add Railway configuration
+mkdir .railway
+```
+
+Create `.railway/railway.json`:
+```json
+{
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
+```
+
+#### 2. Deploy to Railway
+
+1. Go to [Railway.app](https://railway.app)
+2. Connect your GitHub repository
+3. Add environment variables:
+   ```
+   DATABASE_URL=postgresql://...
+   SECRET_KEY=your_jwt_secret
+   OPENAI_API_KEY=your_openai_key
+   STRIPE_SECRET_KEY=your_stripe_key
+   ENVIRONMENT=production
+   ```
+4. Deploy automatically
+
+#### 3. Configure Custom Domain
+
+1. Add custom domain in Railway dashboard
+2. Configure DNS records
+3. SSL certificate automatically provisioned
+
+### Render Deployment
+
+**Time**: 20-40 minutes
+
+#### 1. Create Render Service
+
+1. Go to [Render.com](https://render.com)
+2. Create new Web Service
+3. Connect GitHub repository
+4. Configure build settings:
+   - **Build Command**: `pip install -r backend/requirements.txt`
+   - **Start Command**: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
+
+#### 2. Add Environment Variables
+
+```
+DATABASE_URL=postgresql://...
+SECRET_KEY=your_jwt_secret
+OPENAI_API_KEY=your_openai_key
+STRIPE_SECRET_KEY=your_stripe_key
+ENVIRONMENT=production
+```
+
+#### 3. Deploy
+
+Render will automatically deploy and provide a URL.
+
+## Docker Deployment
+
+### 1. Create Dockerfile
+
+Create `Dockerfile` in the root directory:
+
+```dockerfile
+# Multi-stage build for production
+FROM python:3.9-slim as backend
+
+WORKDIR /app
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ .
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+Create `Dockerfile.frontend`:
+
+```dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+COPY frontend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY frontend/ .
+EXPOSE 8501
+
+CMD ["streamlit", "run", "dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
+```
+
+### 2. Create Docker Compose
+
+Create `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: aincident_prod
+      POSTGRES_USER: aincident_user
+      POSTGRES_PASSWORD: your_secure_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://aincident_user:your_secure_password@postgres:5432/aincident_prod
+      - SECRET_KEY=your_jwt_secret
+      - OPENAI_API_KEY=your_openai_key
+      - STRIPE_SECRET_KEY=your_stripe_key
+      - ENVIRONMENT=production
+    depends_on:
+      - postgres
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/static:/app/static
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    ports:
+      - "8501:8501"
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+```
+
+### 3. Deploy with Docker
+
+```bash
+# Build and start services
+docker-compose up -d
+
+# Run database migrations
+docker-compose exec backend alembic upgrade head
+
+# Initialize database
+docker-compose exec backend python init_db.py
+```
+
+## CI/CD Pipeline Setup
+
+### GitHub Actions
+
+Create `.github/workflows/deploy.yml`:
+
+```yaml
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    - name: Install dependencies
+      run: |
+        pip install -r backend/requirements.txt
+        pip install -r frontend/requirements.txt
+    - name: Run tests
+      run: |
+        cd backend && python -m pytest
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Deploy to Railway
+      uses: railway/deploy@v1
+      with:
+        railway_token: ${{ secrets.RAILWAY_TOKEN }}
 ```
 
 ## SSL/TLS Configuration
@@ -404,95 +667,67 @@ Add to `/etc/logrotate.d/aincident`:
 }
 ```
 
-### 2. Health Monitoring
-
-Create `/home/aincident/health_check.sh`:
+### 2. Application Monitoring
 
 ```bash
-#!/bin/bash
+# Install monitoring tools
+sudo apt install htop iotop nethogs
 
-# Backend health check
-if ! curl -f http://localhost:8000/ > /dev/null 2>&1; then
-    echo "Backend is down!" | mail -s "A.I.ncident Backend Alert" admin@yourdomain.com
-    sudo systemctl restart aincident-backend
-fi
-
-# Frontend health check
-if ! curl -f http://localhost:8501/ > /dev/null 2>&1; then
-    echo "Frontend is down!" | mail -s "A.I.ncident Frontend Alert" admin@yourdomain.com
-    sudo systemctl restart aincident-frontend
-fi
-
-# Database health check
-if ! sudo -u postgres pg_isready -d aincident_prod > /dev/null 2>&1; then
-    echo "Database is down!" | mail -s "A.I.ncident Database Alert" admin@yourdomain.com
-fi
+# Monitor system resources
+htop
+iotop
+nethogs
 ```
 
-```bash
-# Make executable and add to crontab
-chmod +x /home/aincident/health_check.sh
-crontab -e
-# Add: */5 * * * * /home/aincident/health_check.sh
+### 3. Database Monitoring
+
+```sql
+-- Monitor database performance
+SELECT * FROM pg_stat_activity;
+SELECT * FROM pg_stat_database;
+SELECT * FROM pg_stat_user_tables;
 ```
 
 ## Backup & Recovery
 
 ### 1. Database Backup
 
-Create `/home/aincident/backup_db.sh`:
+```bash
+# Create backup script
+nano /home/aincident/backup.sh
+```
 
 ```bash
 #!/bin/bash
 
-BACKUP_DIR="/home/aincident/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/aincident_db_$DATE.sql"
+# Database backup
+sudo -u postgres pg_dump aincident_prod > /home/aincident/backups/db_backup_$(date +%Y%m%d_%H%M%S).sql
 
-mkdir -p $BACKUP_DIR
+# File backup
+tar -czf /home/aincident/backups/files_backup_$(date +%Y%m%d_%H%M%S).tar.gz /home/aincident/IncidentIQ_Demo/backend/static/
 
-# Create database backup
-sudo -u postgres pg_dump aincident_prod > $BACKUP_FILE
-
-# Compress backup
-gzip $BACKUP_FILE
-
-# Keep only last 30 days of backups
-find $BACKUP_DIR -name "*.sql.gz" -mtime +30 -delete
-
-# Upload to cloud storage (optional)
-# aws s3 cp $BACKUP_FILE.gz s3://your-backup-bucket/
+# Keep only last 7 days of backups
+find /home/aincident/backups/ -name "*.sql" -mtime +7 -delete
+find /home/aincident/backups/ -name "*.tar.gz" -mtime +7 -delete
 ```
 
-### 2. File Backup
-
-Create `/home/aincident/backup_files.sh`:
+### 2. Automated Backups
 
 ```bash
-#!/bin/bash
-
-BACKUP_DIR="/home/aincident/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/aincident_files_$DATE.tar.gz"
-
-# Backup static files
-tar -czf $BACKUP_FILE -C /home/aincident/IncidentIQ_Demo/backend static/
-
-# Keep only last 30 days of backups
-find $BACKUP_DIR -name "files_*.tar.gz" -mtime +30 -delete
-```
-
-### 3. Automated Backups
-
-```bash
-# Make scripts executable
-chmod +x /home/aincident/backup_*.sh
-
 # Add to crontab
-crontab -e
-# Add:
-# 0 2 * * * /home/aincident/backup_db.sh
-# 0 3 * * * /home/aincident/backup_files.sh
+sudo crontab -e
+
+# Add: 0 2 * * * /home/aincident/backup.sh
+```
+
+### 3. Recovery Procedures
+
+```bash
+# Restore database
+sudo -u postgres psql aincident_prod < backup_file.sql
+
+# Restore files
+tar -xzf backup_file.tar.gz -C /home/aincident/IncidentIQ_Demo/backend/
 ```
 
 ## Security Hardening
@@ -501,11 +736,9 @@ crontab -e
 
 ```bash
 # Configure UFW firewall
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
 sudo ufw allow ssh
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
+sudo ufw allow 80
+sudo ufw allow 443
 sudo ufw enable
 ```
 
@@ -705,5 +938,5 @@ echo "Update completed successfully!"
 
 ---
 
-*Last updated: January 2024*  
-*Version: 1.0.0* 
+*Last updated: July 2025*  
+*Version: 2.0.0* 
