@@ -16,7 +16,8 @@ def color_severity(val):
     elif score == 4:
         color = "#f39c12"  # Orange
     elif score == 3:
-        color = "#f7e967"  # Yellow
+        color = "#FFD600"  # Darker Yellow
+        return f"background-color: {color}; color: black; font-weight: bold; border: 2px solid black;"
     elif score == 2:
         color = "#3498db"  # Blue
     elif score == 1:

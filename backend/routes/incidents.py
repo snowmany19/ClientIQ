@@ -17,8 +17,10 @@ from utils.logger import get_logger
 from utils.validation import InputValidator, ValidationException
 import tzlocal
 import os
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 import shutil
+import csv
+import io
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
 REPORTS_DIR = "static/reports"
@@ -196,11 +198,11 @@ def get_all_incidents(
         return []
     
     # Apply additional filters
-    if store_id:
+    if store_id is not None:
         query = query.filter(Incident.store_id == store_id)
-    if tag:
+    if tag is not None:
         query = query.filter(Incident.tags.ilike(f"%{tag}%"))
-    if offender_id:
+    if offender_id is not None:
         query = query.filter(Incident.offender_id == offender_id)
     
     # Apply pagination
@@ -262,11 +264,11 @@ def get_pagination_info(
         return {"total": 0, "pages": 0}
     
     # Apply additional filters
-    if store_id:
+    if store_id is not None:
         query = query.filter(Incident.store_id == store_id)
-    if tag:
+    if tag is not None:
         query = query.filter(Incident.tags.ilike(f"%{tag}%"))
-    if offender_id:
+    if offender_id is not None:
         query = query.filter(Incident.offender_id == offender_id)
     
     total = query.count()
@@ -274,6 +276,128 @@ def get_pagination_info(
         "total": total,
         "pages": (total + 49) // 50  # 50 items per page
     }
+
+@router.get("/export-csv")
+def export_incidents_csv(
+    skip: int = 0,
+    limit: int = 1000,  # Allow larger export
+    store_id: Optional[int] = None,
+    tag: Optional[str] = None,
+    offender_id: Optional[int] = None,
+    start_date: Optional[str] = None,  # ISO format
+    end_date: Optional[str] = None,    # ISO format
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
+):
+    """
+    Export filtered incidents and graph data as CSV.
+    Only admins and staff can use this endpoint.
+    Staff can only export their own store.
+    """
+    # RBAC enforcement
+    if current_user.role not in ["admin", "staff"]:
+        raise HTTPException(status_code=403, detail="Only admins and staff can export incidents.")
+
+    # Build query with RBAC and filters
+    if current_user.role == "admin":
+        query = db.query(Incident)
+    elif current_user.role == "staff":
+        if current_user.store_id is not None:
+            user_store = db.query(Store).filter(Store.id == current_user.store_id).first()
+            if user_store is not None:
+                user_store_number = f"Store #{user_store.id:03d}"
+                query = db.query(Incident).filter(Incident.store_name == user_store_number)
+            else:
+                return StreamingResponse(io.StringIO("No incidents found."), media_type="text/csv")
+        else:
+            return StreamingResponse(io.StringIO("No incidents found."), media_type="text/csv")
+    else:
+        return StreamingResponse(io.StringIO("No incidents found."), media_type="text/csv")
+
+    # Apply filters
+    if store_id is not None:
+        query = query.filter(Incident.store_id == store_id)
+    if tag is not None:
+        query = query.filter(Incident.tags.ilike(f"%{tag}%"))
+    if offender_id is not None:
+        query = query.filter(Incident.offender_id == offender_id)
+    if start_date is not None:
+        try:
+            from dateutil.parser import parse as parse_date
+            start_dt = parse_date(start_date)
+            query = query.filter(Incident.timestamp >= start_dt)
+        except Exception:
+            pass
+    if end_date is not None:
+        try:
+            from dateutil.parser import parse as parse_date
+            end_dt = parse_date(end_date)
+            query = query.filter(Incident.timestamp <= end_dt)
+        except Exception:
+            pass
+
+    # No pagination for export (or use limit if specified)
+    incidents = query.order_by(Incident.timestamp.desc()).offset(skip).limit(limit).all()
+
+    # Prepare CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write header
+    writer.writerow([
+        "ID", "Timestamp", "Description", "Summary", "Tags", "Severity", "Store Name", "Location", "Offender", "PDF Path", "Image URL", "User ID", "Reported By"
+    ])
+
+    # Write incident rows
+    for incident in incidents:
+        writer.writerow([
+            incident.id,
+            incident.timestamp,
+            incident.description,
+            incident.summary,
+            incident.tags,
+            incident.severity,
+            incident.store_name,
+            incident.location,
+            incident.offender,
+            incident.pdf_path,
+            incident.image_url,
+            incident.user_id,
+            incident.user.username if incident.user else "Unknown"
+        ])
+
+    # --- Graph Data: Add summary rows ---
+    # Example: Incident counts by date and severity
+    from collections import Counter, defaultdict
+    from datetime import datetime
+    
+    # By date (YYYY-MM-DD)
+    date_counts = Counter()
+    severity_counts = Counter()
+    for incident in incidents:
+        date_str = incident.timestamp.strftime("%Y-%m-%d") if isinstance(incident.timestamp, datetime) else str(incident.timestamp)
+        date_counts[date_str] += 1
+        if incident.severity:
+            severity_counts[incident.severity] += 1
+    
+    writer.writerow([])
+    writer.writerow(["--- Incident Counts by Date ---"])
+    writer.writerow(["Date", "Count"])
+    for date, count in sorted(date_counts.items()):
+        writer.writerow([date, count])
+    
+    writer.writerow([])
+    writer.writerow(["--- Incident Counts by Severity ---"])
+    writer.writerow(["Severity", "Count"])
+    for severity, count in severity_counts.items():
+        writer.writerow([severity, count])
+
+    # Reset pointer and return as streaming response
+    output.seek(0)
+    return StreamingResponse(output, media_type="text/csv", headers={
+        "Content-Disposition": f"attachment; filename=incidents_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    })
 
 @router.get("/{incident_id}", response_model=IncidentOut)
 def get_incident_by_id(
