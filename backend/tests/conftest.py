@@ -15,27 +15,29 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from main import app
 from database import get_db, Base
-from models import User, Store, Incident
+from models import User, Store, Incident, Offender
 from utils.auth_utils import get_password_hash, create_access_token
 
 # Test database setup
 @pytest.fixture(scope="session")
 def test_db():
-    """Create a test database."""
-    # Use in-memory SQLite for testing
+    """Create a file-based SQLite test database."""
+    db_path = os.path.join(os.path.dirname(__file__), "test.db")
+    # Remove any existing test DB file before starting
+    if os.path.exists(db_path):
+        os.remove(db_path)
     engine = create_engine(
-        "sqlite:///:memory:",
+        f"sqlite:///{db_path}",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    
     # Create all tables
     Base.metadata.create_all(bind=engine)
-    
-    # Create session factory
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    
-    return engine, TestingSessionLocal
+    yield engine, TestingSessionLocal
+    # Clean up test DB file after tests
+    if os.path.exists(db_path):
+        os.remove(db_path)
 
 @pytest.fixture
 def db_session(test_db):
@@ -49,6 +51,10 @@ def db_session(test_db):
         yield session
     finally:
         session.close()
+        # Clear the database after each test
+        for table in reversed(Base.metadata.sorted_tables):
+            session.execute(table.delete())
+        session.commit()
 
 @pytest.fixture
 def client(db_session):
@@ -67,7 +73,6 @@ def client(db_session):
 def test_store(db_session):
     """Create a test store."""
     store = Store(
-        id=1,
         name="Test Store",
         location="123 Test St, Test City, TC 12345"
     )
@@ -95,7 +100,7 @@ def test_user(db_session, test_store):
 def test_admin(db_session):
     """Create a test admin user."""
     admin = User(
-        username="admin",
+        username="testadmin",
         hashed_password=get_password_hash("admin123"),
         email="admin@example.com",
         role="admin"
@@ -109,7 +114,7 @@ def test_admin(db_session):
 def test_staff(db_session, test_store):
     """Create a test staff user."""
     staff = User(
-        username="staff",
+        username="teststaff",
         hashed_password=get_password_hash("staff123"),
         email="staff@example.com",
         role="staff",
@@ -167,4 +172,17 @@ def create_test_file(content: str = "test content", filename: str = "test.txt"):
 def cleanup_test_files():
     """Clean up any test files created during testing."""
     # This would be implemented based on your file storage strategy
-    pass 
+    pass
+
+@pytest.fixture(scope="session", autouse=True)
+def set_global_db_override(test_db):
+    """Globally override get_db to use the test DB for all tests and background tasks."""
+    engine, TestingSessionLocal = test_db
+    def override_get_db():
+        session = TestingSessionLocal()
+        try:
+            yield session
+        finally:
+            session.close()
+    app.dependency_overrides[get_db] = override_get_db
+    yield 

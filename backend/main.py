@@ -150,9 +150,9 @@ async def verify_schemas():
     except Exception as e:
         logger.warning(f"Could not verify UserInfo schema: {e}")
 
-# 🚀 Startup delay for development
-if settings.environment == "development":
-    import asyncio
-    asyncio.create_task(asyncio.sleep(1))  # Small delay for development
+# 🚀 Startup delay for development (disabled for better performance)
+# if settings.environment == "development":
+#     import asyncio
+#     asyncio.create_task(asyncio.sleep(1))  # Small delay for development
 
 

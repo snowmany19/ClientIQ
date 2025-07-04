@@ -1,10 +1,11 @@
 # models.py — SQLAlchemy models for the A.I.ncident📊 - AI Incident Management Dashboard system
 
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import relationship
 from datetime import datetime
 
-Base = declarative_base()
+# Import Base from database to ensure all models use the same metadata
+from database import Base
 
 # 📝 Incident table
 class Incident(Base):
