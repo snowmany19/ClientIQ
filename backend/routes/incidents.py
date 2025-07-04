@@ -210,7 +210,7 @@ def get_all_incidents(
     
     # Add reported_by information to each incident
     for incident in incidents:
-        if incident.user:
+        if incident.user is not None:
             incident.reported_by = incident.user.username
         else:
             incident.reported_by = "Unknown"
@@ -275,6 +275,82 @@ def get_pagination_info(
     return {
         "total": total,
         "pages": (total + 49) // 50  # 50 items per page
+    }
+
+# 🚀 Optimized: Combined endpoint for dashboard data
+@router.get("/dashboard-data")
+def get_dashboard_data(
+    skip: int = 0,
+    limit: int = 50,
+    store_id: Optional[int] = None,
+    tag: Optional[str] = None,
+    offender_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
+):
+    """Get all dashboard data in a single optimized call."""
+    
+    # 🔐 RBAC: Build base query (single query for all data)
+    if current_user.role == "admin":
+        base_query = db.query(Incident)
+        # Admins can access all stores
+        stores = db.query(Store).all()
+        accessible_stores = [{"id": store.id, "store_number": f"Store #{store.id:03d}", "name": store.name, "location": store.location} for store in stores]
+    elif current_user.role in ["employee", "staff"]:
+        if current_user.store_id is not None:
+            user_store = db.query(Store).filter(Store.id == current_user.store_id).first()
+            if user_store is not None:
+                user_store_number = f"Store #{user_store.id:03d}"
+                base_query = db.query(Incident).filter(Incident.store_name == user_store_number)
+                accessible_stores = [{"id": user_store.id, "store_number": f"Store #{user_store.id:03d}", "name": user_store.name, "location": user_store.location}]
+            else:
+                return {
+                    "incidents": [],
+                    "pagination": {"total": 0, "pages": 0},
+                    "accessible_stores": []
+                }
+        else:
+            return {
+                "incidents": [],
+                "pagination": {"total": 0, "pages": 0},
+                "accessible_stores": []
+            }
+    else:
+        return {
+            "incidents": [],
+            "pagination": {"total": 0, "pages": 0},
+            "accessible_stores": []
+        }
+    
+    # Apply filters
+    if store_id is not None:
+        base_query = base_query.filter(Incident.store_id == store_id)
+    if tag is not None:
+        base_query = base_query.filter(Incident.tags.ilike(f"%{tag}%"))
+    if offender_id is not None:
+        base_query = base_query.filter(Incident.offender_id == offender_id)
+    
+    # Get total count for pagination
+    total = base_query.count()
+    
+    # Get paginated incidents
+    incidents = base_query.order_by(Incident.timestamp.desc()).offset(skip).limit(limit).all()
+    
+    # Add reported_by information to each incident
+    for incident in incidents:
+        if incident.user is not None:
+            incident.reported_by = incident.user.username
+        else:
+            incident.reported_by = "Unknown"
+    
+    return {
+        "incidents": incidents,
+        "pagination": {
+            "total": total,
+            "pages": (total + 49) // 50  # 50 items per page
+        },
+        "accessible_stores": accessible_stores
     }
 
 @router.get("/export-csv")
@@ -364,7 +440,7 @@ def export_incidents_csv(
             incident.pdf_path,
             incident.image_url,
             incident.user_id,
-            incident.user.username if incident.user else "Unknown"
+            incident.user.username if incident.user is not None else "Unknown"
         ])
 
     # --- Graph Data: Add summary rows ---
@@ -417,7 +493,7 @@ def get_incident_by_id(
         )
     
     # Add reported_by information
-    if incident.user:
+    if incident.user is not None:
         incident.reported_by = incident.user.username
     else:
         incident.reported_by = "Unknown"
