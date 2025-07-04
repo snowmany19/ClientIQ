@@ -2,7 +2,7 @@
 
 ## Overview
 
-The A.I.ncident API is a RESTful service built with FastAPI that provides comprehensive incident management capabilities for retail stores. The API supports user authentication, role-based access control, incident reporting, AI-powered analysis, and Stripe billing integration.
+The A.I.ncident API is a RESTful service built with FastAPI that provides comprehensive incident management capabilities for retail stores. The API supports user authentication, role-based access control, incident reporting, AI-powered analysis, CSV export functionality, and Stripe billing integration.
 
 **Base URL**: `http://localhost:8000` (development)  
 **API Version**: 1.0.0  
@@ -13,9 +13,10 @@ The A.I.ncident API is a RESTful service built with FastAPI that provides compre
 1. [Authentication](#authentication)
 2. [User Management](#user-management)
 3. [Incident Management](#incident-management)
-4. [Billing & Subscriptions](#billing--subscriptions)
-5. [Error Handling](#error-handling)
-6. [Rate Limiting](#rate-limiting)
+4. [Data Export](#data-export)
+5. [Billing & Subscriptions](#billing--subscriptions)
+6. [Error Handling](#error-handling)
+7. [Rate Limiting](#rate-limiting)
 
 ## Authentication
 
@@ -207,7 +208,7 @@ Content-Type: multipart/form-data
 ```json
 {
   "id": 1,
-  "timestamp": "2024-01-15T10:30:00",
+  "timestamp": "2025-07-15T10:30:00",
   "description": "Customer attempted to steal merchandise",
   "summary": "AI-generated summary of the incident",
   "tags": "theft,security,customer",
@@ -215,7 +216,7 @@ Content-Type: multipart/form-data
   "store_name": "Store #001",
   "location": "Electronics section",
   "offender": "Male, 25-30, blue jacket",
-  "pdf_path": "/static/reports/incident_1_20240115103000.pdf",
+  "pdf_path": "/static/reports/incident_1_20250715103000.pdf",
   "image_url": "/static/images/abc123.png",
   "user_id": 1,
   "reported_by": "john_doe"
@@ -256,12 +257,17 @@ Authorization: Bearer <access_token>
 ### Delete Incident
 **DELETE** `/api/incidents/{incident_id}`
 
-Delete an incident (admin only).
+Delete an incident (admin/staff only).
 
 **Headers:**
 ```
 Authorization: Bearer <access_token>
 ```
+
+**Role-Based Access:**
+- **Admin**: Can delete any incident
+- **Staff**: Can only delete incidents from their assigned store
+- **Employee**: Cannot delete incidents
 
 ### Get Accessible Stores
 **GET** `/api/incidents/stores/accessible`
@@ -309,6 +315,61 @@ Download the PDF report for a specific incident.
 ```
 Authorization: Bearer <access_token>
 ```
+
+## Data Export
+
+### Export Incidents CSV
+**GET** `/api/incidents/export-csv`
+
+Export filtered incidents and graph data as CSV file.
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+Accept: text/csv
+```
+
+**Query Parameters:**
+- `skip` (int): Number of records to skip (default: 0)
+- `limit` (int): Maximum number of records (default: 1000, max: 5000)
+- `store_id` (int, optional): Filter by store ID
+- `tag` (string, optional): Filter by incident tag
+- `offender_id` (int, optional): Filter by offender ID
+- `start_date` (string, optional): Start date filter (ISO format: YYYY-MM-DD)
+- `end_date` (string, optional): End date filter (ISO format: YYYY-MM-DD)
+
+**Role-Based Access:**
+- **Admin**: Can export all incidents
+- **Staff**: Can only export incidents from their assigned store
+- **Employee**: Cannot export incidents
+
+**Response:**
+- **Content-Type**: `text/csv`
+- **Content-Disposition**: `attachment; filename=incidents_export_YYYYMMDD_HHMMSS.csv`
+
+**CSV Format:**
+```csv
+ID,Timestamp,Description,Summary,Tags,Severity,Store Name,Location,Offender,PDF Path,Image URL,User ID,Reported By
+1,2025-07-15 10:30:00,Customer attempted to steal merchandise,AI-generated summary,theft,3,Store #001,Electronics,Male 25-30 blue jacket,/static/reports/incident_1.pdf,/static/images/abc123.png,1,john_doe
+
+--- Incident Counts by Date ---
+Date,Count
+2025-07-15,5
+2025-07-14,3
+
+--- Incident Counts by Severity ---
+Severity,Count
+3,4
+4,2
+5,2
+```
+
+**Features:**
+- Includes all incident data with applied filters
+- Adds summary statistics (counts by date and severity)
+- Respects RBAC permissions
+- Supports date range filtering
+- Large export capacity (up to 5000 records)
 
 ## Billing & Subscriptions
 
@@ -560,5 +621,5 @@ For API support and questions:
 
 ---
 
-*Last updated: January 2024*  
+*Last updated: July 2025*  
 *API Version: 1.0.0* 
