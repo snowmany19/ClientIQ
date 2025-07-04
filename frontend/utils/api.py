@@ -205,7 +205,7 @@ def export_incidents_csv(token, filters):
     params = urlencode(filters)
     url = f"{endpoint}?{params}" if params else endpoint
     response = requests.get(url, headers=headers, stream=True)
-    if response.status_code == 200:
+    if response.status_code == 200 and response.content:
         # Use Streamlit to trigger download
         st.download_button(
             label="Download CSV",
@@ -214,5 +214,11 @@ def export_incidents_csv(token, filters):
             mime="text/csv"
         )
     else:
-        st.error(f"Failed to export CSV: {response.status_code} {response.text}")
+        st.error(f"Failed to export CSV: {response.status_code} {response.text[:500]}")
+        st.write("Debug info:")
+        st.write({
+            "status_code": response.status_code,
+            "headers": dict(response.headers),
+            "content_sample": response.content[:500]
+        })
 

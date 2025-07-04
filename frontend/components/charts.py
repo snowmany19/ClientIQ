@@ -78,3 +78,15 @@ def render_charts(incident_df: pd.DataFrame):
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
+    # --- Export Graph as PNG Button ---
+    try:
+        img_bytes = fig.to_image(format="png")
+        st.download_button(
+            label="Export Graph as PNG",
+            data=img_bytes,
+            file_name=f"incident_trends_{interval.lower()}_{chart_type.replace(' ', '_').lower()}.png",
+            mime="image/png"
+        )
+    except Exception as e:
+        st.info(f"PNG export not available: {e}")

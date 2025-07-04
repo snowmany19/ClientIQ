@@ -311,7 +311,21 @@ if can_view_dashboard:
     if user and user.get("role") in ["admin", "staff"]:
         st.sidebar.markdown("---")
         if st.sidebar.button("Export Trends and Log", key="export_csv_btn_sidebar"):
-            export_incidents_csv(st.session_state.token, filtered_df)
+            # Build filters from session state and widgets
+            filters = {}
+            # Date range
+            date_range = st.session_state.get("Date Range")
+            if date_range and len(date_range) == 2:
+                filters["start_date"] = str(date_range[0])
+                filters["end_date"] = str(date_range[1])
+            # Tags, severity, location
+            if st.session_state.get("filter_tags"):
+                filters["tag"] = ",".join(st.session_state["filter_tags"])
+            if st.session_state.get("filter_severity"):
+                filters["severity"] = ",".join(str(s) for s in st.session_state["filter_severity"])
+            if st.session_state.get("filter_location"):
+                filters["location"] = ",".join(st.session_state["filter_location"])
+            export_incidents_csv(st.session_state.token, filters)
 else:
     st.info("👤 **Employee View**: You can submit incidents but cannot view the dashboard. Contact your manager for access to incident reports and analytics.")
 
