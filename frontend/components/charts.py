@@ -79,14 +79,18 @@ def render_charts(incident_df: pd.DataFrame):
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- Export Graph as PNG Button ---
-    try:
-        img_bytes = fig.to_image(format="png")
-        st.download_button(
-            label="Export Graph as PNG",
-            data=img_bytes,
-            file_name=f"incident_trends_{interval.lower()}_{chart_type.replace(' ', '_').lower()}.png",
-            mime="image/png"
-        )
-    except Exception as e:
-        st.info(f"PNG export not available: {e}")
+    # --- Export Graph as PNG Button (Lazy-loaded for performance) ---
+    if st.button("Export Graph as PNG", key="export_png_btn"):
+        with st.spinner("Generating PNG..."):
+            try:
+                img_bytes = fig.to_image(format="png")
+                st.download_button(
+                    label="Download PNG",
+                    data=img_bytes,
+                    file_name=f"incident_trends_{interval.lower()}_{chart_type.replace(' ', '_').lower()}.png",
+                    mime="image/png",
+                    key="download_png_btn"
+                )
+            except Exception as e:
+                st.error(f"PNG export failed: {e}")
+                st.info("PNG export requires additional dependencies. Please install kaleido: pip install kaleido")

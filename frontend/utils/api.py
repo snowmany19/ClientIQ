@@ -23,7 +23,7 @@ def get_jwt_token(username: str, password: str) -> Optional[str]:
         res = requests.post(f"{API_URL}/login", data={
             "username": username,
             "password": password
-        }, timeout=10)
+        }, timeout=5)
         
         if res.status_code == 200:
             token = res.json().get("access_token")
@@ -55,7 +55,7 @@ def get_user_info(token: str) -> Optional[Dict[str, Any]]:
     
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        res = requests.get(f"{API_URL}/me", headers=headers, timeout=10)
+        res = requests.get(f"{API_URL}/me", headers=headers, timeout=5)
         
         if res.status_code == 200:
             return res.json()
@@ -125,7 +125,7 @@ def get_accessible_stores(token: str) -> Optional[List[Dict[str, Any]]]:
     
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        res = requests.get(f"{API_URL}/incidents/stores/accessible", headers=headers, timeout=10)
+        res = requests.get(f"{API_URL}/incidents/stores/accessible", headers=headers, timeout=5)
         
         if res.status_code == 200:
             return res.json()
@@ -144,14 +144,41 @@ def get_accessible_stores(token: str) -> Optional[List[Dict[str, Any]]]:
         st.error(f"Store fetch failed: Unexpected error - {str(e)}")
         return None
 
-def get_incidents_with_pagination(token: str, skip: int = 0, limit: int = 50) -> Optional[list]:
-    """Get incidents with pagination."""
+def get_dashboard_data(token: str, skip: int = 0, limit: int = 50) -> Optional[dict]:
+    """Get all dashboard data in a single optimized call."""
     if not token:
         st.error("No token available. Please log in.")
         return None
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        res = requests.get(f"{API_URL}/incidents/?skip={skip}&limit={limit}", headers=headers, timeout=10)
+        res = requests.get(f"{API_URL}/incidents/dashboard-data?skip={skip}&limit={limit}", headers=headers, timeout=5)
+        if res.status_code == 200:
+            return res.json()
+        elif res.status_code == 402:
+            # Payment required - let the calling function handle the redirect
+            return None
+        else:
+            error_msg = handle_api_error(res, "Fetch dashboard data")
+            st.error(f"Failed to fetch dashboard data: {error_msg}")
+            return None
+    except requests.exceptions.Timeout:
+        st.error("Dashboard data fetch failed: Request timed out.")
+        return None
+    except requests.exceptions.ConnectionError:
+        st.error("Dashboard data fetch failed: Cannot connect to server.")
+        return None
+    except Exception as e:
+        st.error(f"Dashboard data fetch failed: Unexpected error - {str(e)}")
+        return None
+
+def get_incidents_with_pagination(token: str, skip: int = 0, limit: int = 50) -> Optional[list]:
+    """Get incidents with pagination (legacy function for backward compatibility)."""
+    if not token:
+        st.error("No token available. Please log in.")
+        return None
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        res = requests.get(f"{API_URL}/incidents/?skip={skip}&limit={limit}", headers=headers, timeout=5)
         if res.status_code == 200:
             return res.json()
         elif res.status_code == 402:
@@ -172,11 +199,11 @@ def get_incidents_with_pagination(token: str, skip: int = 0, limit: int = 50) ->
         return None
 
 def get_pagination_info(token: str) -> Optional[Dict[str, Any]]:
-    """Get pagination information."""
+    """Get pagination information (legacy function for backward compatibility)."""
     headers = {"Authorization": f"Bearer {token}"}
     
     try:
-        res = requests.get(f"{API_URL}/incidents/pagination-info", headers=headers, timeout=10)
+        res = requests.get(f"{API_URL}/incidents/pagination-info", headers=headers, timeout=5)
         
         if res.status_code == 200:
             return res.json()

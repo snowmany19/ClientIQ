@@ -1,6 +1,8 @@
 # A.I.ncident API Documentation
 
-## Overview
+## this is a high-level reference, refer to built-in Swagger at /docs
+
+
 
 The A.I.ncident API is a RESTful service built with FastAPI that provides comprehensive incident management capabilities for retail stores. The API supports user authentication, role-based access control, incident reporting, AI-powered analysis, CSV export functionality, and Stripe billing integration.
 
@@ -618,6 +620,54 @@ For API support and questions:
 - **Health Check**: `GET /` - Returns API status
 - **OpenAPI Docs**: `GET /docs` - Interactive API documentation
 - **ReDoc**: `GET /redoc` - Alternative API documentation
+
+---
+
+*Last updated: July 2025*  
+*API Version: 1.0.0*
+
+## 🚀 Optimized Dashboard Data Endpoint
+
+### `GET /api/incidents/dashboard-data`
+
+**Description:**
+Fetch all dashboard data (incidents, pagination info, and accessible stores) in a single optimized API call. This endpoint is designed to speed up dashboard loading by reducing the number of separate API requests.
+
+**Authentication:**
+- Requires Bearer JWT token (same as other endpoints)
+
+**Query Parameters:**
+- `skip` (int, optional): Number of records to skip (for pagination)
+- `limit` (int, optional): Number of records to return (default: 50)
+- `store_id` (int, optional): Filter by store ID
+- `tag` (str, optional): Filter by tag
+- `offender_id` (int, optional): Filter by offender ID
+
+**Response:**
+```json
+{
+  "incidents": [ ... ],           // List of incident objects (same as /incidents/)
+  "pagination": {
+    "total": 123,                 // Total number of incidents
+    "pages": 3                    // Number of pages (50 per page)
+  },
+  "accessible_stores": [ ... ]    // List of stores user can access
+}
+```
+
+**Notes:**
+- RBAC and subscription checks are enforced as with other endpoints.
+- This endpoint replaces the need to call `/incidents/`, `/incidents/pagination-info`, and `/incidents/stores/accessible` separately for the dashboard.
+
+## 🧩 Frontend Utility: `get_dashboard_data`
+
+A new utility function is available in `frontend/utils/api.py`:
+
+```python
+def get_dashboard_data(token: str, skip: int = 0, limit: int = 50) -> dict:
+    """Get all dashboard data in a single optimized call."""
+```
+- This function calls the new endpoint and returns all dashboard data for use in the frontend.
 
 ---
 

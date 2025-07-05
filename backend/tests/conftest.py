@@ -86,10 +86,13 @@ def test_user(db_session, test_store):
     """Create a test user."""
     user = User(
         username="testuser",
-        hashed_password=get_password_hash("testpass123"),
+        hashed_password=get_password_hash("A!b2xQ7$"),
         email="test@example.com",
         role="employee",
-        store_id=test_store.id
+        store_id=test_store.id,
+        subscription_status="active",
+        plan_id="pro",
+        stripe_customer_id="cus_testuser"
     )
     db_session.add(user)
     db_session.commit()
@@ -101,9 +104,12 @@ def test_admin(db_session):
     """Create a test admin user."""
     admin = User(
         username="testadmin",
-        hashed_password=get_password_hash("admin123"),
+        hashed_password=get_password_hash("A!b2xQ7$"),
         email="admin@example.com",
-        role="admin"
+        role="admin",
+        subscription_status="active",
+        plan_id="admin",
+        stripe_customer_id="cus_testadmin"
     )
     db_session.add(admin)
     db_session.commit()
@@ -115,10 +121,13 @@ def test_staff(db_session, test_store):
     """Create a test staff user."""
     staff = User(
         username="teststaff",
-        hashed_password=get_password_hash("staff123"),
+        hashed_password=get_password_hash("A!b2xQ7$"),
         email="staff@example.com",
         role="staff",
-        store_id=test_store.id
+        store_id=test_store.id,
+        subscription_status="active",
+        plan_id="pro",
+        stripe_customer_id="cus_teststaff"
     )
     db_session.add(staff)
     db_session.commit()
