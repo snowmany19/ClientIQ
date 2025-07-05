@@ -19,7 +19,7 @@ def run_tests():
     
     # Run tests with coverage
     cmd = [
-        "python", "-m", "pytest",
+        "python3", "-m", "pytest",
         "tests/",
         "-v",
         "--cov=.",
@@ -46,7 +46,7 @@ def run_specific_test(test_file):
     print(f"🧪 Running {test_file}...")
     print("=" * 50)
     
-    cmd = ["python", "-m", "pytest", f"tests/{test_file}", "-v"]
+    cmd = ["python3", "-m", "pytest", f"tests/{test_file}", "-v"]
     
     try:
         result = subprocess.run(cmd, check=True)

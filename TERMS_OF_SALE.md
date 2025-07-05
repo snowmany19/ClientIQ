@@ -4,7 +4,7 @@ Copyright (c) 2025 Security Flaw Solutions LLC
 By purchasing this software, the buyer (“Licensee”) agrees to the following terms:
 
 1. FINAL SALE  
-All sales are final and non-refundable. The software is delivered as-is, with no obligation for post-sale support, updates, or modifications unless explicitly agreed upon in writing before the sale.
+All sales are **final** and non-refundable. The software is delivered as-is, with **no obligation for post-sale support**, updates, or modifications unless explicitly agreed upon in writing before the sale.
 
 2. NO WARRANTY  
 This software is sold without warranties or guarantees of any kind. It is provided “as-is” and “as available.” Security Flaw Solutions LLC is not liable for any damages or losses resulting from its use, deployment, or integration.

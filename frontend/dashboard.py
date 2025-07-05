@@ -25,7 +25,7 @@ def get_base64_logo(path):
 from components.filters import apply_filters
 from components.charts import render_charts
 from components.incident_table import render_incident_table
-from utils.api import get_jwt_token, get_user_info, submit_incident, get_accessible_stores, get_incidents_with_pagination, get_pagination_info, export_incidents_csv
+from utils.api import get_jwt_token, get_user_info, submit_incident, get_accessible_stores, get_incidents_with_pagination, get_pagination_info, export_incidents_csv, get_dashboard_data
 
 API_URL = "http://localhost:8000/api"
 
@@ -62,11 +62,36 @@ def logout():
     st.rerun()
 
 # -----------------------------------
-# 📥 Fetch Incidents with Pagination
+# 📥 Fetch Dashboard Data (Optimized)
 # -----------------------------------
-@st.cache_data(ttl=60, show_spinner=True)
+@st.cache_data(ttl=30, show_spinner=True)
+def fetch_dashboard_data(token: str, page: int = 0, limit: int = 50):
+    """Fetch all dashboard data in a single optimized call."""
+    if not token:
+        return pd.DataFrame(), "No authentication token available", None, None
+    
+    try:
+        dashboard_data = get_dashboard_data(token, page * limit, limit)
+        if dashboard_data is None:
+            return pd.DataFrame(), "Failed to fetch dashboard data", None, None
+        
+        incidents = dashboard_data.get("incidents", [])
+        pagination = dashboard_data.get("pagination", {})
+        accessible_stores = dashboard_data.get("accessible_stores", [])
+        
+        if not incidents:
+            return pd.DataFrame(), None, pagination, accessible_stores
+        
+        df = pd.DataFrame(incidents)
+        return df, None, pagination, accessible_stores
+        
+    except Exception as e:
+        return pd.DataFrame(), f"Error fetching dashboard data: {str(e)}", None, None
+
+# Legacy function for backward compatibility
+@st.cache_data(ttl=30, show_spinner=True)
 def fetch_incidents_with_pagination(token: str, page: int = 0, limit: int = 50):
-    """Fetch incidents with pagination and error handling."""
+    """Fetch incidents with pagination and error handling (legacy)."""
     if not token:
         return pd.DataFrame(), "No authentication token available"
     
@@ -222,21 +247,17 @@ else:
 if user_role == "admin":
     st.success("👑 **Admin Access**: You have automatic premium access to all features!")
 
-# ✅ Fetch accessible stores for RBAC (only if subscription is active)
-if st.session_state.token and st.session_state.accessible_stores is None:
-    stores = get_accessible_stores(st.session_state.token)
-    st.session_state.accessible_stores = stores
-
-# Fetch pagination info (only if subscription is active)
-if st.session_state.token and st.session_state.pagination_info is None:
-    pagination_info = get_pagination_info(st.session_state.token)
-    st.session_state.pagination_info = pagination_info
-
-# Fetch incidents for current page (only if subscription is active)
+# ✅ Fetch all dashboard data in a single optimized call
 if st.session_state.token:
-    incident_df, error = fetch_incidents_with_pagination(st.session_state.token, st.session_state.current_page)
+    incident_df, error, pagination_info, accessible_stores = fetch_dashboard_data(st.session_state.token, st.session_state.current_page)
     if error:
         handle_incident_fetch_error(error)
+    else:
+        # Update session state with fetched data
+        if pagination_info is not None:
+            st.session_state.pagination_info = pagination_info
+        if accessible_stores is not None:
+            st.session_state.accessible_stores = accessible_stores
 else:
     incident_df = pd.DataFrame()
     st.error("❌ No authentication token available")
@@ -311,21 +332,22 @@ if can_view_dashboard:
     if user and user.get("role") in ["admin", "staff"]:
         st.sidebar.markdown("---")
         if st.sidebar.button("Export Trends and Log", key="export_csv_btn_sidebar"):
-            # Build filters from session state and widgets
-            filters = {}
-            # Date range
-            date_range = st.session_state.get("Date Range")
-            if date_range and len(date_range) == 2:
-                filters["start_date"] = str(date_range[0])
-                filters["end_date"] = str(date_range[1])
-            # Tags, severity, location
-            if st.session_state.get("filter_tags"):
-                filters["tag"] = ",".join(st.session_state["filter_tags"])
-            if st.session_state.get("filter_severity"):
-                filters["severity"] = ",".join(str(s) for s in st.session_state["filter_severity"])
-            if st.session_state.get("filter_location"):
-                filters["location"] = ",".join(st.session_state["filter_location"])
-            export_incidents_csv(st.session_state.token, filters)
+            with st.spinner("Preparing CSV export..."):
+                # Build filters from session state and widgets
+                filters = {}
+                # Date range
+                date_range = st.session_state.get("Date Range")
+                if date_range and len(date_range) == 2:
+                    filters["start_date"] = str(date_range[0])
+                    filters["end_date"] = str(date_range[1])
+                # Tags, severity, location
+                if st.session_state.get("filter_tags"):
+                    filters["tag"] = ",".join(st.session_state["filter_tags"])
+                if st.session_state.get("filter_severity"):
+                    filters["severity"] = ",".join(str(s) for s in st.session_state["filter_severity"])
+                if st.session_state.get("filter_location"):
+                    filters["location"] = ",".join(st.session_state["filter_location"])
+                export_incidents_csv(st.session_state.token, filters)
 else:
     st.info("👤 **Employee View**: You can submit incidents but cannot view the dashboard. Contact your manager for access to incident reports and analytics.")
 
