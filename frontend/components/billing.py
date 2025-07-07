@@ -102,10 +102,16 @@ def display_subscription_plans():
 def create_checkout_session(plan_id: str):
     """Create a Stripe checkout session."""
     try:
+        headers = get_auth_headers() or {}
+        headers = {**headers, "Content-Type": "application/json"}
         response = requests.post(
             f"{API_BASE_URL}/billing/create-checkout-session",
-            headers=get_auth_headers(),
-            params={"plan_id": plan_id}
+            headers=headers,
+            json={
+                "plan_id": plan_id,
+                "success_url": "http://localhost:8501/_billing_success_page",
+                "cancel_url": "http://localhost:8501/_billing_cancel_page"
+            }
         )
         
         if response.status_code == 200:
