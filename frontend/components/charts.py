@@ -12,8 +12,14 @@ def render_charts(incident_df: pd.DataFrame):
     incident_df = incident_df.copy()  # avoid SettingWithCopyWarning
 
     # Ensure timestamp is datetime
-    if not pd.api.types.is_datetime64_any_dtype(incident_df['timestamp']):
-        incident_df.loc[:, 'timestamp'] = pd.to_datetime(incident_df['timestamp'], errors='coerce')
+    incident_df['timestamp'] = pd.to_datetime(incident_df['timestamp'], errors='coerce')
+    
+    # Remove rows where timestamp conversion failed
+    incident_df = incident_df.dropna(subset=['timestamp'])
+    
+    if incident_df.empty:
+        st.warning("No valid timestamp data available for charts.")
+        return
 
     # Date groupings
     incident_df.loc[:, 'date'] = incident_df['timestamp'].dt.date

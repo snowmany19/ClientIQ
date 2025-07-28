@@ -4,9 +4,10 @@ import streamlit as st
 import requests
 from typing import Dict, Any, List
 import json
+import os
 
-# API base URL
-API_BASE_URL = "http://localhost:8000/api"
+# Use environment variable for API URL, fallback to localhost for development
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api")
 
 def get_auth_headers():
     """Get authentication headers for API requests."""

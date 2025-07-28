@@ -3,7 +3,7 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Base, Incident, Store
+from models import Base, Violation, HOA
 import os
 
 # Database URL
@@ -20,46 +20,46 @@ def assign_incidents_to_store():
     
     try:
         # Get store ID 001
-        store = db.query(Store).filter(Store.id == 1).first()
+        store = db.query(HOA).filter(HOA.id == 1).first()
         if store is None:
             print("❌ Store ID 001 not found. Creating it...")
-            store = Store(id=1, name="Downtown Store", location="123 Main St, Downtown")
+            store = HOA(id=1, name="Downtown Store", location="123 Main St, Downtown")
             db.add(store)
             db.commit()
             print("✅ Created Store #001")
         
         # Get all incidents
-        incidents = db.query(Incident).all()
-        print(f"📊 Found {len(incidents)} incidents to update")
+        violations = db.query(Violation).all()
+        print(f"📊 Found {len(violations)} incidents to update")
         
-        if len(incidents) == 0:
+        if len(violations) == 0:
             print("ℹ️ No incidents found in database.")
             return
         
         # Print all incidents before update
-        print("\n📝 Incidents BEFORE update:")
-        for i, incident in enumerate(incidents[:10]):
-            print(f"  {i+1}. Incident #{incident.id}: store_name='{incident.store_name}' | desc='{incident.description[:40]}...'")
-        if len(incidents) > 10:
-            print(f"  ... and {len(incidents) - 10} more incidents")
+        print("\n📝 Violations BEFORE update:")
+        for i, violation in enumerate(violations[:10]):
+            print(f"  {i+1}. Violation #{violation.id}: hoa_name='{violation.hoa_name}' | desc='{violation.description[:40]}...'")
+        if len(violations) > 10:
+            print(f"  ... and {len(violations) - 10} more incidents")
         
         # Update all incidents to use store ID 001
         updated_count = 0
-        for incident in incidents:
-            if incident.store_name != store.name:
-                incident.store_name = store.name
+        for violation in violations:
+            if violation.hoa_name != store.name:
+                violation.hoa_name = store.name
                 updated_count += 1
         db.commit()
         print(f"\n✅ Successfully updated {updated_count} incidents to Store #001")
         
         # Print all incidents after update
-        print("\n📝 Incidents AFTER update:")
-        for i, incident in enumerate(incidents[:10]):
-            print(f"  {i+1}. Incident #{incident.id}: store_name='{incident.store_name}' | desc='{incident.description[:40]}...'")
-        if len(incidents) > 10:
-            print(f"  ... and {len(incidents) - 10} more incidents")
+        print("\n📝 Violations AFTER update:")
+        for i, violation in enumerate(violations[:10]):
+            print(f"  {i+1}. Violation #{violation.id}: hoa_name='{violation.hoa_name}' | desc='{violation.description[:40]}...'")
+        if len(violations) > 10:
+            print(f"  ... and {len(violations) - 10} more incidents")
         
-        print("\n✅ Incident assignment complete!")
+        print("\n✅ Violation assignment complete!")
         
     except Exception as e:
         print(f"❌ Error assigning incidents: {e}")

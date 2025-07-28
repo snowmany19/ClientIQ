@@ -5,6 +5,8 @@ from openai import OpenAI
 from typing import Tuple, List
 from core.config import get_settings
 from utils.logger import get_logger
+from sqlalchemy.orm import Session
+from models import Violation
 
 # Get settings and logger
 settings = get_settings()
@@ -13,94 +15,125 @@ logger = get_logger("summary_generator")
 # 🔐 Load API client
 client = OpenAI(api_key=settings.openai_api_key)
 
-# 🌿 Allowed tags
+# 🌿 Allowed tags for HOA violations
 FIXED_TAGS = [
-    "Theft", "Verbal Threat", "Assault", "Trespassing", "Vandalism",
-    "Weapon", "Suspicious Activity", "Employee Misconduct",
-    "Customer Complaint", "Other", "Fraud"
+    "Landscaping", "Trash", "Parking", "Exterior Maintenance", "Noise",
+    "Pet Violation", "Architectural", "Pool/Spa", "Vehicle Storage",
+    "Holiday Decorations", "Other", "Safety Hazard"
 ]
 
-def summarize_incident(description: str, location: str, timestamp: str) -> Tuple[str, List[str]]:
+def summarize_violation(description: str, location: str, timestamp: str) -> Tuple[str, List[str]]:
     """
-    Generate a summary and tags for an incident using OpenAI GPT-4.
-    Returns (summary, tags_list)
+    Generate a summary and tags for a violation using OpenAI GPT-4.
+    Returns (summary, tags_list) - tags are selected from predefined list only
     """
     prompt = f"""
-Summarize this incident for an internal asset protection report. Include a concise description of what happened, when and where it occurred, involved individuals, and the likely cause. Add a closing recommendation for store leadership. Use a formal, professional tone.
-1. A detailed summary (3-15 sentences)
-2. Relevant tags (choose ONLY from the allowed tags list)
+You are an HOA violation analysis expert. Analyze this violation and provide:
+1. A concise summary (2-3 sentences)
+2. Select relevant tags from this EXACT list only: {', '.join(FIXED_TAGS)}
 
-Incident Details:
-- Description: {description}
-- Location: {location}
-- Timestamp: {timestamp}
+Violation Description: {description}
+Location: {location}
+Timestamp: {timestamp}
 
-ALLOWED TAGS (choose only from these):
-{', '.join(FIXED_TAGS)}
-
-Rules:
-- Choose 1-5 most relevant tags from the allowed list above
-- Do NOT create new tags
-- Do NOT use tags not in the allowed list
-- Separate multiple tags with commas
+IMPORTANT: For tags, you MUST ONLY choose from this exact list: {', '.join(FIXED_TAGS)}
+Do not create new tags. If none fit perfectly, choose the closest one or "Other".
 
 Respond in this exact format:
 SUMMARY: [your summary here]
-TAGS: [tag1, tag2, tag3]
+TAGS: [tag1, tag2, tag3] (only from the allowed list)
 """
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.4,
-            max_tokens=500
+            temperature=0.3
         )
-        
         content = response.choices[0].message.content
         if content is None:
-            logger.error("Empty response from GPT")
-            return f"Incident reported at {location} on {timestamp}. {description[:100]}...", ["Other"]
-        
-        content = content.strip()
+            logger.error("Empty response from GPT for violation summary")
+            return "Violation reported and documented.", ["Other"]
         
         # Parse response
         lines = content.split('\n')
-        summary = ""
-        tags = []
+        summary = "Violation reported and documented."
+        tags = ["Other"]
         
         for line in lines:
-            if line.startswith('SUMMARY:'):
-                summary = line.replace('SUMMARY:', '').strip()
-            elif line.startswith('TAGS:'):
-                tags_str = line.replace('TAGS:', '').strip()
+            if line.startswith("SUMMARY:"):
+                summary = line.replace("SUMMARY:", "").strip()
+            elif line.startswith("TAGS:"):
+                tags_str = line.replace("TAGS:", "").strip()
+                # Clean up the tags string and extract individual tags
+                tags_str = tags_str.replace('[', '').replace(']', '')
                 raw_tags = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
-                # Filter to only allow tags from FIXED_TAGS
-                tags = [tag for tag in raw_tags if tag in FIXED_TAGS]
+                
+                # Filter tags to only include those from FIXED_TAGS
+                valid_tags = []
+                for tag in raw_tags:
+                    # Find the closest match from FIXED_TAGS
+                    for fixed_tag in FIXED_TAGS:
+                        if tag.lower() == fixed_tag.lower():
+                            valid_tags.append(fixed_tag)
+                            break
+                    else:
+                        # If no exact match, try partial matching
+                        for fixed_tag in FIXED_TAGS:
+                            if tag.lower() in fixed_tag.lower() or fixed_tag.lower() in tag.lower():
+                                valid_tags.append(fixed_tag)
+                                break
+                
                 # If no valid tags found, use "Other"
-                if not tags:
+                if valid_tags:
+                    tags = valid_tags
+                else:
                     tags = ["Other"]
         
         return summary, tags
         
     except Exception as e:
         logger.error(f"GPT tag/summary generation failed: {e}")
-        # Fallback response
-        return f"Incident reported at {location} on {timestamp}. {description[:100]}...", ["Other"]
+        return "Violation reported and documented.", ["Other"]
 
-def classify_severity(summary: str) -> int:
+def calculate_repeat_offender_score(address: str, offender: str, db: Session) -> int:
+    """Calculate repeat offender score based on existing violations in database."""
+    try:
+        # Count existing violations for this address or offender
+        existing_violations = db.query(Violation).filter(
+            (Violation.address.ilike(f"%{address}%")) |
+            (Violation.offender.ilike(f"%{offender}%"))
+        ).count()
+        
+        # Calculate score based on violation count
+        if existing_violations == 0:
+            return 1  # First-time violation
+        elif existing_violations == 1:
+            return 2  # Second violation
+        elif existing_violations == 2:
+            return 3  # Third violation - pattern developing
+        elif existing_violations == 3:
+            return 4  # Fourth violation - established pattern
+        else:
+            return 5  # Fifth+ violation - chronic offender
+            
+    except Exception as e:
+        logger.warning(f"Failed to calculate repeat offender score: {e}")
+        return 1  # Default fallback
+
+def classify_repeat_offender_score(summary: str) -> int:
     prompt = f"""
-You are a risk assessment model.
-Rate the severity of the following security incident from 1 (Low) to 5 (Critical):
+You are a repeat offender assessment model for HOA violations.
+Rate the likelihood of this being a repeat offender from 1 (First-time) to 5 (Chronic violator):
 
-Severity Criteria:
-1 = Minor nuisance or false report
-2 = Mild disruption, low threat (e.g. verbal complaint)
-3 = Moderate disruption or verbal threat
-4 = Physical altercation, theft, or confirmed policy violation
-5 = Weapon involved, law enforcement required, or major security breach
+Repeat Offender Criteria:
+1 = First-time violation, minor issue
+2 = Second violation, moderate issue
+3 = Third violation, consistent pattern developing
+4 = Fourth violation, established pattern of non-compliance
+5 = Fifth+ violation, chronic violator requiring escalated action
 
-Incident Summary:
+Violation Summary:
 '{summary}'
 
 Respond ONLY with a single integer from 1 to 5.
@@ -114,11 +147,11 @@ Respond ONLY with a single integer from 1 to 5.
         )
         content = response.choices[0].message.content
         if content is None:
-            logger.error("Empty response from GPT for severity classification")
-            return 3  # Default fallback
+            logger.error("Empty response from GPT for repeat offender classification")
+            return 1  # Default fallback
         return int(content.strip())
     except Exception as e:
-        logger.warning(f"Severity scoring failed: {e}")
-        return 3  # Default fallback
+        logger.warning(f"Repeat offender scoring failed: {e}")
+        return 1  # Default fallback
 
 

@@ -12,7 +12,7 @@ import base64
 import time
 
 # ✅ MUST be first Streamlit call
-st.set_page_config(page_title="A.I.ncident - AI Incident Management Dashboard", layout="wide")
+st.set_page_config(page_title="CivicLogHOA - HOA Violation Management Dashboard", layout="wide")
 
 # --- ROBUST LOGO PATH ---
 LOGO_PATH = os.path.join(os.path.dirname(__file__), "static", "images", "ai_logo.png")
@@ -24,10 +24,11 @@ def get_base64_logo(path):
 
 from components.filters import apply_filters
 from components.charts import render_charts
-from components.incident_table import render_incident_table
-from utils.api import get_jwt_token, get_user_info, submit_incident, get_accessible_stores, get_incidents_with_pagination, get_pagination_info, export_incidents_csv, get_dashboard_data
+from components.violation_table import render_violation_table
+from utils.api import get_jwt_token, get_user_info, submit_violation, get_accessible_hoas, get_violations_with_pagination, get_pagination_info, export_violations_csv, get_dashboard_data
 
-API_URL = "http://localhost:8000/api"
+# Use environment variable for API URL, fallback to localhost for development
+API_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api")
 
 # -----------------------------------
 # 🔐 Session Setup
@@ -36,8 +37,8 @@ if "token" not in st.session_state:
     st.session_state.token = None
 if "user" not in st.session_state:
     st.session_state.user = None
-if "accessible_stores" not in st.session_state:
-    st.session_state.accessible_stores = None
+if "accessible_hoas" not in st.session_state:
+    st.session_state.accessible_hoas = None
 if "current_page" not in st.session_state:
     st.session_state.current_page = 0
 if "pagination_info" not in st.session_state:
@@ -55,7 +56,7 @@ def logout():
     """Clear session state and return to login."""
     st.session_state.token = None
     st.session_state.user = None
-    st.session_state.accessible_stores = None
+    st.session_state.accessible_hoas = None
     st.session_state.current_page = 0
     st.session_state.pagination_info = None
 
@@ -75,44 +76,44 @@ def fetch_dashboard_data(token: str, page: int = 0, limit: int = 50):
         if dashboard_data is None:
             return pd.DataFrame(), "Failed to fetch dashboard data", None, None
         
-        incidents = dashboard_data.get("incidents", [])
+        violations = dashboard_data.get("violations", [])
         pagination = dashboard_data.get("pagination", {})
-        accessible_stores = dashboard_data.get("accessible_stores", [])
+        accessible_hoas = dashboard_data.get("accessible_hoas", [])
         
-        if not incidents:
-            return pd.DataFrame(), None, pagination, accessible_stores
+        if not violations:
+            return pd.DataFrame(), None, pagination, accessible_hoas
         
-        df = pd.DataFrame(incidents)
-        return df, None, pagination, accessible_stores
+        df = pd.DataFrame(violations)
+        return df, None, pagination, accessible_hoas
         
     except Exception as e:
         return pd.DataFrame(), f"Error fetching dashboard data: {str(e)}", None, None
 
 # Legacy function for backward compatibility
 @st.cache_data(ttl=30, show_spinner=True)
-def fetch_incidents_with_pagination(token: str, page: int = 0, limit: int = 50):
-    """Fetch incidents with pagination and error handling (legacy)."""
+def fetch_violations_with_pagination(token: str, page: int = 0, limit: int = 50):
+    """Fetch violations with pagination and error handling (legacy)."""
     if not token:
         return pd.DataFrame(), "No authentication token available"
     
     try:
-        incidents = get_incidents_with_pagination(token, page * limit, limit)
-        if incidents is None:
-            return pd.DataFrame(), "Failed to fetch incidents"
+        violations = get_violations_with_pagination(token, page * limit, limit)
+        if violations is None:
+            return pd.DataFrame(), "Failed to fetch violations"
         
-        if not incidents:
+        if not violations:
             return pd.DataFrame(), None
         
-        df = pd.DataFrame(incidents)
+        df = pd.DataFrame(violations)
         return df, None
         
     except Exception as e:
-        return pd.DataFrame(), f"Error fetching incidents: {str(e)}"
+        return pd.DataFrame(), f"Error fetching violations: {str(e)}"
 
-def handle_incident_fetch_error(error_msg: str):
-    """Handle incident fetch errors, including 402 Payment Required."""
+def handle_violation_fetch_error(error_msg: str):
+    """Handle violation fetch errors, including 402 Payment Required."""
     if "Payment required" in error_msg or "402" in error_msg:
-        st.error("Payment required. Please subscribe to continue using A.I.ncident - AI Incident Management Dashboard.")
+        st.error("Payment required. Please subscribe to continue using CivicLogHOA - HOA Violation Management Dashboard.")
         st.info("Redirecting to billing page...")
         st.switch_page("pages/billing.py")
     else:
@@ -126,7 +127,7 @@ if not st.session_state.token:
     st.markdown("""
     <div style="text-align: center; margin-bottom: 2rem;">
         <img src="data:image/png;base64,{}" width="250" style="margin-bottom: 1rem;">
-        <h1 style="margin: 0; font-size: 2rem;">A.I.ncident - AI Incident Management Dashboard Login</h1>
+        <h1 style="margin: 0; font-size: 2rem;">CivicLogHOA - HOA Violation Management Dashboard Login</h1>
     </div>
     """.format(get_base64_logo(LOGO_PATH)), unsafe_allow_html=True)
 
@@ -153,7 +154,7 @@ if not st.session_state.token:
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; padding: 20px; color: #6c757d; font-size: 14px;">
-        <strong>Secure AI-powered reporting. GDPR-aware. Modular backend. No PII stored by default.</strong>
+        <strong>Secure AI-powered HOA violation tracking. GDPR-aware. Modular backend. No PII stored by default.</strong>
     </div>
     """, unsafe_allow_html=True)
 
@@ -166,14 +167,14 @@ if st.session_state.token and st.session_state.user is None:
 
     # 🔐 Check subscription status IMMEDIATELY after user info loads
     if user_obj:
-        user_role = user_obj.get("role", "employee")
+        user_role = user_obj.get("role", "inspector")
         subscription_status = user_obj.get("subscription_status", "inactive")
         
         # 🎯 Admins bypass billing - they always have full access
         if user_role == "admin":
             st.session_state.admin_bypass = True
         elif subscription_status not in ["active", "trialing"]:
-            st.warning("Active subscription required to access A.I.ncident - AI Incident Management Dashboard.")
+            st.warning("Active subscription required to access CivicLogHOA - HOA Violation Management Dashboard.")
             st.info("Please subscribe to continue using the platform.")
             if st.button("Go to Billing", type="primary"):
                 st.switch_page("pages/billing.py")
@@ -187,330 +188,217 @@ if not user or "username" not in user:
     st.warning("⚠️ User info not loaded. Please try logging in again.")
     st.stop()
 
-user_role = user.get("role", "employee")
+user_role = user.get("role", "inspector")
 
 # 🔐 RBAC: Define permissions based on role
 if user_role == "admin":
     can_view_dashboard = True
-    can_submit_incidents = True
-    can_view_all_stores = True
+    can_submit_violations = True
+    can_view_all_hoas = True
     can_view_charts = True
-    can_view_incident_log = True
-elif user_role == "staff":
+    can_view_violation_log = True
+elif user_role == "hoa_board":
     can_view_dashboard = True
-    can_submit_incidents = True
-    can_view_all_stores = False
+    can_submit_violations = True
+    can_view_all_hoas = False
     can_view_charts = True
-    can_view_incident_log = True
-elif user_role == "employee":
+    can_view_violation_log = True
+elif user_role == "inspector":
+    can_view_dashboard = True
+    can_submit_violations = True
+    can_view_all_hoas = False
+    can_view_charts = True
+    can_view_violation_log = True
+else:
     can_view_dashboard = False
-    can_submit_incidents = True
-    can_view_all_stores = False
+    can_submit_violations = False
+    can_view_all_hoas = False
     can_view_charts = False
-    can_view_incident_log = False
-else:
-    # Default to most restrictive
-    can_view_dashboard = False
-    can_submit_incidents = True
-    can_view_all_stores = False
-    can_view_charts = False
-    can_view_incident_log = False
+    can_view_violation_log = False
 
 # -----------------------------------
-# 🎨 Dashboard Header
-# -----------------------------------
-# --- LOGO AND TITLE IN A BANNER AT TOP OF DASHBOARD ---
-if st.session_state.token:
-    logo_b64 = get_base64_logo(LOGO_PATH)
-    st.markdown(
-        f'''
-        <div style="display: flex; align-items: center; margin-bottom: 1.5rem; margin-top: 1rem;">
-            <img src="data:image/png;base64,{logo_b64}" width="180" style="margin-right: 32px;"/>
-            <h1 style="margin: 0; font-size: 2.5rem;">A.I.ncident - AI Incident Management Dashboard</h1>
-        </div>
-        ''',
-        unsafe_allow_html=True
-    )
-    st.caption(f"Last updated: {datetime.now().strftime('%A, %B %d, %Y at %I:%M %p')}")
-    st.caption(f"Logged in as **{user['username']}** ({user_role.capitalize()})")
-
-# 🏬 Display store assignment
-if user.get('store'):
-    store_info = user['store']
-    st.info(f"📍 **Store Assignment**: {store_info['store_number']} - {store_info['location']}")
-elif user_role == "admin":
-    st.info("👑 **Admin Access**: You can access all store locations")
-else:
-    st.warning("⚠️ **No Store Assignment**: Please contact your administrator to assign you to a store location.")
-
-# 🎯 Show admin premium access indicator
-if user_role == "admin":
-    st.success("👑 **Admin Access**: You have automatic premium access to all features!")
-
-# ✅ Fetch all dashboard data in a single optimized call
-if st.session_state.token:
-    incident_df, error, pagination_info, accessible_stores = fetch_dashboard_data(st.session_state.token, st.session_state.current_page)
-    if error:
-        handle_incident_fetch_error(error)
-    else:
-        # Update session state with fetched data
-        if pagination_info is not None:
-            st.session_state.pagination_info = pagination_info
-        if accessible_stores is not None:
-            st.session_state.accessible_stores = accessible_stores
-else:
-    incident_df = pd.DataFrame()
-    st.error("❌ No authentication token available")
-
-# 🛠️ Preprocess
-if not incident_df.empty and 'tags' in incident_df.columns:
-    incident_df['tags'] = incident_df['tags'].apply(
-        lambda t: t if isinstance(t, list) else [tag.strip() for tag in str(t).split(",") if tag.strip()]
-    )
-if not incident_df.empty and 'timestamp' in incident_df.columns:
-    incident_df['timestamp'] = pd.to_datetime(incident_df['timestamp'], errors="coerce")
-
-# -----------------------------------
-# 📊 Role-Based Dashboard
+# 🎯 Main Dashboard
 # -----------------------------------
 if can_view_dashboard:
-    with st.sidebar:
-        st.header("🎛️ Dashboard Controls")
-        st.markdown("Filter and analyze incident patterns.")
-        filtered_df = apply_filters(incident_df)
+    # Header with user info and logout
+    col1, col2, col3 = st.columns([3, 1, 1])
+    with col1:
+        st.title("🏘️ CivicLogHOA - HOA Violation Management Dashboard")
+        st.markdown(f"**Welcome, {user.get('username', 'User')}** ({user_role.title()})")
+    with col2:
+        if user.get("hoa"):
+            st.info(f"HOA: {user['hoa']['name']}")
+    with col3:
+        if st.button("Logout", type="secondary"):
+            logout()
 
-    # Show charts only to staff and admin
-    if can_view_charts:
-        with st.expander("📈 View Incident Trends", expanded=True):
-            fig = render_charts(filtered_df)
-            if fig:
-                st.plotly_chart(fig, use_container_width=True)
+    # Navigation tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "📝 Submit Violation", "📋 Violation Log", "💳 Billing"])
 
-    # Show incident log only to staff and admin
-    if can_view_incident_log:
-        st.subheader("📋 Incident Log")
-        
-        # Show pagination info
-        if st.session_state.pagination_info:
-            total = st.session_state.pagination_info.get("total", 0)
-            pages = st.session_state.pagination_info.get("pages", 0)
-            current_page = st.session_state.current_page + 1
+    # -----------------------------------
+    # 📊 Dashboard Tab
+    # -----------------------------------
+    with tab1:
+        if can_view_charts:
+            st.header("📊 Violation Analytics")
             
-            st.caption(f"📄 Showing page {current_page} of {pages} (Total: {total} incidents)")
-        
-        render_incident_table(filtered_df, user, st.session_state.token)
-        
-        # Pagination controls
-        if st.session_state.pagination_info and st.session_state.pagination_info.get("pages", 0) > 1:
-            col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+            # Fetch data
+            df, error, pagination, accessible_hoas = fetch_dashboard_data(st.session_state.token, st.session_state.current_page)
             
-            with col1:
-                if st.button("⏮️ First", disabled=st.session_state.current_page == 0):
-                    st.session_state.current_page = 0
-                    st.session_state.pagination_info = None  # Reset to refetch
-                    st.rerun()
-            
-            with col2:
-                if st.button("⬅️ Previous", disabled=st.session_state.current_page == 0):
-                    st.session_state.current_page = max(0, st.session_state.current_page - 1)
-                    st.session_state.pagination_info = None  # Reset to refetch
-                    st.rerun()
-            
-            with col3:
-                if st.button("➡️ Next", disabled=st.session_state.current_page >= pages - 1):
-                    st.session_state.current_page = min(pages - 1, st.session_state.current_page + 1)
-                    st.session_state.pagination_info = None  # Reset to refetch
-                    st.rerun()
-            
-            with col4:
-                if st.button("⏭️ Last", disabled=st.session_state.current_page >= pages - 1):
-                    st.session_state.current_page = pages - 1
-                    st.session_state.pagination_info = None  # Reset to refetch
-                    st.rerun()
-
-    # After all sidebar filters are defined:
-    if user and user.get("role") in ["admin", "staff"]:
-        st.sidebar.markdown("---")
-        if st.sidebar.button("Export Trends and Log", key="export_csv_btn_sidebar"):
-            with st.spinner("Preparing CSV export..."):
-                # Build filters from session state and widgets
-                filters = {}
-                # Date range
-                date_range = st.session_state.get("Date Range")
-                if date_range and len(date_range) == 2:
-                    filters["start_date"] = str(date_range[0])
-                    filters["end_date"] = str(date_range[1])
-                # Tags, severity, location
-                if st.session_state.get("filter_tags"):
-                    filters["tag"] = ",".join(st.session_state["filter_tags"])
-                if st.session_state.get("filter_severity"):
-                    filters["severity"] = ",".join(str(s) for s in st.session_state["filter_severity"])
-                if st.session_state.get("filter_location"):
-                    filters["location"] = ",".join(st.session_state["filter_location"])
-                export_incidents_csv(st.session_state.token, filters)
-else:
-    st.info("👤 **Employee View**: You can submit incidents but cannot view the dashboard. Contact your manager for access to incident reports and analytics.")
-
-# -----------------------------------
-# 🚨 Report Incident (All Roles)
-# -----------------------------------
-if can_submit_incidents:
-    submitted = False
-    res = None
-    result = None
-
-    with st.expander("🚨 Report New Incident"):
-        with st.form("incident_form", clear_on_submit=True):
-            st.markdown("Submit a new incident below. A summary and PDF report will be generated.")
-            
-            # Show role-based store restrictions
-            if not can_view_all_stores:
-                st.info("📍 **Store Restriction**: You can only submit incidents for your assigned store location.")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                # Show store selection based on user's accessible stores
-                if st.session_state.accessible_stores:
-                    if len(st.session_state.accessible_stores) == 1:
-                        # User has only one store - auto-fill
-                        store_name = st.text_input("🏬 Store", value=st.session_state.accessible_stores[0]["store_number"], disabled=True)
-                        st.caption(f"📍 Assigned to: {st.session_state.accessible_stores[0]['store_number']} - {st.session_state.accessible_stores[0]['location']}")
-                    else:
-                        # User has multiple stores - show dropdown
-                        store_options = [f"{store['store_number']} - {store['location']}" for store in st.session_state.accessible_stores]
-                        selected_store = st.selectbox("🏬 Select Store", store_options)
-                        # Extract store number from selection
-                        store_name = selected_store.split(" - ")[0] if " - " in selected_store else selected_store
-                else:
-                    store_name = st.text_input("🏬 Store")
+            if error:
+                handle_violation_fetch_error(error)
+            elif not df.empty:
+                # Display charts
+                render_charts(df)
                 
-                location = st.text_input("Location")
-                offender = st.text_input("Offender (if known)")
-
-            with col2:
-                description = st.text_area("Description", height=170)
-                file = st.file_uploader("Upload Evidence Photo (JPG, PNG)", type=["jpg", "jpeg", "png"])
-
-            submitted = st.form_submit_button("Submit Incident", type="primary")
-
-    if submitted:
-        with st.spinner("Submitting..."):
-            token = st.session_state.get("token")
-            if token and store_name:  # Add null checks
-                res = submit_incident(token, description, store_name, location, offender, file)
-
-                if res and res.status_code == 200:
-                    result = res.json()
-                    st.success("Incident submitted successfully!")
-
-                    st.markdown(f"**Summary:** {result.get('summary', 'N/A')}")
-                    st.markdown(f"**Tags:** {result.get('tags', 'N/A')}")
-                    st.markdown(f"**Severity:** {result.get('severity', 'N/A')}")
-                    st.markdown(f"**Reported By:** {result.get('reported_by', 'N/A')}")
-
-                    pdf_url = f"http://localhost:8000/static/reports/{result.get('pdf_path', '').split('/')[-1]}"
-                    try:
-                        pdf_res = requests.get(pdf_url)
-                        if pdf_res.status_code == 200:
-                            st.markdown("### PDF Preview")
-                            # Use st.download_button for PDF instead of iframe (Chrome blocks local PDFs)
-                            st.download_button(
-                                label="📄 Download Incident PDF",
-                                data=pdf_res.content,
-                                file_name=result.get("pdf_path", "incident.pdf").split("/")[-1],
-                                mime="application/pdf"
-                            )
-                            st.info("PDF preview is disabled for security. Click the download button above to view the report.")
-                        else:
-                            st.warning("PDF not found.")
-                    except Exception as e:
-                        st.error(f"PDF fetch failed: {e}")
-                else:
-                    # Handle different error types
-                    if res is None:
-                        st.error("Failed to connect to server. Please check your connection.")
-                    elif res.status_code == 400:
-                        try:
-                            error_data = res.json()
-                            st.error(f"Validation Error: {error_data.get('detail', 'Invalid data provided')}")
-                        except:
-                            st.error("Invalid data provided. Please check your input.")
-                    elif res.status_code == 403:
-                        st.error("Access denied. You can only submit incidents for your assigned store.")
-                    elif res.status_code == 401:
-                        st.error("Authentication required. Please log in again.")
-                        st.session_state.token = None
-                        st.rerun()
-                    elif res.status_code == 402:
-                        st.error("Payment required. Please subscribe to continue using A.I.ncident - AI Incident Management Dashboard.")
-                        st.info("Redirecting to billing page...")
-                        st.switch_page("pages/billing.py")
-                    elif res.status_code >= 500:
-                        st.error("Server error. Please try again later.")
-                    else:
-                        st.error(f"Failed to submit incident. Status: {res.status_code}")
-                        try:
-                            st.json(res.json())
-                        except:
-                            st.text(res.text)
+                # Quick stats
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total Violations", len(df))
+                with col2:
+                    open_violations = len(df[df.get('status', 'open') == 'open'])
+                    st.metric("Open Violations", open_violations)
+                with col3:
+                    avg_score = df.get('repeat_offender_score', pd.Series([1])).mean()
+                    st.metric("Avg Repeat Score", f"{avg_score:.1f}")
+                with col4:
+                    unique_addresses = df.get('address', pd.Series()).nunique()
+                    st.metric("Properties", unique_addresses)
             else:
-                st.error("Missing authentication token or store information.")
+                st.info("No violation data available.")
 
+    # -----------------------------------
+    # 📝 Submit Violation Tab
+    # -----------------------------------
+    with tab2:
+        if can_submit_violations:
+            st.header("📝 Submit New Violation")
+            
+            # Get accessible HOAs
+            if st.session_state.accessible_hoas is None:
+                accessible_hoas = get_accessible_hoas(st.session_state.token)
+                st.session_state.accessible_hoas = accessible_hoas
+            
+            if st.session_state.accessible_hoas:
+                with st.form("violation_form"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # HOA selection
+                        hoa_options = [f"{hoa['hoa_number']} - {hoa['name']}" for hoa in st.session_state.accessible_hoas]
+                        selected_hoa = st.selectbox("HOA", hoa_options)
+                        
+                        # Address field
+                        address = st.text_input("Property Address/Unit #", placeholder="e.g., 123 Main St, Unit 4A")
+                        
+                        # Location within property
+                        location = st.text_input("Specific Location", placeholder="e.g., Front yard, Back patio")
+                        
+                        # Resident information
+                        offender = st.text_input("Resident Information", placeholder="e.g., John Smith or Unit 4A resident")
+                    
+                    with col2:
+                        # GPS coordinates (optional)
+                        gps_coordinates = st.text_input("GPS Coordinates (Optional)", placeholder="e.g., 37.7749,-122.4194")
+                        
+                        # Violation type
+                        violation_types = [
+                            "Landscaping", "Trash", "Parking", "Exterior Maintenance", "Noise",
+                            "Pet Violation", "Architectural", "Pool/Spa", "Vehicle Storage",
+                            "Holiday Decorations", "Safety Hazard", "Other"
+                        ]
+                        violation_type = st.selectbox("Violation Type", ["Select type..."] + violation_types)
+                        
+                        # Status
+                        status = st.selectbox("Status", ["open", "under_review", "resolved", "disputed"])
+                        
+                        # File upload
+                        uploaded_file = st.file_uploader("Upload Photo (Optional)", type=['jpg', 'jpeg', 'png'])
+                    
+                    # Description
+                    description = st.text_area("Violation Description", 
+                                             placeholder="Describe the violation in detail...",
+                                             height=150)
+                    
+                    submitted = st.form_submit_button("Submit Violation", type="primary")
+                    
+                    if submitted:
+                        if not description or not selected_hoa or not address or not location or not offender:
+                            st.error("Please fill in all required fields.")
+                        elif violation_type == "Select type...":
+                            st.error("Please select a violation type.")
+                        else:
+                            # Extract HOA number from selection
+                            hoa_number = selected_hoa.split(" - ")[0]
+                            
+                            # Submit violation
+                            response = submit_violation(
+                                st.session_state.token,
+                                description=description,
+                                hoa=hoa_number,
+                                address=address,
+                                location=location,
+                                offender=offender,
+                                gps_coordinates=gps_coordinates if gps_coordinates else None,
+                                violation_type=violation_type,
+                                file=uploaded_file
+                            )
+                            
+                            if response and response.status_code == 200:
+                                st.success("Violation submitted successfully!")
+                                st.rerun()
+                            else:
+                                st.error("Failed to submit violation. Please try again.")
+            else:
+                st.warning("No HOAs assigned to your account.")
+        else:
+            st.warning("You don't have permission to submit violations.")
 
+    # -----------------------------------
+    # 📋 Violation Log Tab
+    # -----------------------------------
+    with tab3:
+        if can_view_violation_log:
+            st.header("📋 Violation Log")
+            
+            # Fetch data
+            df, error, pagination, accessible_hoas = fetch_dashboard_data(st.session_state.token, st.session_state.current_page)
+            
+            if error:
+                handle_violation_fetch_error(error)
+            elif not df.empty:
+                # Display violation table
+                render_violation_table(df, user, st.session_state.token)
+                
+                # Pagination controls
+                if pagination and pagination.get("pages", 0) > 1:
+                    col1, col2, col3 = st.columns([1, 2, 1])
+                    with col1:
+                        if st.button("← Previous") and st.session_state.current_page > 0:
+                            st.session_state.current_page -= 1
+                            st.rerun()
+                    with col2:
+                        st.write(f"Page {st.session_state.current_page + 1} of {pagination.get('pages', 1)}")
+                    with col3:
+                        if st.button("Next →") and st.session_state.current_page < pagination.get("pages", 1) - 1:
+                            st.session_state.current_page += 1
+                            st.rerun()
+            else:
+                st.info("No violations to display.")
+        else:
+            st.warning("You don't have permission to view the violation log.")
 
-    if submitted and res and res.status_code == 200:
-        # Clear cache and refresh data
-        st.cache_data.clear()
-        st.session_state.pagination_info = None
-        st.button("🔄 Refresh Dashboard", on_click=st.rerun)
+    # -----------------------------------
+    # 💳 Billing Tab
+    # -----------------------------------
+    with tab4:
+        st.header("💳 Billing & Subscription")
+        st.info("Manage your subscription and billing information.")
+        if st.button("Go to Billing Page", type="primary"):
+            st.switch_page("pages/billing.py")
 
-# Add refresh button in sidebar for all users
-with st.sidebar:
-    if st.button("🔄 Refresh Data"):
-        st.cache_data.clear()
-        st.session_state.pagination_info = None
-        st.rerun()
-
-# Sidebar navigation and logout
-with st.sidebar:
-    st.title("A.I.ncident - AI Incident Management Dashboard")
-    
-    # User info section
-    st.markdown("---")
-    st.markdown(f"**👤 {user['username']}**")
-    st.markdown(f"**🔑 {user_role.capitalize()}**")
-    
-    # Logout button
-    if st.button("🚪 Logout", type="primary"):
-        logout()
-    
-    st.markdown("---")
-    
-    nav_options = ["Dashboard", "Report Incident"]
-    if user_role in ["admin", "staff"]:
-        nav_options.append("Billing")
-    if user_role in ["admin", "staff"]:
-        nav_options.append("User Management")
-    page = st.selectbox(
-        "Navigation",
-        nav_options,
-        index=0
-    )
-
-# Page routing
-if page == "Dashboard":
-    # Current dashboard content (default view)
-    pass
-elif page == "Report Incident":
-    # Show only the incident form
-    st.title("🚨 Report New Incident")
-    # The incident form is already in the main content area
-elif page == "Billing":
-    st.switch_page("pages/billing.py")
-elif page == "User Management":
-    # Import and show user management component
-    from components.user_management import user_management_page
-    user_management_page()
+else:
+    st.error("Access denied. You don't have permission to view the dashboard.")
 
 
 

@@ -1,6 +1,13 @@
 import streamlit as st
 import pandas as pd
 
+# Predefined tags for HOA violations (matching backend FIXED_TAGS)
+PREDEFINED_TAGS = [
+    "Landscaping", "Trash", "Parking", "Exterior Maintenance", "Noise",
+    "Pet Violation", "Architectural", "Pool/Spa", "Vehicle Storage",
+    "Holiday Decorations", "Other", "Safety Hazard"
+]
+
 def apply_filters(incident_df: pd.DataFrame) -> pd.DataFrame:
     if incident_df.empty:
         st.warning("No incident data available for filtering.")
@@ -38,8 +45,9 @@ def apply_filters(incident_df: pd.DataFrame) -> pd.DataFrame:
 
     incident_df['tags'] = incident_df['tags'].apply(parse_tags)
 
-    # Filter options
-    all_tags = sorted({tag for tag_list in incident_df['tags'] for tag in tag_list})
+    # Filter options - combine predefined tags with tags from data
+    data_tags = {tag for tag_list in incident_df['tags'] for tag in tag_list}
+    all_tags = sorted(set(PREDEFINED_TAGS + list(data_tags)))
     severity_options = sorted(incident_df['severity'].dropna().unique().tolist())
     location_options = sorted(incident_df['location'].dropna().unique().tolist())
 

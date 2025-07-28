@@ -1,8 +1,10 @@
 import streamlit as st
 import requests
+import os
 from utils.api import get_accessible_stores
 
-API_URL = "http://localhost:8000/api"
+# Use environment variable for API URL, fallback to localhost for development
+API_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api")
 
 def user_management_page():
     st.title("User Management")

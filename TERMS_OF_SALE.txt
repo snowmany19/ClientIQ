@@ -1,30 +1,70 @@
-Terms of Sale – A.I.ncident  
-Copyright (c) 2025 Security Flaw Solutions LLC
+TERMS OF SALE - CivicLogHOA - HOA Violation Management Platform
 
-By purchasing this software, the buyer (“Licensee”) agrees to the following terms:
+This document outlines the terms and conditions for the sale of the CivicLogHOA - HOA Violation Management Platform software and associated assets.
 
-1. FINAL SALE  
-All sales are **final** and non-refundable. The software is delivered as-is, with **no obligation for post-sale support**, updates, or modifications unless explicitly agreed upon in writing before the sale.
+1. PRODUCT DESCRIPTION
+The CivicLogHOA - HOA Violation Management Platform is a comprehensive SaaS solution designed for HOA managers and inspectors to log, document, and resolve violations. The platform includes:
 
-2. NO WARRANTY  
-This software is sold without warranties or guarantees of any kind. It is provided “as-is” and “as available.” Security Flaw Solutions LLC is not liable for any damages or losses resulting from its use, deployment, or integration.
+- FastAPI backend with PostgreSQL database
+- Streamlit frontend dashboard
+- Role-based access control (Admin, HOA Board, Inspector)
+- AI-powered violation analysis and summarization
+- PDF report generation
+- Image upload and management
+- Stripe billing integration
+- Email alert system
+- CSV export functionality
+- Mobile-responsive design
 
-3. INTELLECTUAL PROPERTY  
-The Licensee receives a license to use, modify, and commercialize the A.I.ncident software within the agreed vertical.  
-Security Flaw Solutions LLC retains full ownership of the core modular engine and reserves the right to reuse or resell engine components in other verticals or projects.
+2. TRANSFER OF OWNERSHIP
+Upon completion of payment, the Buyer will receive:
+- Complete source code for both backend and frontend
+- Database schema and migration scripts
+- API documentation
+- Deployment guides and configuration files
+- Test data and user accounts
+- All associated documentation and assets
 
-4. SUPPORT & CUSTOMIZATIONS  
-Post-sale support, deployment assistance, custom features, or integrations are not included in the base sale.  
-Optional services may be offered by Security Flaw Solutions LLC for an additional fee if negotiated separately.
+3. INTELLECTUAL PROPERTY
+The Seller (Security Flaw Solutions LLC) transfers all rights, title, and interest in the CivicLogHOA software to the Buyer, including:
+- Source code and documentation
+- Database schemas and configurations
+- API specifications
+- User interface designs
+- Branding assets and logos
 
-5. BUYER RESPONSIBILITY  
-The Licensee is solely responsible for:
+4. BUYER RESPONSIBILITIES
+The Buyer agrees to:
+- Maintain the security and integrity of the software
+- Comply with all applicable laws and regulations
+- Handle user data in accordance with privacy laws
+- Maintain proper backups and disaster recovery procedures
+- Update and maintain the software as needed
 
-- Hosting and deployment  
-- Providing and managing their own API keys (e.g., Stripe, OpenAI)  
-- Adapting prompts, branding, and business-specific logic as needed  
+5. WARRANTY AND SUPPORT
+The software is sold "as-is" with no warranty. The Seller provides:
+- 30 days of technical support for deployment and configuration
+- Documentation and handoff assistance
+- No ongoing maintenance or updates after the support period
 
----
+6. CONFIDENTIALITY
+Both parties agree to maintain confidentiality of any proprietary information shared during the sale process.
 
-By completing the purchase, the Licensee confirms they have read, understood, and agreed to these terms.
+7. PAYMENT TERMS
+Payment is due in full upon agreement to these terms. The sale is final once payment is received and assets are transferred.
+
+8. LIMITATION OF LIABILITY
+The Seller's liability is limited to the purchase price paid. The Seller is not liable for any damages arising from the use or modification of the software.
+
+9. GOVERNING LAW
+This agreement is governed by the laws of the jurisdiction where Security Flaw Solutions LLC is registered.
+
+10. ENTIRE AGREEMENT
+This document constitutes the entire agreement between the parties regarding the sale of the CivicLogHOA software.
+
+By purchasing the CivicLogHOA - HOA Violation Management Platform, the Buyer acknowledges and agrees to these terms and conditions.
+
+Security Flaw Solutions LLC
+Contact: sfshkhalsa@gmail.com
+Date: January 2025
 
