@@ -194,7 +194,7 @@ def create_violation(
         "inspected_by": current_user.username,
     }
 
-@router.get("/", response_model=List[ViolationOut])
+@router.get("/")
 def get_all_violations(
     skip: int = 0,
     limit: int = 50,
@@ -278,10 +278,25 @@ def get_all_violations(
         logger.error(f"Error getting violations: {e}")
         violations = []
     
+    # Get total count for pagination
+    count_query = base_query.replace("SELECT *", "SELECT COUNT(*)")
+    count_query = count_query.split("ORDER BY")[0]  # Remove ORDER BY and LIMIT for count
+    
+    try:
+        count_result = db.execute(text(count_query), params)
+        total = count_result.scalar()
+    except Exception as e:
+        logger.error(f"Error getting violation count: {e}")
+        total = 0
+    
+    items_per_page = limit
+    pages = (total + items_per_page - 1) // items_per_page
+    current_page = (skip // items_per_page) + 1
+    
     # Convert to response format
-    result = []
+    violations_data = []
     for violation in violations:
-        result.append({
+        violations_data.append({
             "id": violation.id,
             "violation_number": violation.violation_number,
             "timestamp": violation.timestamp,
@@ -301,7 +316,15 @@ def get_all_violations(
             "inspected_by": None,  # We'll need to get this separately if needed
         })
     
-    return result
+    return {
+        "data": violations_data,
+        "pagination": {
+            "total": total,
+            "pages": pages,
+            "current_page": current_page,
+            "items_per_page": items_per_page
+        }
+    }
 
 @router.get("/hoas/accessible")
 def get_accessible_hoas(

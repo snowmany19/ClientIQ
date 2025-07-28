@@ -60,6 +60,16 @@ def get_dashboard_metrics(
         status_result = db.execute(text(status_query), params)
         status_counts = [(row.status, row.count) for row in status_result]
         
+        # Calculate status-specific counts
+        status_dict = {status: count for status, count in status_counts}
+        open_violations = status_dict.get('open', 0)
+        resolved_violations = status_dict.get('resolved', 0)
+        disputed_violations = status_dict.get('disputed', 0)
+        
+        # Calculate resolution rate
+        total_resolvable = open_violations + resolved_violations + disputed_violations
+        resolution_rate = (resolved_violations / total_resolvable * 100) if total_resolvable > 0 else 0
+        
         # Get violations by repeat offender score
         score_query = f"""
             SELECT repeat_offender_score, COUNT(*) as count 
@@ -116,25 +126,59 @@ def get_dashboard_metrics(
         offender_result = db.execute(text(offender_query), params)
         repeat_offenders = [(row.offender, row.count, row.avg_score) for row in offender_result]
         
+        # Get average resolution time (for resolved violations)
+        resolution_time_query = f"""
+            SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - timestamp)) / 86400) as avg_days
+            FROM violations 
+            WHERE {where_clause} AND status = 'resolved' AND resolved_at IS NOT NULL
+        """
+        avg_resolution_days = db.execute(text(resolution_time_query), params).scalar()
+        average_resolution_time = float(avg_resolution_days) if avg_resolution_days else 0
+        
+        # Get top violation types (using tags field)
+        violation_types_query = f"""
+            SELECT 
+                COALESCE(tags, 'General') as violation_type,
+                COUNT(*) as count
+            FROM violations 
+            WHERE {where_clause}
+            GROUP BY COALESCE(tags, 'General')
+            ORDER BY count DESC
+            LIMIT 5
+        """
+        violation_types_result = db.execute(text(violation_types_query), params)
+        top_violation_types = [(row.violation_type, row.count) for row in violation_types_result]
+        
         return {
             "total_violations": total_violations,
-            "status_breakdown": {status: count for status, count in status_counts},
-            "score_breakdown": {score: count for score, count in score_counts},
-            "average_repeat_offender_score": float(avg_score) if avg_score else 0,
+            "open_violations": open_violations,
+            "resolved_violations": resolved_violations,
+            "disputed_violations": disputed_violations,
+            "repeat_offenders": len([offender for offender, count, avg_score in repeat_offenders if count > 1]),
+            "resolution_rate": round(resolution_rate, 2),
+            "average_resolution_time": round(average_resolution_time, 1),
             "monthly_trends": [
                 {
-                    "year": int(year),
-                    "month": int(month),
+                    "date": f"{int(year)}-{int(month):02d}",
                     "count": int(count)
                 } for year, month, count in monthly_data
             ],
+            "top_violation_types": [
+                {
+                    "type": violation_type,
+                    "count": int(count)
+                } for violation_type, count in top_violation_types
+            ],
+            "status_breakdown": {status: count for status, count in status_counts},
+            "score_breakdown": {score: count for score, count in score_counts},
+            "average_repeat_offender_score": float(avg_score) if avg_score else 0,
             "problem_areas": [
                 {
                     "address": address,
                     "count": int(count)
                 } for address, count in problem_areas
             ],
-            "repeat_offenders": [
+            "repeat_offenders_detail": [
                 {
                     "offender": offender,
                     "count": int(count),
@@ -146,12 +190,19 @@ def get_dashboard_metrics(
         logger.error(f"Error getting dashboard metrics: {e}")
         return {
             "total_violations": 0,
+            "open_violations": 0,
+            "resolved_violations": 0,
+            "disputed_violations": 0,
+            "repeat_offenders": 0,
+            "resolution_rate": 0,
+            "average_resolution_time": 0,
+            "monthly_trends": [],
+            "top_violation_types": [],
             "status_breakdown": {},
             "score_breakdown": {},
             "average_repeat_offender_score": 0,
-            "monthly_trends": [],
             "problem_areas": [],
-            "repeat_offenders": []
+            "repeat_offenders_detail": []
         }
 
 @router.get("/violation-heatmap")
