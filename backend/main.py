@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
@@ -17,7 +18,7 @@ from database import engine, Base
 from core.config import get_settings
 from utils.logger import setup_logging, get_logger, log_api_request, log_error
 from utils.rate_limiter import RateLimiter, rate_limit_middleware, get_client_ip
-from utils.exceptions import custom_exception_handler, IncidentIQException
+from utils.exceptions import custom_exception_handler, CivicLogHOAException
 
 # Get settings
 settings = get_settings()
@@ -32,7 +33,7 @@ rate_limiter = RateLimiter(settings.rate_limit_requests)
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
-    logger.info("Starting A.I.ncident📊 - AI Incident Management Dashboard backend...")
+    logger.info("Starting CivicLogHOA - HOA Violation Management Platform backend...")
     
     # Create tables if they don't exist
     Base.metadata.create_all(bind=engine)
@@ -42,26 +43,32 @@ async def lifespan(app: FastAPI):
     os.makedirs("static/reports", exist_ok=True)
     os.makedirs("logs", exist_ok=True)
     
-    logger.info("A.I.ncident📊 - AI Incident Management Dashboard backend started successfully!")
+    logger.info("CivicLogHOA - HOA Violation Management Platform backend started successfully!")
     
     yield
     
     # Shutdown
-    logger.info("Shutting down A.I.ncident📊 - AI Incident Management Dashboard backend...")
+    logger.info("Shutting down CivicLogHOA - HOA Violation Management Platform backend...")
 
 # ✅ FastAPI app with lifespan
 app = FastAPI(
-    title="A.I.ncident📊 - AI Incident Management Dashboard API",
-    description="Production-ready incident management API",
+    title="CivicLogHOA - HOA Violation Management Platform API",
+    description="Production-ready HOA violation management API",
     version="1.0.0",
     lifespan=lifespan
 )
 
 # 🔌 Include routers
-from routes import auth, incidents, billing
+from routes import auth, violations, billing, resident_portal, analytics, communications
+
 app.include_router(auth.router, prefix="/api")
-app.include_router(incidents.router, prefix="/api")
+app.include_router(violations.router, prefix="/api")
 app.include_router(billing.router, prefix="/api")
+app.include_router(resident_portal.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
+app.include_router(communications.router, prefix="/api")
+
+# Debug router removed
 
 # 🔒 Security Middleware
 if settings.environment == "production":
@@ -82,6 +89,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# 🗜️ GZip Compression Middleware
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # 📂 Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -134,7 +144,7 @@ async def log_requests(request: Request, call_next):
 # ✅ Health check
 @app.get("/")
 def read_root():
-    return {"message": "A.I.ncident📊 - AI Incident Management Dashboard backend is operational.", "version": "1.0.0"}
+    return {"message": "CivicLogHOA - HOA Violation Management Platform backend is operational.", "version": "1.0.0"}
 
 # 🔍 Schema verification on startup
 @app.on_event("startup")

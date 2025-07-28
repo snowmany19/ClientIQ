@@ -1,43 +1,47 @@
 # schemas.py
-# ✅ Pydantic schemas for A.I.ncident📊 - AI Incident Management Dashboard
+# ✅ Pydantic schemas for CivicLogHOA - HOA Violation Management
 
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List, Literal
 from datetime import datetime
 
 # ===========================
-# ✅ Store Schemas
+# ✅ HOA Schemas
 # ===========================
 
-class StoreBase(BaseModel):
-    name: str = Field(..., description="Store name")
-    location: str = Field(..., description="Store location/address")
+class HOABase(BaseModel):
+    name: str = Field(..., description="HOA name")
+    location: str = Field(..., description="HOA location/address")
+    contact_email: Optional[str] = Field(None, description="HOA contact email")
+    contact_phone: Optional[str] = Field(None, description="HOA contact phone")
+    logo_url: Optional[str] = Field(None, description="HOA logo URL")
 
-class StoreCreate(StoreBase):
+class HOACreate(HOABase):
     pass
 
-class StoreOut(StoreBase):
-    id: int = Field(..., description="Unique store identifier")
+class HOAOut(HOABase):
+    id: int = Field(..., description="Unique HOA identifier")
     class Config:
         orm_mode = True
 
-class StoreInfo(BaseModel):
-    id: int = Field(..., description="Unique store identifier")
-    store_number: str = Field(..., description="Formatted store number")
-    name: str = Field(..., description="Store name")
-    location: str = Field(..., description="Store location/address")
+class HOAInfo(BaseModel):
+    id: int = Field(..., description="Unique HOA identifier")
+    hoa_number: str = Field(..., description="Formatted HOA number")
+    name: str = Field(..., description="HOA name")
+    location: str = Field(..., description="HOA location/address")
+    contact_email: Optional[str] = Field(None, description="HOA contact email")
 
 # ===========================
 # ✅ User Schemas
 # ===========================
 
-ValidRoles = Literal["admin", "staff", "employee"]
+ValidRoles = Literal["admin", "hoa_board", "inspector"]
 
 class UserBase(BaseModel):
     username: str = Field(..., description="Unique username (3-20 chars, alphanumeric + underscore)")
     email: Optional[EmailStr] = Field(None, description="User email address")
-    role: Optional[ValidRoles] = Field(default="employee", description="User role in the system")
-    store_id: Optional[int] = Field(None, description="Assigned store ID")
+    role: Optional[ValidRoles] = Field(default="inspector", description="User role in the system")
+    hoa_id: Optional[int] = Field(None, description="Assigned HOA ID")
 
 class UserCreate(UserBase):
     password: str = Field(..., description="User password (min 8 chars)")
@@ -54,61 +58,70 @@ class UserInfo(BaseModel):
     role: ValidRoles = Field(..., description="User role")
     subscription_status: Optional[str] = Field(default="inactive", description="Current subscription status")
     plan_id: Optional[str] = Field(default="basic", description="Current plan")
-    store: Optional[StoreInfo] = Field(None, description="Assigned store information")
+    hoa: Optional[HOAInfo] = Field(None, description="Assigned HOA information")
 
 # ===========================
-# ✅ Offender Schemas
+# ✅ Resident Schemas
 # ===========================
 
-class OffenderBase(BaseModel):
-    alias: str = Field(..., description="Offender alias or nickname")
-    notes: Optional[str] = Field(None, description="Additional notes about the offender")
+class ResidentBase(BaseModel):
+    name: str = Field(..., description="Resident name")
+    address: str = Field(..., description="Property address/unit number")
+    email: Optional[EmailStr] = Field(None, description="Resident email address")
+    phone: Optional[str] = Field(None, description="Resident phone number")
+    hoa_id: int = Field(..., description="HOA ID")
+    notes: Optional[str] = Field(None, description="Additional notes about the resident")
 
-class OffenderCreate(OffenderBase):
+class ResidentCreate(ResidentBase):
     pass
 
-class OffenderOut(OffenderBase):
-    id: int = Field(..., description="Unique offender identifier")
+class ResidentOut(ResidentBase):
+    id: int = Field(..., description="Unique resident identifier")
+    violation_count: int = Field(default=0, description="Number of violations")
     class Config:
         orm_mode = True
 
 # ===========================
-# ✅ Incident Schemas
+# ✅ Violation Schemas
 # ===========================
 
-class IncidentBase(BaseModel):
-    description: str = Field(..., description="Detailed incident description")
-    summary: Optional[str] = Field(None, description="AI-generated summary of the incident")
-    tags: Optional[str] = Field(None, description="Comma-separated incident tags")
-    image_url: Optional[str] = Field(None, description="URL to incident image")
+class ViolationBase(BaseModel):
+    description: str = Field(..., description="Detailed violation description")
+    summary: Optional[str] = Field(None, description="AI-generated summary of the violation")
+    tags: Optional[str] = Field(None, description="Comma-separated violation tags")
+    image_url: Optional[str] = Field(None, description="URL to violation image")
     pdf_path: Optional[str] = Field(None, description="Path to generated PDF report")
-    store_id: Optional[int] = Field(None, description="Store where incident occurred")
-    user_id: Optional[int] = Field(None, description="User who reported the incident")
-    offender_id: Optional[int] = Field(None, description="Associated offender ID")
+    hoa_id: Optional[int] = Field(None, description="HOA where violation occurred")
+    user_id: Optional[int] = Field(None, description="User who inspected the violation")
+    resident_id: Optional[int] = Field(None, description="Associated resident ID")
 
-class IncidentCreate(IncidentBase):
+class ViolationCreate(ViolationBase):
     pass
 
-class IncidentOut(BaseModel):
-    id: int = Field(..., description="Unique incident identifier")
-    timestamp: datetime = Field(..., description="When the incident was reported")
-    description: str = Field(..., description="Detailed incident description")
+class ViolationOut(BaseModel):
+    id: int = Field(..., description="Unique violation identifier")
+    violation_number: int = Field(..., description="Auto-increment violation number")
+    timestamp: datetime = Field(..., description="When the violation was reported")
+    description: str = Field(..., description="Detailed violation description")
     summary: Optional[str] = Field(None, description="AI-generated summary")
     tags: Optional[str] = Field(None, description="Comma-separated tags")
-    severity: Optional[str] = Field(None, description="Incident severity level")
-    store_name: Optional[str] = Field(None, description="Store name where incident occurred")
-    location: Optional[str] = Field(None, description="Specific location within store")
-    offender: Optional[str] = Field(None, description="Offender description")
+    repeat_offender_score: Optional[int] = Field(default=1, description="Repeat offender score (1-5)")
+    hoa_name: Optional[str] = Field(None, description="HOA name where violation occurred")
+    address: Optional[str] = Field(None, description="Property address/unit number")
+    location: Optional[str] = Field(None, description="Specific location within property")
+    offender: Optional[str] = Field(None, description="Resident description")
+    gps_coordinates: Optional[str] = Field(None, description="GPS coordinates")
+    status: Optional[str] = Field(default="open", description="Violation status")
     pdf_path: Optional[str] = Field(None, description="Path to PDF report")
-    image_url: Optional[str] = Field(None, description="Path to incident image")
-    user_id: Optional[int] = Field(None, description="User who reported the incident")
-    reported_by: Optional[str] = Field(None, description="Username of person who reported")
+    image_url: Optional[str] = Field(None, description="Path to violation image")
+    user_id: Optional[int] = Field(None, description="User who inspected the violation")
+    inspected_by: Optional[str] = Field(None, description="Username of person who inspected")
 
     class Config:
         orm_mode = True
 
-class IncidentList(BaseModel):
-    incidents: List[IncidentOut] = Field(..., description="List of incidents")
+class ViolationList(BaseModel):
+    violations: List[ViolationOut] = Field(..., description="List of violations")
 
 # ===========================
 # ✅ Token Schema (for login)
@@ -135,11 +148,14 @@ class LoginResponse(BaseModel):
     token_type: str = Field(..., description="Token type")
     user: UserInfo = Field(..., description="User information")
 
-class IncidentCreateRequest(BaseModel):
-    description: str = Field(..., min_length=10, max_length=2000, description="Detailed incident description")
-    store: str = Field(..., description="Store name in format 'Store #XXX'")
-    location: str = Field(..., min_length=2, max_length=100, description="Specific location within store")
-    offender: str = Field(..., min_length=2, max_length=100, description="Offender description")
+class ViolationCreateRequest(BaseModel):
+    description: str = Field(..., min_length=10, max_length=2000, description="Detailed violation description")
+    hoa: str = Field(..., description="HOA name in format 'HOA #XXX'")
+    address: str = Field(..., min_length=2, max_length=100, description="Property address/unit number")
+    location: str = Field(..., min_length=2, max_length=100, description="Specific location within property")
+    offender: str = Field(..., min_length=2, max_length=100, description="Resident description")
+    gps_coordinates: Optional[str] = Field(None, description="GPS coordinates")
+    violation_type: Optional[str] = Field(None, description="Type of violation")
 
 class PaginationInfo(BaseModel):
     total: int = Field(..., description="Total number of items")
@@ -155,5 +171,64 @@ class ErrorResponse(BaseModel):
 class SuccessResponse(BaseModel):
     message: str = Field(..., description="Success message")
     data: Optional[dict] = Field(None, description="Response data")
+
+# ===========================
+# ✅ Dispute Schemas
+# ===========================
+
+class DisputeCreate(BaseModel):
+    violation_id: int
+    reason: str
+    evidence: Optional[str] = None
+    evidence_file_path: Optional[str] = None
+    contact_preference: Optional[str] = None
+
+class DisputeOut(BaseModel):
+    id: int
+    violation_id: int
+    resident_id: int
+    reason: str
+    evidence: Optional[str] = None
+    evidence_file_path: Optional[str] = None
+    contact_preference: Optional[str] = None
+    status: str
+    submitted_at: datetime
+
+    class Config:
+        orm_mode = True
+
+# ===========================
+# ✅ Communication & Notification Schemas
+# ===========================
+
+class CommunicationCreate(BaseModel):
+    violation_id: int
+    sender_id: int
+    notification_type: str
+    message: str
+    recipients: str
+
+class CommunicationOut(BaseModel):
+    id: int
+    violation_id: int
+    sender_id: int
+    notification_type: str
+    message: str
+    recipients: str
+    sent_at: datetime
+    status: str
+    class Config:
+        orm_mode = True
+
+class NotificationOut(BaseModel):
+    id: int
+    communication_id: int
+    recipient_email: str
+    notification_type: str
+    status: str
+    sent_at: datetime
+    read_at: Optional[datetime] = None
+    class Config:
+        orm_mode = True
 
 

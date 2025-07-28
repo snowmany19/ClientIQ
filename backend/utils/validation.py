@@ -1,5 +1,5 @@
 # utils/validation.py
-# Input validation utilities for the A.I.ncident application
+# Input validation utilities for the CivicLogHOA application
 
 import re
 import os
@@ -21,11 +21,13 @@ class InputValidator:
     # Text validation patterns
     USERNAME_PATTERN = re.compile(r'^[a-zA-Z0-9_]{3,20}$')
     EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-    STORE_NAME_PATTERN = re.compile(r'^Store #\d{3}$')
+    HOA_NAME_PATTERN = re.compile(r'^HOA #\d{3}$')
+    ADDRESS_PATTERN = re.compile(r'^[a-zA-Z0-9\s\-\#\.]+$')
+    GPS_PATTERN = re.compile(r'^\-?\d+\.\d+,\s*\-?\d+\.\d+$')
     
     @classmethod
-    def validate_incident_description(cls, description: str) -> str:
-        """Validate incident description."""
+    def validate_violation_description(cls, description: str) -> str:
+        """Validate violation description."""
         if not description or not description.strip():
             raise ValidationException("Description is required")
         
@@ -40,18 +42,38 @@ class InputValidator:
         return description
     
     @classmethod
-    def validate_store_name(cls, store_name: str) -> str:
-        """Validate store name format."""
-        if not store_name or not store_name.strip():
-            raise ValidationException("Store name is required")
+    def validate_hoa_name(cls, hoa_name: str) -> str:
+        """Validate HOA name format."""
+        if not hoa_name or not hoa_name.strip():
+            raise ValidationException("HOA name is required")
         
-        store_name = store_name.strip()
+        hoa_name = hoa_name.strip()
         
-        # Check if it matches the expected format (Store #XXX)
-        if not cls.STORE_NAME_PATTERN.match(store_name):
-            raise ValidationException("Store name must be in format 'Store #XXX' (e.g., 'Store #001')")
+        # Check if it matches the expected format (HOA #XXX)
+        if not cls.HOA_NAME_PATTERN.match(hoa_name):
+            raise ValidationException("HOA name must be in format 'HOA #XXX' (e.g., 'HOA #001')")
         
-        return store_name
+        return hoa_name
+    
+    @classmethod
+    def validate_address(cls, address: str) -> str:
+        """Validate property address field."""
+        if not address or not address.strip():
+            raise ValidationException("Address is required")
+        
+        address = address.strip()
+        
+        if len(address) < 2:
+            raise ValidationException("Address must be at least 2 characters long")
+        
+        if len(address) > 100:
+            raise ValidationException("Address must be less than 100 characters")
+        
+        # Basic address validation
+        if not cls.ADDRESS_PATTERN.match(address):
+            raise ValidationException("Address contains invalid characters")
+        
+        return address
     
     @classmethod
     def validate_location(cls, location: str) -> str:
@@ -71,19 +93,48 @@ class InputValidator:
     
     @classmethod
     def validate_offender(cls, offender: str) -> str:
-        """Validate offender field."""
+        """Validate resident/offender field."""
         if not offender or not offender.strip():
-            raise ValidationException("Offender information is required")
+            raise ValidationException("Resident information is required")
         
         offender = offender.strip()
         
         if len(offender) < 2:
-            raise ValidationException("Offender information must be at least 2 characters long")
+            raise ValidationException("Resident information must be at least 2 characters long")
         
         if len(offender) > 100:
-            raise ValidationException("Offender information must be less than 100 characters")
+            raise ValidationException("Resident information must be less than 100 characters")
         
         return offender
+    
+    @classmethod
+    def validate_gps_coordinates(cls, gps_coordinates: Optional[str]) -> Optional[str]:
+        """Validate GPS coordinates format."""
+        if not gps_coordinates:
+            return None
+        
+        gps_coordinates = gps_coordinates.strip()
+        
+        if not cls.GPS_PATTERN.match(gps_coordinates):
+            raise ValidationException("GPS coordinates must be in format 'latitude,longitude' (e.g., '37.7749,-122.4194')")
+        
+        return gps_coordinates
+    
+    @classmethod
+    def validate_violation_type(cls, violation_type: Optional[str]) -> Optional[str]:
+        """Validate violation type."""
+        if not violation_type:
+            return None
+        
+        violation_type = violation_type.strip()
+        
+        if len(violation_type) < 2:
+            raise ValidationException("Violation type must be at least 2 characters long")
+        
+        if len(violation_type) > 50:
+            raise ValidationException("Violation type must be less than 50 characters")
+        
+        return violation_type
     
     @classmethod
     def validate_file_upload(cls, file: Optional[UploadFile], required: bool = False) -> Optional[str]:
@@ -184,7 +235,7 @@ class InputValidator:
         return filename
     
     @classmethod
-    def validate_file_path(cls, file_path: str, allowed_extensions: List[str] = None) -> str:
+    def validate_file_path(cls, file_path: str, allowed_extensions: Optional[List[str]] = None) -> str:
         """Validate file path for security."""
         if not file_path:
             raise ValidationException("File path is required")
@@ -201,26 +252,38 @@ class InputValidator:
         
         return file_path
 
-def validate_incident_data(description: str, store: str, location: str, offender: str, file: Optional[UploadFile] = None) -> dict:
-    """Validate all incident data at once."""
+# Legacy method names for backward compatibility
+def validate_incident_description(description: str) -> str:
+    """Legacy method - use validate_violation_description instead."""
+    return InputValidator.validate_violation_description(description)
+
+def validate_store_name(store_name: str) -> str:
+    """Legacy method - use validate_hoa_name instead."""
+    return InputValidator.validate_hoa_name(store_name)
+
+def validate_violation_data(description: str, hoa: str, address: str, location: str, offender: str, 
+                          gps_coordinates: Optional[str] = None, violation_type: Optional[str] = None,
+                          file: Optional[UploadFile] = None) -> dict:
+    """Validate all violation data fields."""
     validated_data = {
-        'description': InputValidator.validate_incident_description(description),
-        'store': InputValidator.validate_store_name(store),
-        'location': InputValidator.validate_location(location),
-        'offender': InputValidator.validate_offender(offender),
-        'filename': InputValidator.validate_file_upload(file)
+        "description": InputValidator.validate_violation_description(description),
+        "hoa": InputValidator.validate_hoa_name(hoa),
+        "address": InputValidator.validate_address(address),
+        "location": InputValidator.validate_location(location),
+        "offender": InputValidator.validate_offender(offender),
+        "gps_coordinates": InputValidator.validate_gps_coordinates(gps_coordinates),
+        "violation_type": InputValidator.validate_violation_type(violation_type),
     }
     
-    logger.info("Incident data validation successful")
+    if file:
+        validated_data["file"] = InputValidator.validate_file_upload(file)
+    
     return validated_data
 
 def validate_user_data(username: str, email: str, password: str) -> dict:
-    """Validate all user data at once."""
-    validated_data = {
-        'username': InputValidator.validate_username(username),
-        'email': InputValidator.validate_email(email),
-        'password': InputValidator.validate_password(password)
-    }
-    
-    logger.info("User data validation successful")
-    return validated_data 
+    """Validate all user data fields."""
+    return {
+        "username": InputValidator.validate_username(username),
+        "email": InputValidator.validate_email(email),
+        "password": InputValidator.validate_password(password)
+    } 

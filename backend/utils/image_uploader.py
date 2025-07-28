@@ -4,6 +4,12 @@ import os
 from fastapi import UploadFile, HTTPException, status
 from uuid import uuid4
 import hashlib
+from PIL import Image
+from datetime import datetime
+from typing import Optional
+from utils.logger import get_logger
+
+logger = get_logger("image_uploader")
 
 # File signature (magic bytes) for image validation
 IMAGE_SIGNATURES = {
@@ -52,114 +58,179 @@ def scan_for_malware(file_content: bytes) -> bool:
     
     return True
 
-def save_image(upload: UploadFile, upload_dir="static/images") -> str:
-    """Save uploaded image with enhanced security validation."""
+def save_image(file: UploadFile, mobile_optimized: bool = False) -> Optional[str]:
+    """
+    Save uploaded image with optional mobile optimization.
     
-    # 🔍 File validation
-    if not upload:
-        return None
+    Args:
+        file: Uploaded file
+        mobile_optimized: If True, optimize for mobile viewing
     
-    # Check file size (max 5MB for security)
-    if upload.size and upload.size > 5 * 1024 * 1024:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File size must be less than 5MB for security reasons."
-        )
-    
-    # Check file extension
-    allowed_extensions = ['.jpg', '.jpeg', '.png']
-    if not upload.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File must have a valid filename."
-        )
-    
-    file_extension = os.path.splitext(upload.filename)[-1].lower()
-    if file_extension not in allowed_extensions:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only JPG and PNG files are allowed."
-        )
-    
-    # Check MIME type
-    allowed_mime_types = ['image/jpeg', 'image/jpg', 'image/png']
-    if upload.content_type not in allowed_mime_types:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file type. Only JPG and PNG images are allowed."
-        )
-    
-    # Read file content for validation
+    Returns:
+        Path to saved image or None if failed
+    """
     try:
-        content = upload.file.read()
-        upload.file.seek(0)  # Reset file pointer for later use
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to read uploaded file."
-        )
-    
-    # 🔒 Enhanced security validations
-    
-    # 1. Validate file content using magic bytes
-    if not validate_file_content(content):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file content. File does not contain valid image data."
-        )
-    
-    # 2. Basic malware scanning
-    if not scan_for_malware(content):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File appears to contain potentially malicious content."
-        )
-    
-    # 3. Calculate file hash for integrity
-    file_hash = calculate_file_hash(content)
-    
-    # Create upload directory with secure permissions
-    os.makedirs(upload_dir, exist_ok=True)
-    os.chmod(upload_dir, 0o755)  # Secure directory permissions
-
-    # Generate secure filename with hash
-    filename = f"{uuid4().hex}_{file_hash[:8]}{file_extension}"
-    file_path = os.path.join(upload_dir, filename)
-
-    # Save file with secure permissions
-    try:
-        with open(file_path, "wb") as buffer:
-            buffer.write(content)
+        # Create upload directory if it doesn't exist
+        upload_dir = "static/images"
+        os.makedirs(upload_dir, exist_ok=True)
         
-        # Set secure file permissions (read-only for web server)
-        os.chmod(file_path, 0o644)
+        # Generate unique filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid4())[:8]
+        file_extension = os.path.splitext(file.filename)[1] if file.filename else ".jpg"
+        filename = f"violation_{timestamp}_{unique_id}{file_extension}"
+        file_path = os.path.join(upload_dir, filename)
         
-        # Verify file was saved and is actually an image
-        if os.path.getsize(file_path) == 0:
-            os.remove(file_path)
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Uploaded file is empty."
-            )
+        # Read and process image
+        with Image.open(file.file) as img:
+            # Mobile optimization
+            if mobile_optimized:
+                img = optimize_for_mobile(img)
+            
+            # Save image
+            img.save(file_path, quality=85, optimize=True)
         
-        # Final validation: ensure file is still a valid image
-        with open(file_path, 'rb') as f:
-            final_content = f.read()
-            if not validate_file_content(final_content):
-                os.remove(file_path)
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="File validation failed after save."
-                )
-        
+        logger.info(f"Image saved successfully: {file_path}")
         return file_path
         
     except Exception as e:
-        # Clean up on error
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save image: {str(e)}"
-        )
+        logger.error(f"Failed to save image: {e}")
+        return None
+
+def optimize_for_mobile(img: Image.Image) -> Image.Image:
+    """
+    Optimize image for mobile viewing.
+    
+    Args:
+        img: PIL Image object
+    
+    Returns:
+        Optimized PIL Image object
+    """
+    # Resize if too large (max 1920x1080 for mobile)
+    max_width, max_height = 1920, 1080
+    width, height = img.size
+    
+    if width > max_width or height > max_height:
+        # Calculate new dimensions maintaining aspect ratio
+        ratio = min(max_width / width, max_height / height)
+        new_width = int(width * ratio)
+        new_height = int(height * ratio)
+        img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    
+    # Convert to RGB if necessary
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
+    
+    return img
+
+def extract_gps_from_image(file: UploadFile) -> Optional[str]:
+    """
+    Extract GPS coordinates from image EXIF data.
+    
+    Args:
+        file: Uploaded image file
+    
+    Returns:
+        GPS coordinates as "latitude,longitude" string or None
+    """
+    try:
+        # Reset file pointer
+        file.file.seek(0)
+        
+        with Image.open(file.file) as img:
+            # Check if image has EXIF data
+            exif_data = getattr(img, '_getexif', lambda: None)()
+            if not exif_data:
+                return None
+            
+            # Extract GPS data
+            gps_data = exif_data.get(34853)  # GPS IFD tag
+            if not gps_data:
+                return None
+            
+            # Extract latitude and longitude
+            lat = extract_gps_coordinate(gps_data, 2, 1)  # GPSLatitude, GPSLatitudeRef
+            lon = extract_gps_coordinate(gps_data, 4, 3)  # GPSLongitude, GPSLongitudeRef
+            
+            if lat is not None and lon is not None:
+                return f"{lat},{lon}"
+        
+        return None
+        
+    except Exception as e:
+        logger.warning(f"Failed to extract GPS from image: {e}")
+        return None
+
+def extract_gps_coordinate(gps_data: dict, coord_tag: int, ref_tag: int) -> Optional[float]:
+    """
+    Extract GPS coordinate from EXIF data.
+    
+    Args:
+        gps_data: GPS EXIF data dictionary
+        coord_tag: Coordinate tag (2 for latitude, 4 for longitude)
+        ref_tag: Reference tag (1 for latitude ref, 3 for longitude ref)
+    
+    Returns:
+        Coordinate as float or None
+    """
+    try:
+        coord = gps_data.get(coord_tag)
+        ref = gps_data.get(ref_tag)
+        
+        if not coord or not ref:
+            return None
+        
+        # Convert DMS (degrees, minutes, seconds) to decimal
+        degrees = float(coord[0])
+        minutes = float(coord[1])
+        seconds = float(coord[2])
+        
+        decimal_coord = degrees + (minutes / 60.0) + (seconds / 3600.0)
+        
+        # Apply reference (N/S for latitude, E/W for longitude)
+        if ref in ['S', 'W']:
+            decimal_coord = -decimal_coord
+        
+        return round(decimal_coord, 6)
+        
+    except Exception as e:
+        logger.warning(f"Failed to extract GPS coordinate: {e}")
+        return None
+
+def get_image_info(file_path: str) -> dict:
+    """
+    Get image information including metadata.
+    
+    Args:
+        file_path: Path to image file
+    
+    Returns:
+        Dictionary with image information
+    """
+    try:
+        with Image.open(file_path) as img:
+            info = {
+                "size": img.size,
+                "mode": img.mode,
+                "format": img.format,
+                "file_size": os.path.getsize(file_path)
+            }
+            
+            # Try to get EXIF data
+            try:
+                exif_data = getattr(img, '_getexif', lambda: None)()
+                if exif_data:
+                    info["has_exif"] = True
+                    info["exif_keys"] = list(exif_data.keys())
+                else:
+                    info["has_exif"] = False
+            except:
+                info["has_exif"] = False
+            
+            return info
+            
+    except Exception as e:
+        logger.error(f"Failed to get image info: {e}")
+        return {}
 

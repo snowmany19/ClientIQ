@@ -1,0 +1,74 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: civicloghoa_db
+      POSTGRES_USER: civicloghoa_user
+      POSTGRES_PASSWORD: civicloghoa_pass
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - hoanet
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U civicloghoa_user -d civicloghoa_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://civicloghoa_user:civicloghoa_pass@db:5432/civicloghoa_db
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/static/reports:/app/static/reports
+    networks:
+      - hoanet
+    ports:
+      - "8000:8000"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - hoanet
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Set API URL to backend container
+      API_BASE_URL: http://backend:8000/api
+    depends_on:
+      - backend
+    networks:
+      - hoanet
+    ports:
+      - "8501:8501"
+
+volumes:
+  db_data:
+  redis_data:
+
+networks:
+  hoanet:
+    driver: bridge 

@@ -1,9 +1,9 @@
 📋 **Legal Notice**  
 This project, including all code and content, is the property of Security Flaw Solutions LLC. Unauthorized use or distribution is prohibited.
 
-# IncidentIQ (A.I.ncident) — SaaS Incident Management Platform
+# CivicLogHOA — HOA Violation Management Platform
 
-A production-ready, modular SaaS platform for incident management, built with FastAPI (backend), Streamlit (frontend), PostgreSQL, and Stripe. Includes robust RBAC, PDF reporting, file uploads, and subscription billing.
+A production-ready, modular SaaS platform for HOA violation management, built with FastAPI (backend), Streamlit (frontend), PostgreSQL, and Stripe. Includes robust RBAC, PDF reporting, file uploads, and subscription billing.
 
 ---
 
@@ -12,9 +12,10 @@ A production-ready, modular SaaS platform for incident management, built with Fa
 - **Streamlit Frontend** — Modern, interactive dashboard
 - **PostgreSQL Database** — Production-grade relational DB
 - **Stripe Billing** — Subscription management & webhooks
-- **Role-Based Access** — Admin, Staff, Employee
-- **PDF Generation** — Automated incident reports
+- **Role-Based Access** — Admin, HOA Board, Inspector
+- **PDF Generation** — Automated violation notices
 - **File Uploads** — Secure image/document handling
+- **AI-Powered Summaries** — GPT-generated violation reports
 - **Comprehensive Validation & Error Handling**
 - **Production-Ready Config & Logging**
 
@@ -25,7 +26,7 @@ A production-ready, modular SaaS platform for incident management, built with Fa
 ### 1. **Clone the Repository**
 ```bash
 git clone <your-repo-url>
-cd IncidentIQ_Demo
+cd CivicLogHOA
 ```
 
 ### 2. **Set Up PostgreSQL Locally**
@@ -42,9 +43,9 @@ cd IncidentIQ_Demo
 # Create database and user
 psql postgres
 # In psql shell:
-CREATE DATABASE incidentiq_db;
-CREATE USER incidentiq_user WITH PASSWORD 'yourpassword';
-GRANT ALL PRIVILEGES ON DATABASE incidentiq_db TO incidentiq_user;
+CREATE DATABASE civicloghoa_db;
+CREATE USER civicloghoa_user WITH PASSWORD 'yourpassword';
+GRANT ALL PRIVILEGES ON DATABASE civicloghoa_db TO civicloghoa_user;
 \q
 ```
 
@@ -53,7 +54,7 @@ GRANT ALL PRIVILEGES ON DATABASE incidentiq_db TO incidentiq_user;
 cd backend
 cp env_example.txt .env
 # Edit .env and set:
-# DATABASE_URL=postgresql://incidentiq_user:yourpassword@localhost:5432/incidentiq_db
+# DATABASE_URL=postgresql://civicloghoa_user:yourpassword@localhost:5432/civicloghoa_db
 # (Fill in all other required secrets: Stripe, OpenAI, etc.)
 ```
 

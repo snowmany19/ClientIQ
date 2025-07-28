@@ -1,33 +1,49 @@
-# models.py — SQLAlchemy models for the A.I.ncident📊 - AI Incident Management Dashboard system
+# models.py — SQLAlchemy models for the CivicLogHOA - HOA Violation Management system
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
 # Import Base from database to ensure all models use the same metadata
-from database import Base
+try:
+    from database import Base
+except ImportError:
+    from backend.database import Base
 
-# 📝 Incident table
-class Incident(Base):
-    __tablename__ = "incidents"
+# 📝 Violation table
+class Violation(Base):
+    __tablename__ = "violations"
 
     id = Column(Integer, primary_key=True, index=True)
-    description = Column(Text)                   # Raw incident report
+    violation_number = Column(Integer, unique=True, index=True, nullable=True)  # Unique violation number, set after creation
+    description = Column(Text)                   # Raw violation report
     summary = Column(Text)                       # GPT summary
     tags = Column(String)                        # Comma-separated tags
     timestamp = Column(DateTime, default=datetime.utcnow)
 
-    store_name = Column(String)                  # Store name (text)
-    location = Column(String)                    # Location text
-    offender = Column(String)                    # Offender name/alias
+    hoa_name = Column(String)                    # HOA name (text)
+    address = Column(String)                     # Property address/unit number
+    location = Column(String)                    # Specific location within property
+    offender = Column(String)                    # Resident name/description
+
+    # New HOA-specific fields
+    gps_coordinates = Column(String, nullable=True)  # GPS coordinates for mobile capture
+    status = Column(String, default="open")      # open, under_review, resolved, disputed
+    repeat_offender_score = Column(Integer, default=1)  # Renamed from severity
+
+    # Resolution tracking fields
+    resolved_at = Column(DateTime, nullable=True)      # When violation was resolved
+    resolved_by = Column(String, nullable=True)        # Who resolved the violation
+    resolution_notes = Column(Text, nullable=True)     # Notes about resolution
+    reviewed_at = Column(DateTime, nullable=True)      # When violation was reviewed
+    reviewed_by = Column(String, nullable=True)        # Who reviewed the violation
 
     image_url = Column(String, nullable=True)    # Optional image path
     pdf_path = Column(String, nullable=True)     # Generated PDF path
-    severity = Column(String, nullable=True)
 
-    # 🔗 FK to reporter
+    # 🔗 FK to inspector
     user_id = Column(Integer, ForeignKey("users.id"))
-    user = relationship("User", back_populates="incidents")
+    user = relationship("User", back_populates="violations")
 
 # 🧑 User table with role-based access
 class User(Base):
@@ -37,8 +53,8 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     email = Column(String, unique=True, nullable=True)
-    role = Column(String, default="employee")  # employee | staff | admin
-    store_id = Column(Integer, ForeignKey("stores.id"), nullable=True)  # store assignment (optional FK)
+    role = Column(String, default="inspector")  # inspector | hoa_board | admin
+    hoa_id = Column(Integer, ForeignKey("hoas.id"), nullable=True)  # HOA assignment (renamed from store_id)
     
     # 💳 Billing fields
     stripe_customer_id = Column(String, nullable=True)  # Stripe customer ID
@@ -49,24 +65,79 @@ class User(Base):
     billing_cycle_start = Column(DateTime, nullable=True)  # Current billing period start
     billing_cycle_end = Column(DateTime, nullable=True)    # Current billing period end
 
-    incidents = relationship("Incident", back_populates="user", cascade="all, delete-orphan")
-    store = relationship("Store")  # Relationship to assigned store
+    violations = relationship("Violation", back_populates="user", cascade="all, delete-orphan")
+    hoa = relationship("HOA")  # Relationship to assigned HOA
 
-# 🏬 Store table (optional)
-class Store(Base):
-    __tablename__ = "stores"
+# 🏘️ HOA table (renamed from Store)
+class HOA(Base):
+    __tablename__ = "hoas"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     location = Column(String)
+    contact_email = Column(String, nullable=True)
+    contact_phone = Column(String, nullable=True)
+    logo_url = Column(String, nullable=True)  # HOA logo for PDF generation
 
-# 🧑‍🚨 Offender table
-class Offender(Base):
-    __tablename__ = "offenders"
+# 🧑‍🚨 Resident table (renamed from Offender)
+class Resident(Base):
+    __tablename__ = "residents"
 
     id = Column(Integer, primary_key=True, index=True)
-    alias = Column(String, index=True)
+    name = Column(String, index=True)
+    address = Column(String, index=True)
+    email = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    hoa_id = Column(Integer, ForeignKey("hoas.id"))
     notes = Column(Text)
+    violation_count = Column(Integer, default=0)  # Track repeat violations
+
+# 📝 Dispute table (for resident violation disputes)
+class Dispute(Base):
+    __tablename__ = "disputes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    violation_id = Column(Integer, ForeignKey("violations.id"), nullable=False)
+    resident_id = Column(Integer, ForeignKey("residents.id"), nullable=False)
+    reason = Column(Text, nullable=False)
+    evidence = Column(Text, nullable=True)
+    evidence_file_path = Column(String, nullable=True)
+    contact_preference = Column(String, nullable=True)
+    status = Column(String, default="pending")
+    submitted_at = Column(DateTime, default=datetime.utcnow)
+
+    violation = relationship("Violation")
+    resident = relationship("Resident")
+
+# 📨 Communication table (for tracking notifications sent about violations)
+class Communication(Base):
+    __tablename__ = "communications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    violation_id = Column(Integer, ForeignKey("violations.id"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    notification_type = Column(String, nullable=False)  # initial, warning, escalation, resolution
+    message = Column(Text, nullable=False)
+    recipients = Column(String, nullable=False)  # Comma-separated emails
+    sent_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(String, default="sent")
+
+    violation = relationship("Violation")
+    sender = relationship("User")
+
+# 🛎️ Notification table (for tracking delivery/read status)
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    communication_id = Column(Integer, ForeignKey("communications.id"), nullable=False)
+    recipient_email = Column(String, nullable=False)
+    notification_type = Column(String, nullable=False)
+    status = Column(String, default="sent")  # sent, delivered, read, failed
+    sent_at = Column(DateTime, default=datetime.utcnow)
+    read_at = Column(DateTime, nullable=True)
+
+    communication = relationship("Communication")
 
 
 

@@ -8,7 +8,7 @@ import stripe
 import os
 
 from database import get_db
-from models import User, Incident
+from models import User, Violation
 from utils.auth_utils import get_current_user
 from utils.stripe_utils import (
     create_customer, create_subscription, get_subscription,
@@ -67,7 +67,7 @@ def get_my_subscription(
             )
     
     # Check if user has an active plan (for staff users who might have been assigned a plan)
-    if current_user.plan_id is not None and current_user.subscription_status == "active":
+    if current_user.plan_id is not None and str(current_user.subscription_status) == "active":
         plan = SUBSCRIPTION_PLANS.get(str(current_user.plan_id), {})
         return {
             "subscription": {
@@ -258,10 +258,9 @@ def handle_subscription_deleted(subscription: Dict[str, Any], db: Session):
 def handle_payment_failed(invoice: Dict[str, Any], db: Session):
     """Handle failed payments."""
     customer_id = invoice["customer"]
-    
     user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
     if user:
-        user.subscription_status = "past_due"
+        setattr(user, 'subscription_status', 'past_due')
         db.commit()
 
 @router.get("/usage")
@@ -270,20 +269,27 @@ def get_usage_stats(
     db: Session = Depends(get_db)
 ):
     """Get current usage statistics."""
-    # Count incidents for current user/store
-    incident_count = db.query(Incident).filter(
-        Incident.user_id == current_user.id
-    ).count()
+    from sqlalchemy import text
+    
+    # Count incidents for current user/store using raw SQL
+    try:
+        incident_count = db.execute(
+            text("SELECT COUNT(*) FROM violations WHERE user_id = :user_id"),
+            {"user_id": current_user.id}
+        ).scalar()
+    except Exception as e:
+        logger.error(f"Error getting incident count: {e}")
+        incident_count = 0
     
     # Get plan limits
-    limits = get_usage_limits(current_user.plan_id)
+    plan_limits = get_usage_limits(str(current_user.plan_id))
     
     return {
         "usage": {
             "incidents": incident_count,
             "users": 1  # Current user
         },
-        "limits": limits,
+        "limits": plan_limits,
         "plan_id": current_user.plan_id
     }
 
@@ -306,7 +312,7 @@ def get_usage_limits_route(
     """Get usage limits for current user's plan."""
     plan_id = str(current_user.plan_id or "basic")
     plan = SUBSCRIPTION_PLANS.get(plan_id, SUBSCRIPTION_PLANS.get("basic"))
-    limits = plan.get("limits", {})
+    limits = plan.get("limits", {}) if plan else {}
     return {
         "plan": plan_id,
         "max_incidents": limits.get("incidents_per_month", 100),

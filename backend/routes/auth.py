@@ -16,7 +16,7 @@ import pathlib
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 from database import get_db
-from models import User, Store
+from models import User, HOA
 from schemas import Token, UserInfo, UserCreate
 from utils.auth_utils import (
     verify_password, create_access_token, get_password_hash, get_current_user, 
@@ -44,9 +44,9 @@ def verify_password(plain_password, hashed_password):
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.jwt_expiration_minutes))
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 def authenticate_user(db: Session, username: str, password: str):
     user = db.query(User).filter(User.username == username).first()
@@ -93,7 +93,7 @@ def login(
             details={"username": user.username, "role": user.role}
         )
 
-    access_token_expires = timedelta(minutes=settings.jwt_expiration_minutes)
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
         data={"sub": user.username, "user_id": user.id, "role": user.role},
         expires_delta=access_token_expires
@@ -105,7 +105,7 @@ def login(
 @router.get("/me", response_model=UserInfo)
 def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         username = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token payload")
@@ -120,16 +120,6 @@ def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get
     # 🎯 Admins always have "active" subscription status
     subscription_status = "active" if user.role == "admin" else user.subscription_status
 
-    # 🏬 Get store information if assigned
-    store_info = None
-    if user.store_id is not None and user.store is not None:
-        store_info = {
-            "id": user.store.id,
-            "store_number": f"Store #{user.store.id:03d}",  # Format as Store #001, #002, etc.
-            "name": user.store.name,
-            "location": user.store.location
-        }
-
     return {
         "id": user.id,
         "username": user.username, 
@@ -137,7 +127,6 @@ def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get
         "role": user.role,
         "subscription_status": subscription_status,
         "plan_id": user.plan_id,
-        "store": store_info
     }
 
 
@@ -169,7 +158,6 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         hashed_password=hashed_pw,
         email=validated_email,
         role=user.role or "employee",
-        store_id=user.store_id
     )
     db.add(new_user)
     db.commit()
@@ -273,7 +261,6 @@ def create_user_with_permissions(
         hashed_password=hashed_password,
         email=validated_email,
         role=user.role,
-        store_id=user.store_id,
         plan_id=current_user.plan_id,
         subscription_status=current_user.subscription_status
     )
@@ -365,12 +352,12 @@ def list_users(
         users_query = db.query(User)
     elif current_user.role == "staff":
         # Staff can only see users from their store
-        if current_user.store_id is None:
+        if current_user.hoa_id is None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Staff must be assigned to a store to view users."
             )
-        users_query = db.query(User).filter(User.store_id == current_user.store_id)
+        users_query = db.query(User).filter(User.hoa_id == current_user.hoa_id)
     else:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -382,16 +369,6 @@ def list_users(
     
     result = []
     for user in users:
-        # Get store information
-        store_info = None
-        if user.store_id is not None and user.store is not None:
-            store_info = {
-                "id": user.store.id,
-                "store_number": f"Store #{user.store.id:03d}",
-                "name": user.store.name,
-                "location": user.store.location
-            }
-        
         result.append({
             "id": user.id,  # Add user ID for frontend operations
             "username": user.username,
@@ -399,7 +376,6 @@ def list_users(
             "role": user.role,
             "subscription_status": user.subscription_status,
             "plan_id": user.plan_id,
-            "store": store_info
         })
     
     return result
@@ -408,30 +384,29 @@ def list_users(
 # 🛠️ One-time default user creator (run manually if needed)
 @router.get("/seed-users")
 def seed_default_users(db: Session = Depends(get_db)):
-    # First, create some sample stores
-    stores = [
-        {"name": "Downtown Store", "location": "123 Main St, Downtown"},
-        {"name": "Mall Location", "location": "456 Shopping Ave, Mall"},
-        {"name": "Suburban Branch", "location": "789 Oak Rd, Suburbs"},
+    # First, create some sample HOAs
+    hoas = [
+        {"name": "Downtown HOA", "location": "123 Main St, Downtown"},
+        {"name": "Mall HOA", "location": "456 Shopping Ave, Mall"},
+        {"name": "Suburban HOA", "location": "789 Oak Rd, Suburbs"},
     ]
-    
-    created_stores = []
-    for store_data in stores:
-        existing_store = db.query(Store).filter(Store.name == store_data["name"]).first()
-        if not existing_store:
-            store = Store(name=store_data["name"], location=store_data["location"])
-            db.add(store)
-            created_stores.append(store_data["name"])
-    
-    db.commit()
-    
-    # Now create users with store assignments
+
+    created_hoas = []
+    for hoa_data in hoas:
+        existing_hoa = db.query(HOA).filter(HOA.name == hoa_data["name"]).first()
+        if not existing_hoa:
+            hoa = HOA(name=hoa_data["name"], location=hoa_data["location"])
+            db.add(hoa)
+            db.commit()
+            created_hoas.append(hoa_data["name"])
+
+    # Now create users with HOA assignments
     defaults = [
-        {"username": "admin", "password": "Admin123!", "role": "admin", "store_id": None},  # Admin has no store restriction
-        {"username": "manager1", "password": "Manager123!", "role": "staff", "store_id": 1},   # Staff at Downtown Store
-        {"username": "manager2", "password": "Manager123!", "role": "staff", "store_id": 2},   # Staff at Mall Location
-        {"username": "employee1", "password": "Employee123!", "role": "employee", "store_id": 1}, # Employee at Downtown Store
-        {"username": "employee2", "password": "Employee123!", "role": "employee", "store_id": 2}, # Employee at Mall Location
+        {"username": "admin", "password": "Admin123!", "role": "admin", "hoa_id": None},  # Admin has no HOA restriction
+        {"username": "manager1", "password": "Manager123!", "role": "staff", "hoa_id": 1},   # Staff at Downtown HOA
+        {"username": "manager2", "password": "Manager123!", "role": "staff", "hoa_id": 2},   # Staff at Mall HOA
+        {"username": "employee1", "password": "Employee123!", "role": "employee", "hoa_id": 1}, # Employee at Downtown HOA
+        {"username": "employee2", "password": "Employee123!", "role": "employee", "hoa_id": 2}, # Employee at Mall HOA
     ]
     created = []
 
@@ -441,14 +416,14 @@ def seed_default_users(db: Session = Depends(get_db)):
                 username=user["username"],
                 hashed_password=get_password_hash(user["password"]),
                 role=user["role"],
-                store_id=user["store_id"]
+                hoa_id=user["hoa_id"]
             )
             db.add(db_user)
             created.append(user["username"])
     db.commit()
 
     return {
-        "created_stores": created_stores if created_stores else "All stores already exist",
+        "created_hoas": created_hoas if created_hoas else "All HOAs already exist",
         "created_users": created if created else "All default users already exist."
     }
 
@@ -510,7 +485,6 @@ def edit_user(
         user_to_edit.email = user_update.email
     
     user_to_edit.role = user_update.role
-    user_to_edit.store_id = user_update.store_id
     
     # Update password if provided
     if user_update.password is not None and len(user_update.password) >= 6:
@@ -543,7 +517,7 @@ def delete_user(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Soft delete user (admin/staff only) - preserves incidents
+    Soft delete user (admin/staff only) - preserves violations
     """
     if current_user.role == "employee":
         raise HTTPException(
@@ -582,7 +556,7 @@ def delete_user(
     
     try:
         db.commit()
-        return {"message": "User deleted successfully. Incidents are preserved."}
+        return {"message": "User deleted successfully. Violations are preserved."}
     except Exception as e:
         db.rollback()
         raise HTTPException(
