@@ -32,11 +32,13 @@ services:
       db:
         condition: service_healthy
     volumes:
+      - ./backend:/app
       - ./backend/static/reports:/app/static/reports
     networks:
       - hoanet
     ports:
       - "8000:8000"
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   redis:
     image: redis:7-alpine
@@ -52,6 +54,7 @@ services:
   frontend:
     build:
       context: ./frontend-nextjs
+      dockerfile: Dockerfile.dev
     restart: unless-stopped
     env_file:
       - .env
@@ -64,6 +67,10 @@ services:
       - hoanet
     ports:
       - "3000:3000"
+    volumes:
+      - ./frontend-nextjs:/app
+      - /app/node_modules
+      - /app/.next
 
 volumes:
   db_data:
