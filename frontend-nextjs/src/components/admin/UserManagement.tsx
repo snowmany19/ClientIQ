@@ -22,7 +22,7 @@ const userSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters').max(50, 'Username must be less than 50 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['admin', 'hoa_board', 'inspector']),
+  role: z.enum(['admin', 'hoa_board', 'inspector', 'super_admin']),
   hoa_id: z.number().optional(),
 });
 
@@ -280,6 +280,7 @@ export default function UserManagement() {
                   <option value="admin">Admin</option>
                   <option value="hoa_board">HOA Board</option>
                   <option value="inspector">Inspector</option>
+                  <option value="super_admin">Super Admin</option>
                 </select>
                 {errors.role && (
                   <p className="mt-1 text-sm text-red-700 font-medium">{errors.role.message}</p>

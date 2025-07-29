@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import Sidebar from '@/components/layout/Sidebar';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 export default function DashboardLayout({
   children,
@@ -39,11 +40,13 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="h-screen flex bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {children}
+    <ErrorBoundary>
+      <div className="h-screen flex bg-gray-50">
+        <Sidebar />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {children}
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 } 

@@ -16,6 +16,7 @@ import {
   AlertCircle,
   CheckCircle
 } from 'lucide-react';
+import Image from 'next/image';
 
 const violationSchema = z.object({
   description: z.string().min(10, 'Description must be at least 10 characters').max(2000, 'Description must be less than 2000 characters'),
@@ -358,9 +359,11 @@ export default function ViolationForm({ onSuccess, onCancel }: ViolationFormProp
               {photoPreview ? (
                 <div className="space-y-4">
                   <div className="relative">
-                    <img
+                    <Image
                       src={photoPreview}
                       alt="Violation preview"
+                      width={800}
+                      height={256}
                       className="w-full h-64 object-cover rounded-lg border border-gray-300"
                     />
                     <button

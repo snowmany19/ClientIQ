@@ -13,22 +13,24 @@ import {
   Settings, 
   LogOut,
   Menu,
-  X
+  X,
+  Building
 } from 'lucide-react';
-
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Violations', href: '/dashboard/violations', icon: FileText },
-  { name: 'Users', href: '/dashboard/users', icon: Users },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-];
 
 export default function Sidebar() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { user, logout, isAuthenticated } = useAuthStore();
+  
+  const navigation = [
+    { name: 'Dashboard', href: '/dashboard', icon: Home },
+    { name: 'Violations', href: '/dashboard/violations', icon: FileText },
+    { name: 'Users', href: '/dashboard/users', icon: Users },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+    ...(user?.role === 'super_admin' ? [{ name: 'HOAs', href: '/dashboard/hoas', icon: Building }] : []),
+    { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  ];
 
   const handleLogout = () => {
     logout();

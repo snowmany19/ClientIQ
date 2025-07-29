@@ -195,7 +195,7 @@ export default function BillingDashboard() {
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Available Plans</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {Array.isArray(plans) ? plans.map((plan) => (
             <div
               key={plan.id}
@@ -244,6 +244,23 @@ export default function BillingDashboard() {
               <p className="text-gray-500">Loading plans...</p>
             </div>
           )}
+        </div>
+
+        {/* White Label Contact */}
+        <div className="mt-8 p-6 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+          <div className="text-center">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Need White-Label Solution?</h3>
+            <p className="text-gray-600 mb-4">
+              For property management companies and resellers who need custom branding and multi-HOA management.
+            </p>
+            <Button
+              onClick={() => window.open('mailto:sales@civicloghoa.com?subject=White-Label Inquiry', '_blank')}
+              variant="outline"
+              className="border-purple-300 text-purple-700 hover:bg-purple-50"
+            >
+              Contact Sales Team
+            </Button>
+          </div>
         </div>
       </div>
 

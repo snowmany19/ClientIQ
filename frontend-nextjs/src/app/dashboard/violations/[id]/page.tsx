@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
+import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { Violation } from '@/types';
 import { 
@@ -353,9 +354,11 @@ export default function ViolationDetailPage() {
               <div className="mt-8 pt-8 border-t border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Evidence Photo</h3>
                 <div className="max-w-2xl">
-                  <img
+                  <Image
                     src={violation.image_url}
                     alt="Violation evidence"
+                    width={800}
+                    height={600}
                     className="rounded-lg shadow-lg border border-gray-200"
                   />
                 </div>
