@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { PWAProvider } from '@/components/providers/PWAProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -56,7 +57,11 @@ export default function RootLayout({
         <link rel="mask-icon" href="/icon-192x192.png" color="#3b82f6" />
         <link rel="shortcut icon" href="/favicon.ico" />
       </head>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <PWAProvider>
+          {children}
+        </PWAProvider>
+      </body>
     </html>
   )
 }

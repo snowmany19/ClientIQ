@@ -1,42 +1,59 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import Sidebar from '@/components/layout/Sidebar';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { InstallPrompt } from '@/components/ui/InstallPrompt';
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isAuthenticated, getCurrentUser } = useAuthStore();
+  const { user, isAuthenticated, isLoading, initializeAuth } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    // Initialize auth state on component mount
+    initializeAuth();
+  }, [initializeAuth]);
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  useEffect(() => {
+    // Redirect to login if not authenticated
+    if (!isLoading && !isAuthenticated) {
       router.push('/');
       return;
     }
 
-    // Get current user data if not already loaded
-    if (!user) {
-      getCurrentUser();
+    // Redirect to dashboard if on login page but authenticated
+    if (isAuthenticated && pathname === '/') {
+      router.push('/dashboard');
+      return;
     }
-  }, [isAuthenticated, user, router, getCurrentUser]);
+  }, [isAuthenticated, isLoading, pathname, router]);
 
-  // Don't render anything if not authenticated
-  if (!isAuthenticated || !user) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading authentication...</p>
-          <p className="text-sm text-gray-500">If this persists, please log in again</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (
@@ -46,6 +63,7 @@ export default function DashboardLayout({
         <div className="flex-1 flex flex-col overflow-hidden">
           {children}
         </div>
+        <InstallPrompt />
       </div>
     </ErrorBoundary>
   );
