@@ -322,17 +322,8 @@ class ApiClient {
   }
 
   // User Management
-  async getUsers(params?: { skip?: number; limit?: number }): Promise<User[]> {
-    const searchParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
-          searchParams.append(key, value.toString());
-        }
-      });
-    }
-
-    return this.request<User[]>(`/users?${searchParams}`);
+  async getUsers(): Promise<User[]> {
+    return this.request<User[]>('/admin/users');
   }
 
   async createUser(userData: {
@@ -342,9 +333,27 @@ class ApiClient {
     role: string;
     hoa_id?: number;
   }): Promise<User> {
-    return this.request<User>('/users/create', {
+    return this.request<User>('/admin/users', {
       method: 'POST',
       body: JSON.stringify(userData),
+    });
+  }
+
+  async updateUser(userId: number, userData: {
+    username?: string;
+    email?: string;
+    role?: string;
+    hoa_id?: number;
+  }): Promise<User> {
+    return this.request<User>(`/admin/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async deleteUser(userId: number): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/admin/users/${userId}`, {
+      method: 'DELETE',
     });
   }
 
@@ -374,6 +383,114 @@ class ApiClient {
     }
 
     return response.blob();
+  }
+
+  // Settings
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+  }
+
+  async updateNotificationPreferences(preferences: {
+    email: boolean;
+    push: boolean;
+    violations: boolean;
+    reports: boolean;
+  }): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/user-settings/notifications', {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
+    });
+  }
+
+  async updateAppearanceSettings(settings: {
+    theme: string;
+    pwa_offline: boolean;
+    pwa_app_switcher: boolean;
+  }): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/user-settings/appearance', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  async exportUserData(): Promise<Blob> {
+    const response = await fetch(`${this.baseURL}/user-settings/export-data`, {
+      headers: {
+        Authorization: `Bearer ${this.getToken()}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to export user data');
+    }
+
+    return response.blob();
+  }
+
+  async getActiveSessions(): Promise<any[]> {
+    return this.request<any[]>('/user-settings/active-sessions');
+  }
+
+  async revokeSession(sessionId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/user-settings/revoke-session/${sessionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getUserSettings(): Promise<{
+    notifications: {
+      email: boolean;
+      push: boolean;
+      violations: boolean;
+      reports: boolean;
+    };
+    appearance: {
+      theme: string;
+      pwa_offline: boolean;
+      pwa_app_switcher: boolean;
+    };
+    security: {
+      two_factor_enabled: boolean;
+    };
+  }> {
+    return this.request<{
+      notifications: {
+        email: boolean;
+        push: boolean;
+        violations: boolean;
+        reports: boolean;
+      };
+      appearance: {
+        theme: string;
+        pwa_offline: boolean;
+        pwa_app_switcher: boolean;
+      };
+      security: {
+        two_factor_enabled: boolean;
+      };
+    }>('/user-settings/user-settings');
+  }
+
+  async get2FAStatus(): Promise<{ enabled: boolean }> {
+    return this.request<{ enabled: boolean }>('/user-settings/2fa-status');
+  }
+
+  async enable2FA(): Promise<{ qr_code: string; secret: string }> {
+    return this.request<{ qr_code: string; secret: string }>('/user-settings/enable-2fa', {
+      method: 'POST',
+    });
+  }
+
+  async disable2FA(): Promise<{ message: string }> {
+    return this.request<{ message: string }>('/user-settings/disable-2fa', {
+      method: 'DELETE',
+    });
   }
 }
 

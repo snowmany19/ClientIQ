@@ -47,31 +47,28 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex bg-gray-50">
       <Sidebar />
       
-      <div className="lg:pl-64">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow flex-shrink-0">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center">
                 <h1 className="text-xl font-semibold text-gray-900">
                   User Management
                 </h1>
               </div>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-700">
-                  {user.role === 'admin' ? 'Full Access' : 'Limited Access'}
-                </span>
-              </div>
             </div>
           </div>
         </div>
 
         {/* Main content */}
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <UserManagement />
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            <UserManagement />
+          </div>
         </div>
       </div>
     </div>

@@ -34,13 +34,13 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex bg-gray-50">
       <Sidebar />
       
-      <div className="lg:pl-64">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow flex-shrink-0">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center">
                 <h1 className="text-xl font-semibold text-gray-900">
@@ -58,7 +58,7 @@ export default function BillingPage() {
 
         {/* Success/Cancel Messages */}
         {success && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <div className="w-full px-4 sm:px-6 lg:px-8 pt-6">
             <div className="rounded-md bg-green-50 p-4">
               <div className="flex">
                 <CheckCircle className="h-5 w-5 text-green-400" />
@@ -76,7 +76,7 @@ export default function BillingPage() {
         )}
 
         {canceled && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <div className="w-full px-4 sm:px-6 lg:px-8 pt-6">
             <div className="rounded-md bg-yellow-50 p-4">
               <div className="flex">
                 <XCircle className="h-5 w-5 text-yellow-400" />
@@ -94,8 +94,10 @@ export default function BillingPage() {
         )}
 
         {/* Main content */}
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <BillingDashboard />
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            <BillingDashboard />
+          </div>
         </div>
       </div>
     </div>

@@ -110,14 +110,7 @@ export default function LoginForm() {
             </Button>
           </div>
 
-          <div className="text-center">
-            <p className="text-xs text-gray-500">
-              Demo Credentials:
-            </p>
-            <p className="text-xs text-gray-400">
-              admin / admin123
-            </p>
-          </div>
+
         </form>
       </div>
     </div>

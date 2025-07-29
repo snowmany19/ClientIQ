@@ -59,7 +59,7 @@ app = FastAPI(
 )
 
 # 🔌 Include routers
-from routes import auth, violations, billing, resident_portal, analytics, communications
+from routes import auth, violations, billing, resident_portal, analytics, communications, settings as user_settings
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(violations.router, prefix="/api")
@@ -67,6 +67,7 @@ app.include_router(billing.router, prefix="/api")
 app.include_router(resident_portal.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 app.include_router(communications.router, prefix="/api")
+app.include_router(user_settings.router, prefix="/api")
 
 # Debug router removed
 

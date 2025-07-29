@@ -221,11 +221,12 @@ def get_all_violations(
             detail="Limit must be between 1 and 100."
         )
     
-    # 🔐 RBAC: Filter violations based on user role
+    # 🔐 RBAC: Filter violations based on user role using SQLAlchemy ORM
+    query = db.query(Violation)
+    
     if current_user.role == "admin":
         # Admins can see all violations
-        base_query = "SELECT * FROM violations"
-        where_conditions = []
+        pass
     elif current_user.role in ["inspector", "hoa_board"]:
         # Inspectors and HOA board can only see violations from their HOA
         if current_user.hoa_id is not None:
@@ -233,61 +234,42 @@ def get_all_violations(
             if user_hoa is not None:
                 # Filter by HOA number (e.g., "HOA #066") instead of HOA name
                 user_hoa_number = f"HOA #{user_hoa.id:03d}"
-                base_query = "SELECT * FROM violations WHERE hoa_name = :hoa_name"
-                where_conditions = [{"hoa_name": user_hoa_number}]
+                query = query.filter(Violation.hoa_name == user_hoa_number)
             else:
                 # Fallback: no HOA assigned, return empty
-                return []
+                return {"data": [], "pagination": {"total": 0, "pages": 0, "current_page": 1, "items_per_page": limit}}
         else:
             # No HOA assigned, return empty
-            return []
+            return {"data": [], "pagination": {"total": 0, "pages": 0, "current_page": 1, "items_per_page": limit}}
     else:
         # Unknown role, return empty
-        return []
+        return {"data": [], "pagination": {"total": 0, "pages": 0, "current_page": 1, "items_per_page": limit}}
     
     # Apply additional filters
     if hoa_id is not None:
-        base_query += " WHERE hoa_id = :hoa_id" if "WHERE" not in base_query else " AND hoa_id = :hoa_id"
-        where_conditions.append({"hoa_id": hoa_id})
+        query = query.filter(Violation.hoa_id == hoa_id)
     
     if tag is not None:
-        base_query += " WHERE tags LIKE :tag" if "WHERE" not in base_query else " AND tags LIKE :tag"
-        where_conditions.append({"tag": f"%{tag}%"})
+        query = query.filter(Violation.tags.contains(tag))
     
     if resident_id is not None:
-        base_query += " WHERE resident_id = :resident_id" if "WHERE" not in base_query else " AND resident_id = :resident_id"
-        where_conditions.append({"resident_id": resident_id})
+        query = query.filter(Violation.resident_id == resident_id)
     
     if status is not None:
-        base_query += " WHERE status = :status" if "WHERE" not in base_query else " AND status = :status"
-        where_conditions.append({"status": status})
+        query = query.filter(Violation.status == status)
     
-    # Apply pagination
-    base_query += f" ORDER BY timestamp DESC LIMIT {limit} OFFSET {skip}"
+    # Get total count for pagination
+    total = query.count()
+    
+    # Apply ordering and pagination
+    query = query.order_by(Violation.timestamp.desc()).offset(skip).limit(limit)
     
     # Execute query
     try:
-        # Merge all where conditions
-        params = {}
-        for condition in where_conditions:
-            params.update(condition)
-        
-        violations_result = db.execute(text(base_query), params)
-        violations = violations_result.fetchall()
+        violations = query.all()
     except Exception as e:
         logger.error(f"Error getting violations: {e}")
         violations = []
-    
-    # Get total count for pagination
-    count_query = base_query.replace("SELECT *", "SELECT COUNT(*)")
-    count_query = count_query.split("ORDER BY")[0]  # Remove ORDER BY and LIMIT for count
-    
-    try:
-        count_result = db.execute(text(count_query), params)
-        total = count_result.scalar()
-    except Exception as e:
-        logger.error(f"Error getting violation count: {e}")
-        total = 0
     
     items_per_page = limit
     pages = (total + items_per_page - 1) // items_per_page
@@ -313,7 +295,7 @@ def get_all_violations(
             "pdf_path": violation.pdf_path,
             "image_url": violation.image_url,
             "user_id": violation.user_id,
-            "inspected_by": None,  # We'll need to get this separately if needed
+            "inspected_by": violation.user.username if violation.user else None,
         })
     
     return {
@@ -435,21 +417,19 @@ def get_dashboard_data(
     _: User = Depends(require_active_subscription),
 ):
     """Get all dashboard data in a single optimized call."""
-    from sqlalchemy import text
     
-    # 🔐 RBAC: Filter violations based on user role (same logic as get_all_violations)
+    # 🔐 RBAC: Filter violations based on user role using SQLAlchemy ORM
+    query = db.query(Violation)
+    
     if current_user.role == "admin":
-        base_query = "SELECT * FROM violations"
-        count_query = "SELECT COUNT(*) FROM violations"
-        where_conditions = []
+        # Admins can see all violations
+        pass
     elif current_user.role in ["inspector", "hoa_board"]:
         if current_user.hoa_id is not None:
             user_hoa = db.query(HOA).filter(HOA.id == current_user.hoa_id).first()
             if user_hoa is not None:
                 user_hoa_number = f"HOA #{user_hoa.id:03d}"
-                base_query = "SELECT * FROM violations WHERE hoa_name = :hoa_name"
-                count_query = "SELECT COUNT(*) FROM violations WHERE hoa_name = :hoa_name"
-                where_conditions = [{"hoa_name": user_hoa_number}]
+                query = query.filter(Violation.hoa_name == user_hoa_number)
             else:
                 return {
                     "violations": [],
@@ -471,47 +451,28 @@ def get_dashboard_data(
     
     # Apply filters
     if hoa_id is not None:
-        base_query += " WHERE hoa_id = :hoa_id" if "WHERE" not in base_query else " AND hoa_id = :hoa_id"
-        count_query += " WHERE hoa_id = :hoa_id" if "WHERE" not in count_query else " AND hoa_id = :hoa_id"
-        where_conditions.append({"hoa_id": hoa_id})
+        query = query.filter(Violation.hoa_id == hoa_id)
     
     if tag is not None:
-        base_query += " WHERE tags LIKE :tag" if "WHERE" not in base_query else " AND tags LIKE :tag"
-        count_query += " WHERE tags LIKE :tag" if "WHERE" not in count_query else " AND tags LIKE :tag"
-        where_conditions.append({"tag": f"%{tag}%"})
+        query = query.filter(Violation.tags.contains(tag))
     
     if resident_id is not None:
-        base_query += " WHERE resident_id = :resident_id" if "WHERE" not in base_query else " AND resident_id = :resident_id"
-        count_query += " WHERE resident_id = :resident_id" if "WHERE" not in count_query else " AND resident_id = :resident_id"
-        where_conditions.append({"resident_id": resident_id})
+        query = query.filter(Violation.resident_id == resident_id)
     
     if status is not None:
-        base_query += " WHERE status = :status" if "WHERE" not in base_query else " AND status = :status"
-        count_query += " WHERE status = :status" if "WHERE" not in count_query else " AND status = :status"
-        where_conditions.append({"status": status})
+        query = query.filter(Violation.status == status)
     
-    # Get total count for pagination using raw SQL
-    try:
-        # Merge all where conditions
-        params = {}
-        for condition in where_conditions:
-            params.update(condition)
-        
-        total_result = db.execute(text(count_query), params)
-        total = total_result.scalar()
-    except Exception as e:
-        logger.error(f"Error getting violation count: {e}")
-        total = 0
+    # Get total count for pagination
+    total = query.count()
     
     items_per_page = 50
     pages = (total + items_per_page - 1) // items_per_page
     
-    # Apply pagination
-    base_query += f" ORDER BY timestamp DESC LIMIT {limit} OFFSET {skip}"
+    # Apply ordering and pagination
+    query = query.order_by(Violation.timestamp.desc()).offset(skip).limit(limit)
     
     try:
-        violations_result = db.execute(text(base_query), params)
-        violations = violations_result.fetchall()
+        violations = query.all()
     except Exception as e:
         logger.error(f"Error getting violations: {e}")
         violations = []
@@ -536,7 +497,7 @@ def get_dashboard_data(
             "pdf_path": violation.pdf_path,
             "image_url": violation.image_url,
             "user_id": violation.user_id,
-            "inspected_by": None,  # We'll need to get this separately if needed
+            "inspected_by": violation.user.username if violation.user else None,
         })
     
     # Get accessible HOAs
@@ -685,16 +646,124 @@ def export_violations_csv(
         headers={"Content-Disposition": f"attachment; filename=violations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"}
     )
 
+@router.put("/{violation_id}", response_model=ViolationOut)
+def update_violation(
+    violation_id: int,
+    updates: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
+):
+    """Update a violation (admin and HOA board only)."""
+    if current_user.role not in ["admin", "hoa_board"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins and HOA board members can update violations."
+        )
+    
+    violation = db.query(Violation).filter(Violation.id == violation_id).first()
+    if not violation:
+        raise HTTPException(status_code=404, detail="Violation not found")
+    
+    # 🔐 RBAC: Check if user can update this violation
+    if current_user.role == "hoa_board":
+        if current_user.hoa_id is not None:
+            user_hoa = db.query(HOA).filter(HOA.id == current_user.hoa_id).first()
+            if user_hoa is not None:
+                user_hoa_number = f"HOA #{user_hoa.id:03d}"
+                if violation.hoa_name != user_hoa_number:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="You can only update violations from your assigned HOA."
+                    )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="No HOA assigned."
+                )
+    
+    # Update allowed fields
+    allowed_fields = ['description', 'address', 'location', 'offender', 'tags', 'status']
+    for field, value in updates.items():
+        if field in allowed_fields and hasattr(violation, field):
+            setattr(violation, field, value)
+    
+    # Add resolution timestamp if marking as resolved
+    if 'status' in updates and updates['status'] == "resolved":
+        violation.resolved_at = datetime.now(timezone.utc)
+        violation.resolved_by = current_user.username
+    
+    # Add review timestamp if marking as under_review
+    if 'status' in updates and updates['status'] == "under_review":
+        violation.reviewed_at = datetime.now(timezone.utc)
+        violation.reviewed_by = current_user.username
+    
+    db.commit()
+    db.refresh(violation)
+    
+    return {
+        "id": violation.id,
+        "violation_number": violation.violation_number,
+        "timestamp": violation.timestamp,
+        "description": violation.description,
+        "summary": violation.summary,
+        "tags": violation.tags,
+        "repeat_offender_score": violation.repeat_offender_score,
+        "hoa_name": violation.hoa_name,
+        "address": violation.address,
+        "location": violation.location,
+        "offender": violation.offender,
+        "gps_coordinates": violation.gps_coordinates,
+        "status": violation.status,
+        "pdf_path": violation.pdf_path,
+        "image_url": violation.image_url,
+        "user_id": violation.user_id,
+        "inspected_by": violation.user.username if violation.user else None,
+    }
+
 @router.get("/{violation_id}", response_model=ViolationOut)
 def get_violation_by_id(
     violation_id: int, 
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
 ):
     """Get a specific violation by ID."""
     violation = db.query(Violation).filter(Violation.id == violation_id).first()
     if not violation:
         raise HTTPException(status_code=404, detail="Violation not found")
+    
+    # 🔐 RBAC: Check if user can access this violation
+    if current_user.role == "admin":
+        # Admins can access all violations
+        pass
+    elif current_user.role in ["inspector", "hoa_board"]:
+        # Check if user's HOA matches the violation HOA
+        if current_user.hoa_id is not None:
+            user_hoa = db.query(HOA).filter(HOA.id == current_user.hoa_id).first()
+            if user_hoa is not None:
+                # Compare HOA numbers (e.g., "066" vs "066")
+                user_hoa_number = f"HOA #{user_hoa.id:03d}"
+                if user_hoa_number != violation.hoa_name:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Access denied. You can only view violations from your assigned HOA."
+                    )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="No HOA assigned."
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No HOA assigned."
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied."
+        )
     
     return {
         "id": violation.id,

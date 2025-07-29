@@ -64,9 +64,45 @@ class User(Base):
     trial_ends_at = Column(DateTime, nullable=True)     # Trial expiration
     billing_cycle_start = Column(DateTime, nullable=True)  # Current billing period start
     billing_cycle_end = Column(DateTime, nullable=True)    # Current billing period end
+    
+    # 🔐 Security fields
+    two_factor_secret = Column(String, nullable=True)   # 2FA secret key
+    two_factor_enabled = Column(Boolean, default=False) # 2FA status
+    
+    # ⚙️ User settings fields
+    notification_email = Column(Boolean, default=True)
+    notification_push = Column(Boolean, default=True)
+    notification_violations = Column(Boolean, default=True)
+    notification_reports = Column(Boolean, default=True)
+    theme_preference = Column(String, default="light")  # light, dark, auto
+    pwa_offline_enabled = Column(Boolean, default=True)
+    pwa_app_switcher_enabled = Column(Boolean, default=True)
+    
+    # 📅 Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login_at = Column(DateTime, nullable=True)
+    last_activity_at = Column(DateTime, nullable=True)
 
     violations = relationship("Violation", back_populates="user", cascade="all, delete-orphan")
     hoa = relationship("HOA")  # Relationship to assigned HOA
+
+# 📱 User Session table for session management
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    session_token = Column(String, unique=True, index=True, nullable=False)
+    device_info = Column(String, nullable=True)  # Browser, OS, device type
+    ip_address = Column(String, nullable=True)
+    location = Column(String, nullable=True)  # City, Country
+    user_agent = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_activity_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+
+    user = relationship("User")
 
 # 🏘️ HOA table (renamed from Store)
 class HOA(Base):
