@@ -102,7 +102,7 @@ export default function ViolationDetailPage() {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading violation...</p>
+              <p className="mt-4 text-gray-900 font-medium">Loading violation...</p>
             </div>
           </div>
         </div>
@@ -116,7 +116,7 @@ export default function ViolationDetailPage() {
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <p className="text-gray-600">Violation not found</p>
+              <p className="text-gray-900 font-medium">Violation not found</p>
               <Button onClick={() => router.push('/dashboard/violations')} className="mt-4">
                 Back to Violations
               </Button>
@@ -143,10 +143,10 @@ export default function ViolationDetailPage() {
                 Back
               </Button>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">
+                <h1 className="text-xl font-bold text-gray-900">
                   Violation #{violation.violation_number}
                 </h1>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-700 font-medium">
                   {new Date(violation.timestamp).toLocaleDateString()}
                 </p>
               </div>
@@ -182,7 +182,7 @@ export default function ViolationDetailPage() {
                     Edit
                   </Button>
                 ) : (
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-700 font-medium">
                     Only admins and HOA board members can edit violations
                   </div>
                 )
@@ -233,15 +233,15 @@ export default function ViolationDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Basic Information */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-6">Basic Information</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">Basic Information</h3>
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Description</label>
                     {editing ? (
                       <textarea
                         value={editedViolation.description || violation.description}
                         onChange={(e) => setEditedViolation(prev => ({ ...prev, description: e.target.value }))}
-                        className="block w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                        className="block w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm text-gray-900"
                         rows={4}
                         placeholder="Enter violation description..."
                       />
@@ -251,13 +251,13 @@ export default function ViolationDetailPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Address</label>
                     {editing ? (
                       <input
                         type="text"
                         value={editedViolation.address || violation.address}
                         onChange={(e) => setEditedViolation(prev => ({ ...prev, address: e.target.value }))}
-                        className="block w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                        className="block w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm text-gray-900"
                         placeholder="Enter address..."
                       />
                     ) : (
@@ -269,13 +269,13 @@ export default function ViolationDetailPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Offender</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Offender</label>
                     {editing ? (
                       <input
                         type="text"
                         value={editedViolation.offender || violation.offender}
                         onChange={(e) => setEditedViolation(prev => ({ ...prev, offender: e.target.value }))}
-                        className="block w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                        className="block w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm text-gray-900"
                         placeholder="Enter offender name..."
                       />
                     ) : (
@@ -287,7 +287,7 @@ export default function ViolationDetailPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Date</label>
                     <div className="flex items-center text-base text-gray-900 bg-gray-50 rounded-lg p-4">
                       <Calendar className="h-5 w-5 mr-3 text-gray-500" />
                       {new Date(violation.timestamp).toLocaleDateString()} at {new Date(violation.timestamp).toLocaleTimeString()}
@@ -298,16 +298,16 @@ export default function ViolationDetailPage() {
 
               {/* Additional Information */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-6">Additional Information</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">Additional Information</h3>
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Tags</label>
                     {editing ? (
                       <input
                         type="text"
                         value={editedViolation.tags || violation.tags || ''}
                         onChange={(e) => setEditedViolation(prev => ({ ...prev, tags: e.target.value }))}
-                        className="block w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                        className="block w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm text-gray-900"
                         placeholder="Enter tags separated by commas"
                       />
                     ) : (
@@ -316,18 +316,18 @@ export default function ViolationDetailPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Repeat Offender Score</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Repeat Offender Score</label>
                     <p className="text-base text-gray-900 bg-gray-50 rounded-lg p-4">{violation.repeat_offender_score || 0}</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">HOA</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">HOA</label>
                     <p className="text-base text-gray-900 bg-gray-50 rounded-lg p-4">{violation.hoa_name || 'N/A'}</p>
                   </div>
 
                   {violation.gps_coordinates && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">GPS Coordinates</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">GPS Coordinates</label>
                       <p className="text-base text-gray-900 bg-gray-50 rounded-lg p-4">{violation.gps_coordinates}</p>
                     </div>
                   )}
@@ -338,7 +338,7 @@ export default function ViolationDetailPage() {
             {/* Summary Section */}
             {violation.summary && (
               <div className="mt-8 pt-8 border-t border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">AI Summary</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">AI Summary</h3>
                 <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
                   <div className="flex items-start">
                     <FileText className="h-6 w-6 text-blue-600 mr-4 mt-1" />
@@ -351,7 +351,7 @@ export default function ViolationDetailPage() {
             {/* Image Section */}
             {violation.image_url && (
               <div className="mt-8 pt-8 border-t border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Evidence Photo</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Evidence Photo</h3>
                 <div className="max-w-2xl">
                   <img
                     src={violation.image_url}

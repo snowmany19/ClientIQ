@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Search,
   Filter,
-  FileText
+  FileText,
+  Mail
 } from 'lucide-react';
 
 interface ViolationsTableProps {
@@ -24,6 +25,7 @@ interface ViolationsTableProps {
   onViolationDelete?: (id: number) => void;
   onViolationView?: (violation: Violation) => void;
   onViolationEdit?: (violation: Violation) => void;
+  onViolationLetter?: (violation: Violation) => void;
   onSearchChange?: (searchTerm: string) => void;
   onStatusFilterChange?: (status: string) => void;
   onSortChange?: (field: keyof Violation, direction: 'asc' | 'desc') => void;
@@ -44,6 +46,7 @@ export default function ViolationsTable({
   onViolationDelete,
   onViolationView,
   onViolationEdit,
+  onViolationLetter,
   onSearchChange,
   onStatusFilterChange,
   onSortChange,
@@ -62,6 +65,7 @@ export default function ViolationsTable({
 
   const canEdit = userRole === 'admin' || userRole === 'hoa_board';
   const canDelete = userRole === 'admin' || userRole === 'hoa_board';
+  const canGenerateLetter = userRole === 'admin' || userRole === 'hoa_board' || userRole === 'inspector';
 
   const handleSearchChange = (value: string) => {
     setLocalSearchTerm(value);
@@ -278,6 +282,17 @@ export default function ViolationsTable({
                           className="text-gray-600 hover:text-green-600 hover:bg-green-50"
                         >
                           <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canGenerateLetter && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onViolationLetter?.(violation)}
+                          title="Generate letter"
+                          className="text-gray-600 hover:text-purple-600 hover:bg-purple-50"
+                        >
+                          <Mail className="h-4 w-4" />
                         </Button>
                       )}
                       {canDelete && (

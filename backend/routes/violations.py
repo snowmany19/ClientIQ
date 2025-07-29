@@ -22,6 +22,8 @@ from fastapi.responses import FileResponse, StreamingResponse
 import shutil
 import csv
 import io
+import openai
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/violations", tags=["Violations"])
 REPORTS_DIR = "static/reports"
@@ -1067,3 +1069,220 @@ def send_review_notification(violation: Violation, user: User, db: Session):
         
     except Exception as e:
         logger.warning(f"Failed to send review notification: {e}")
+
+# Letter Generation Models
+class LetterRequest(BaseModel):
+    letter_content: str
+
+class LetterResponse(BaseModel):
+    letter_content: str
+    violation_id: int
+    generated_by: str
+    generated_at: str
+
+# Letter Generation Routes
+@router.post("/{violation_id}/generate-letter", response_model=LetterResponse)
+def generate_violation_letter(
+    violation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
+):
+    """Generate a violation letter using GPT based on violation details."""
+    try:
+        # Get violation details
+        violation = db.query(Violation).filter(Violation.id == violation_id).first()
+        if not violation:
+            raise HTTPException(status_code=404, detail="Violation not found")
+        
+        # Check if user can access this violation
+        if not can_access_hoa(current_user, violation.hoa_name, db):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied. You can only generate letters for violations in your assigned HOA."
+            )
+        
+        # Get HOA details
+        hoa = db.query(HOA).filter(HOA.name == violation.hoa_name).first()
+        
+        # Prepare context for GPT
+        violation_date = violation.timestamp.strftime('%B %d, %Y')
+        current_date = datetime.now().strftime('%B %d, %Y')
+        
+        # Create GPT prompt
+        prompt = f"""
+        Generate a professional HOA violation letter based on the following details:
+        
+        Violation Information:
+        - Violation Number: {violation.violation_number}
+        - Date of Violation: {violation_date}
+        - Address: {violation.address}
+        - Description: {violation.description}
+        - Offender: {violation.offender}
+        - Status: {violation.status}
+        
+        HOA Information:
+        - HOA Name: {hoa.name if hoa else 'HOA Management'}
+        - Contact Email: {hoa.contact_email if hoa else 'hoa@example.com'}
+        
+        Issuing Officer: {current_user.username}
+        Current Date: {current_date}
+        
+        Please generate a formal, professional letter that:
+        1. Clearly states the violation details
+        2. Explains the consequences of non-compliance
+        3. Provides a deadline for resolution
+        4. Includes contact information for questions
+        5. Maintains a professional but firm tone
+        6. Is formatted as a proper business letter
+        
+        The letter should be ready to send to the resident.
+        """
+        
+        # Generate letter using GPT (you'll need to configure OpenAI API key)
+        try:
+            # For now, we'll generate a template letter
+            # In production, you would use OpenAI API
+            from datetime import timedelta
+            
+            letter_content = f"""
+{current_date}
+
+{hoa.name if hoa else 'HOA Management'}
+{hoa.contact_email if hoa else 'hoa@example.com'}
+
+Dear Resident,
+
+RE: Violation Notice - #{violation.violation_number}
+
+This letter serves as official notice of a violation of the HOA community guidelines that was observed on {violation_date} at {violation.address}.
+
+VIOLATION DETAILS:
+- Violation Number: {violation.violation_number}
+- Date Observed: {violation_date}
+- Location: {violation.address}
+- Description: {violation.description}
+- Current Status: {violation.status.title()}
+
+REQUIRED ACTION:
+Please take immediate action to resolve this violation. Failure to address this matter within 14 days of receipt of this notice may result in additional fines and/or further enforcement action as outlined in the HOA bylaws.
+
+COMPLIANCE DEADLINE:
+You have until {(datetime.now() + timedelta(days=14)).strftime('%B %d, %Y')} to resolve this violation.
+
+CONTACT INFORMATION:
+If you have any questions regarding this violation notice or need assistance in resolving this matter, please contact:
+
+{current_user.username}
+HOA Management Team
+{hoa.contact_email if hoa else 'hoa@example.com'}
+
+Please include your violation number (#{violation.violation_number}) in all correspondence.
+
+Sincerely,
+
+{current_user.username}
+HOA Management Team
+{hoa.name if hoa else 'HOA Management'}
+            """.strip()
+            
+        except Exception as e:
+            logger.error(f"Failed to generate letter with GPT: {e}")
+            # Fallback to template letter
+            letter_content = f"""
+{current_date}
+
+Dear Resident,
+
+This letter serves as official notice of a violation of the HOA community guidelines that was observed on {violation_date} at {violation.address}.
+
+Violation Number: {violation.violation_number}
+Description: {violation.description}
+
+Please take immediate action to resolve this violation within 14 days.
+
+Sincerely,
+{current_user.username}
+HOA Management Team
+            """.strip()
+        
+        return LetterResponse(
+            letter_content=letter_content,
+            violation_id=violation_id,
+            generated_by=current_user.username,
+            generated_at=datetime.now().isoformat()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to generate violation letter: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate violation letter")
+
+@router.post("/generate-letter/pdf")
+def generate_letter_pdf(
+    letter_request: LetterRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
+):
+    """Generate a PDF from the letter content."""
+    try:
+        # Create a styled HTML version of the letter
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>HOA Violation Letter</title>
+            <style>
+                body {{
+                    font-family: 'Times New Roman', serif;
+                    font-size: 12pt;
+                    line-height: 1.5;
+                    margin: 1in;
+                    color: #333;
+                }}
+                .header {{
+                    text-align: center;
+                    margin-bottom: 2em;
+                }}
+                .content {{
+                    white-space: pre-line;
+                    margin-bottom: 2em;
+                }}
+                .signature {{
+                    margin-top: 2em;
+                }}
+                .footer {{
+                    margin-top: 3em;
+                    font-size: 10pt;
+                    color: #666;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="content">
+                {letter_request.letter_content.replace(chr(10), '<br>')}
+            </div>
+            <div class="footer">
+                <p>Generated by: {current_user.username}</p>
+                <p>Date: {datetime.now().strftime('%B %d, %Y')}</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Generate PDF using the existing PDF utility
+        pdf_path = generate_pdf(html_content, f"violation_letter_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
+        
+        # Return the PDF file
+        return FileResponse(
+            path=pdf_path,
+            filename=f"violation_letter_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+            media_type="application/pdf"
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to generate letter PDF: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate PDF")

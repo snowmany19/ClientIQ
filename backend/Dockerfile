@@ -33,7 +33,7 @@ COPY .env* ./
 RUN useradd -m appuser
 
 # Create logs directory and set permissions
-RUN mkdir -p logs && chown appuser:appuser logs
+RUN mkdir -p logs && chown appuser:appuser logs && chmod 755 logs
 
 USER appuser
 

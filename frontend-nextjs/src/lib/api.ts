@@ -498,6 +498,40 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Letter Generation
+  async generateViolationLetter(violationId: number): Promise<{
+    letter_content: string;
+    violation_id: number;
+    generated_by: string;
+    generated_at: string;
+  }> {
+    return this.request<{
+      letter_content: string;
+      violation_id: number;
+      generated_by: string;
+      generated_at: string;
+    }>(`/violations/${violationId}/generate-letter`, {
+      method: 'POST',
+    });
+  }
+
+  async generateLetterPDF(letterContent: string): Promise<Blob> {
+    const response = await fetch(`${this.baseURL}/violations/generate-letter/pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.getToken()}`,
+      },
+      body: JSON.stringify({ letter_content: letterContent }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate PDF');
+    }
+
+    return response.blob();
+  }
 }
 
 export const apiClient = new ApiClient(); 

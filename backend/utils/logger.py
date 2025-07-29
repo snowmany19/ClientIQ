@@ -38,7 +38,6 @@ def setup_logging(log_level: str = "INFO", log_file: str = "logs/app.log"):
         logging.basicConfig(
             level=getattr(logging, log_level.upper()),
             handlers=[
-                logging.FileHandler(log_file),
                 logging.StreamHandler(sys.stdout)
             ]
         )
@@ -47,7 +46,6 @@ def setup_logging(log_level: str = "INFO", log_file: str = "logs/app.log"):
         logging.basicConfig(
             level=getattr(logging, log_level.upper()),
             handlers=[
-                logging.FileHandler(log_file),
                 logging.StreamHandler(sys.stdout)
             ]
         )

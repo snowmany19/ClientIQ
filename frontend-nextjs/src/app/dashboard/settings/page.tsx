@@ -257,60 +257,60 @@ export default function SettingsPage() {
   const renderProfileTab = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Profile Information</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Username
             </label>
             <input
               type="text"
               value={user?.username || ''}
               disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 font-medium"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Email
             </label>
             <input
               type="email"
               value={user?.email || ''}
               disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 font-medium"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Role
             </label>
             <input
               type="text"
               value={user?.role || ''}
               disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 capitalize"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 font-medium capitalize"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Subscription Status
             </label>
             <input
               type="text"
               value={user?.subscription_status || 'Active'}
               disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 capitalize"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 font-medium capitalize"
             />
           </div>
         </div>
       </div>
 
       <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Current Password
             </label>
             <div className="relative">
@@ -318,7 +318,7 @@ export default function SettingsPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={passwordData.currentPassword}
                 onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 pr-10"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 pr-10 text-gray-900 bg-white"
                 placeholder="Enter current password"
               />
               <button
@@ -335,26 +335,26 @@ export default function SettingsPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               New Password
             </label>
             <input
               type="password"
               value={passwordData.newPassword}
               onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               placeholder="Enter new password"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
               Confirm New Password
             </label>
             <input
               type="password"
               value={passwordData.confirmPassword}
               onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
               placeholder="Confirm new password"
             />
           </div>
@@ -369,13 +369,13 @@ export default function SettingsPage() {
 
   const renderNotificationsTab = () => (
     <div className="space-y-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Notification Preferences</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Notification Preferences</h3>
       
       <div className="space-y-4">
         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
           <div>
-            <h4 className="text-sm font-medium text-gray-900">Email Notifications</h4>
-            <p className="text-sm text-gray-500">Receive notifications via email</p>
+            <h4 className="text-sm font-semibold text-gray-900">Email Notifications</h4>
+            <p className="text-sm text-gray-700 font-medium">Receive notifications via email</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
@@ -390,8 +390,8 @@ export default function SettingsPage() {
 
         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
           <div>
-            <h4 className="text-sm font-medium text-gray-900">Push Notifications</h4>
-            <p className="text-sm text-gray-500">Receive push notifications in browser</p>
+            <h4 className="text-sm font-semibold text-gray-900">Push Notifications</h4>
+            <p className="text-sm text-gray-700 font-medium">Receive push notifications in browser</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
@@ -406,8 +406,8 @@ export default function SettingsPage() {
 
         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
           <div>
-            <h4 className="text-sm font-medium text-gray-900">Violation Alerts</h4>
-            <p className="text-sm text-gray-500">Get notified about new violations</p>
+            <h4 className="text-sm font-semibold text-gray-900">Violation Alerts</h4>
+            <p className="text-sm text-gray-700 font-medium">Get notified about new violations</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
@@ -422,8 +422,8 @@ export default function SettingsPage() {
 
         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
           <div>
-            <h4 className="text-sm font-medium text-gray-900">Report Notifications</h4>
-            <p className="text-sm text-gray-500">Get notified about monthly reports</p>
+            <h4 className="text-sm font-semibold text-gray-900">Report Notifications</h4>
+            <p className="text-sm text-gray-700 font-medium">Get notified about monthly reports</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
@@ -446,7 +446,7 @@ export default function SettingsPage() {
 
   const renderSecurityTab = () => (
     <div className="space-y-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Security Settings</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Security Settings</h3>
       
       <div className="space-y-4">
         <div className="p-4 bg-gray-50 rounded-lg">
@@ -525,17 +525,17 @@ export default function SettingsPage() {
 
   const renderAppearanceTab = () => (
     <div className="space-y-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Appearance Settings</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Appearance Settings</h3>
       
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-gray-900 mb-2">
             Theme
           </label>
           <select
             value={theme}
             onChange={(e) => setTheme(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
           >
             <option value="light">Light</option>
             <option value="dark">Dark</option>
@@ -544,8 +544,8 @@ export default function SettingsPage() {
         </div>
 
         <div className="p-4 bg-gray-50 rounded-lg">
-          <h4 className="text-sm font-medium text-gray-900 mb-2">PWA Settings</h4>
-          <p className="text-sm text-gray-500 mb-3">Manage Progressive Web App features</p>
+          <h4 className="text-sm font-semibold text-gray-900 mb-2">PWA Settings</h4>
+          <p className="text-sm text-gray-700 font-medium mb-3">Manage Progressive Web App features</p>
           <div className="space-y-2">
             <label className="flex items-center">
               <input 
@@ -554,7 +554,7 @@ export default function SettingsPage() {
                 onChange={(e) => setPwaSettings(prev => ({ ...prev, offline: e.target.checked }))}
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
               />
-              <span className="ml-2 text-sm text-gray-700">Enable offline mode</span>
+              <span className="ml-2 text-sm text-gray-900 font-medium">Enable offline mode</span>
             </label>
             <label className="flex items-center">
               <input 
@@ -563,7 +563,7 @@ export default function SettingsPage() {
                 onChange={(e) => setPwaSettings(prev => ({ ...prev, appSwitcher: e.target.checked }))}
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
               />
-              <span className="ml-2 text-sm text-gray-700">Show app in app switcher</span>
+              <span className="ml-2 text-sm text-gray-900 font-medium">Show app in app switcher</span>
             </label>
           </div>
         </div>
