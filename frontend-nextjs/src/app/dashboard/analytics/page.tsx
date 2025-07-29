@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
-import Sidebar from '@/components/layout/Sidebar';
 import MetricsCard from '@/components/dashboard/MetricsCard';
 import ViolationsChart from '@/components/dashboard/ViolationsChart';
 import { DashboardMetrics } from '@/types';
@@ -18,23 +16,13 @@ import {
 } from 'lucide-react';
 
 export default function AnalyticsPage() {
-  const { user, isAuthenticated, getCurrentUser } = useAuthStore();
-  const router = useRouter();
+  const { user } = useAuthStore();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/');
-      return;
-    }
-
-    if (!user) {
-      getCurrentUser();
-    }
-
     loadAnalytics();
-  }, [isAuthenticated, user, router, getCurrentUser]);
+  }, []);
 
   const loadAnalytics = async () => {
     try {
@@ -48,20 +36,16 @@ export default function AnalyticsPage() {
     }
   };
 
-  if (!isAuthenticated || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading analytics...</p>
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading analytics...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -83,177 +67,173 @@ export default function AnalyticsPage() {
   })) || [];
 
   return (
-    <div className="h-screen flex bg-gray-50">
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-white shadow flex-shrink-0">
-          <div className="w-full px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
-              <div className="flex items-center">
-                <h1 className="text-xl font-semibold text-gray-900">
-                  Analytics
-                </h1>
-              </div>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-700">
-                  Last updated: {new Date().toLocaleDateString()}
-                </span>
-              </div>
+    <>
+      {/* Header */}
+      <div className="bg-white shadow flex-shrink-0">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-semibold text-gray-900">
+                Analytics
+              </h1>
             </div>
-          </div>
-        </div>
-
-        {/* Main content */}
-        <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-7xl mx-auto">
-            {/* Key Metrics */}
-            {metrics && (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-                <MetricsCard
-                  title="Total Violations"
-                  value={metrics.total_violations}
-                  icon={BarChart3}
-                  color="blue"
-                />
-                <MetricsCard
-                  title="Open Violations"
-                  value={metrics.open_violations}
-                  icon={AlertCircle}
-                  color="yellow"
-                />
-                <MetricsCard
-                  title="Resolved"
-                  value={metrics.resolved_violations}
-                  icon={CheckCircle}
-                  color="green"
-                />
-                <MetricsCard
-                  title="Resolution Rate"
-                  value={`${metrics.resolution_rate}%`}
-                  icon={TrendingUp}
-                  color="purple"
-                />
-              </div>
-            )}
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              <ViolationsChart
-                data={monthlyTrendsData}
-                type="line"
-                title="Monthly Violation Trends"
-                height={300}
-              />
-              <ViolationsChart
-                data={violationTypesData}
-                type="bar"
-                title="Violation Types"
-                height={300}
-              />
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-700">
+                Last updated: {new Date().toLocaleDateString()}
+              </span>
             </div>
-
-            {/* Additional Metrics */}
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="bg-white overflow-hidden shadow rounded-lg">
-                <div className="p-5">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <Users className="h-6 w-6 text-gray-400" />
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
-                          Repeat Offenders
-                        </dt>
-                        <dd className="text-lg font-medium text-gray-900">
-                          {metrics?.repeat_offenders || 0}
-                        </dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white overflow-hidden shadow rounded-lg">
-                <div className="p-5">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <Calendar className="h-6 w-6 text-gray-400" />
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
-                          Average Resolution Time
-                        </dt>
-                        <dd className="text-lg font-medium text-gray-900">
-                          {metrics?.average_resolution_time || 0} days
-                        </dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white overflow-hidden shadow rounded-lg">
-                <div className="p-5">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <AlertCircle className="h-6 w-6 text-gray-400" />
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">
-                          Disputed Violations
-                        </dt>
-                        <dd className="text-lg font-medium text-gray-900">
-                          {metrics?.disputed_violations || 0}
-                        </dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Insights */}
-            {metrics && (
-              <div className="mt-8 bg-white shadow rounded-lg">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Key Insights
-                  </h3>
-                </div>
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">
-                        Performance Summary
-                      </h4>
-                      <ul className="text-sm text-gray-600 space-y-1">
-                        <li>• Resolution rate: {metrics.resolution_rate}%</li>
-                        <li>• Average resolution time: {metrics.average_resolution_time} days</li>
-                        <li>• Repeat offenders: {metrics.repeat_offenders}</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">
-                        Recommendations
-                      </h4>
-                      <ul className="text-sm text-gray-600 space-y-1">
-                        <li>• Focus on reducing resolution time</li>
-                        <li>• Address repeat offender patterns</li>
-                        <li>• Improve communication with residents</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Main content */}
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Key Metrics */}
+          {metrics && (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+              <MetricsCard
+                title="Total Violations"
+                value={metrics.total_violations}
+                icon={BarChart3}
+                color="blue"
+              />
+              <MetricsCard
+                title="Open Violations"
+                value={metrics.open_violations}
+                icon={AlertCircle}
+                color="yellow"
+              />
+              <MetricsCard
+                title="Resolved"
+                value={metrics.resolved_violations}
+                icon={CheckCircle}
+                color="green"
+              />
+              <MetricsCard
+                title="Resolution Rate"
+                value={`${metrics.resolution_rate}%`}
+                icon={TrendingUp}
+                color="purple"
+              />
+            </div>
+          )}
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <ViolationsChart
+              data={monthlyTrendsData}
+              type="line"
+              title="Monthly Violation Trends"
+              height={300}
+            />
+            <ViolationsChart
+              data={violationTypesData}
+              type="bar"
+              title="Violation Types"
+              height={300}
+            />
+          </div>
+
+          {/* Additional Metrics */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Users className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        Repeat Offenders
+                      </dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {metrics?.repeat_offenders || 0}
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Calendar className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        Average Resolution Time
+                      </dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {metrics?.average_resolution_time || 0} days
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <AlertCircle className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        Disputed Violations
+                      </dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {metrics?.disputed_violations || 0}
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Insights */}
+          {metrics && (
+            <div className="mt-8 bg-white shadow rounded-lg">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Key Insights
+                </h3>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">
+                      Performance Summary
+                    </h4>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• Resolution rate: {metrics.resolution_rate}%</li>
+                      <li>• Average resolution time: {metrics.average_resolution_time} days</li>
+                      <li>• Repeat offenders: {metrics.repeat_offenders}</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">
+                      Recommendations
+                    </h4>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• Focus on reducing resolution time</li>
+                      <li>• Address repeat offender patterns</li>
+                      <li>• Improve communication with residents</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 } 

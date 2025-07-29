@@ -43,6 +43,10 @@ export const useAuthStore = create<AuthStore>()(
             isLoading: false,
             error: null,
           });
+          // Also store token in localStorage for API client compatibility
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('auth_token', response.access_token);
+          }
         } catch (error) {
           set({
             isLoading: false,
@@ -54,6 +58,10 @@ export const useAuthStore = create<AuthStore>()(
 
       logout: () => {
         apiClient.logout();
+        // Also clear localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('auth_token');
+        }
         set({
           user: null,
           token: null,

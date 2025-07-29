@@ -12,6 +12,7 @@
     "@hookform/resolvers": "^5.2.0",
     "@tanstack/react-query": "^5.83.0",
     "@types/next-pwa": "^5.6.9",
+    "@tailwindcss/postcss": "^4",
     "clsx": "^2.1.1",
     "lucide-react": "^0.532.0",
     "next": "15.4.4",
@@ -21,18 +22,17 @@
     "react-hook-form": "^7.61.1",
     "recharts": "^3.1.0",
     "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^4",
     "zod": "^4.0.10",
     "zustand": "^5.0.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.4.4",
-    "tailwindcss": "^4",
     "typescript": "^5"
   }
 }
