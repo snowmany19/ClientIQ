@@ -157,7 +157,7 @@ export default function UserManagement() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading users...</p>
+          <p className="mt-4 text-gray-900 font-medium">Loading users...</p>
         </div>
       </div>
     );
@@ -168,8 +168,8 @@ export default function UserManagement() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-medium text-gray-900">User Management</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <h2 className="text-lg font-semibold text-gray-900">User Management</h2>
+          <p className="mt-1 text-sm text-gray-700 font-medium">
             Manage user accounts and permissions
           </p>
         </div>
@@ -208,72 +208,72 @@ export default function UserManagement() {
       {/* Create/Edit Form */}
       {showCreateForm && (
         <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
             {editingUser ? 'Edit User' : 'Create New User'}
           </h3>
           
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="username" className="block text-sm font-semibold text-gray-900 mb-1">
                   Username *
                 </label>
                 <input
                   type="text"
                   id="username"
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                     errors.username ? 'border-red-300' : 'border-gray-300'
                   }`}
                   {...register('username')}
                 />
                 {errors.username && (
-                  <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
+                  <p className="mt-1 text-sm text-red-700 font-medium">{errors.username.message}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="email" className="block text-sm font-semibold text-gray-900 mb-1">
                   Email *
                 </label>
                 <input
                   type="email"
                   id="email"
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                     errors.email ? 'border-red-300' : 'border-gray-300'
                   }`}
                   {...register('email')}
                 />
                 {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                  <p className="mt-1 text-sm text-red-700 font-medium">{errors.email.message}</p>
                 )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="password" className="block text-sm font-semibold text-gray-900 mb-1">
                   Password *
                 </label>
                 <input
                   type="password"
                   id="password"
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                     errors.password ? 'border-red-300' : 'border-gray-300'
                   }`}
                   {...register('password')}
                 />
                 {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                  <p className="mt-1 text-sm text-red-700 font-medium">{errors.password.message}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="role" className="block text-sm font-semibold text-gray-900 mb-1">
                   Role *
                 </label>
                 <select
                   id="role"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                   {...register('role')}
                 >
                   <option value="">Select role...</option>
@@ -282,7 +282,7 @@ export default function UserManagement() {
                   <option value="inspector">Inspector</option>
                 </select>
                 {errors.role && (
-                  <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
+                  <p className="mt-1 text-sm text-red-700 font-medium">{errors.role.message}</p>
                 )}
               </div>
             </div>
@@ -309,7 +309,7 @@ export default function UserManagement() {
         <input
           type="text"
           placeholder="Search users..."
-          className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />

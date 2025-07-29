@@ -202,77 +202,77 @@ export default function ViolationForm({ onSuccess, onCancel }: ViolationFormProp
 
             {/* Description */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="description" className="block text-sm font-semibold text-gray-900 mb-2">
                 Violation Description *
               </label>
               <textarea
                 id="description"
                 rows={4}
-                className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                   errors.description ? 'border-red-300' : 'border-gray-300'
                 }`}
                 placeholder="Describe the violation in detail..."
                 {...register('description')}
               />
               {errors.description && (
-                <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
+                <p className="mt-1 text-sm text-red-700 font-medium">{errors.description.message}</p>
               )}
             </div>
 
             {/* HOA */}
             <div>
-              <label htmlFor="hoa" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="hoa" className="block text-sm font-semibold text-gray-900 mb-2">
                 HOA *
               </label>
               <input
                 type="text"
                 id="hoa"
-                className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                   errors.hoa ? 'border-red-300' : 'border-gray-300'
                 }`}
                 placeholder="HOA #001"
                 {...register('hoa')}
               />
               {errors.hoa && (
-                <p className="mt-1 text-sm text-red-600">{errors.hoa.message}</p>
+                <p className="mt-1 text-sm text-red-700 font-medium">{errors.hoa.message}</p>
               )}
             </div>
 
             {/* Address and Location */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="address" className="block text-sm font-semibold text-gray-900 mb-2">
                   Property Address *
                 </label>
                 <input
                   type="text"
                   id="address"
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                     errors.address ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder="123 Main St, Unit 5"
                   {...register('address')}
                 />
                 {errors.address && (
-                  <p className="mt-1 text-sm text-red-600">{errors.address.message}</p>
+                  <p className="mt-1 text-sm text-red-700 font-medium">{errors.address.message}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="location" className="block text-sm font-semibold text-gray-900 mb-2">
                   Specific Location *
                 </label>
                 <input
                   type="text"
                   id="location"
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                     errors.location ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder="Front yard, Back porch, etc."
                   {...register('location')}
                 />
                 {errors.location && (
-                  <p className="mt-1 text-sm text-red-600">{errors.location.message}</p>
+                  <p className="mt-1 text-sm text-red-700 font-medium">{errors.location.message}</p>
                 )}
               </div>
             </div>
@@ -280,30 +280,30 @@ export default function ViolationForm({ onSuccess, onCancel }: ViolationFormProp
             {/* Offender and Violation Type */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="offender" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="offender" className="block text-sm font-semibold text-gray-900 mb-2">
                   Resident/Offender *
                 </label>
                 <input
                   type="text"
                   id="offender"
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
                     errors.offender ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder="John Smith"
                   {...register('offender')}
                 />
                 {errors.offender && (
-                  <p className="mt-1 text-sm text-red-600">{errors.offender.message}</p>
+                  <p className="mt-1 text-sm text-red-700 font-medium">{errors.offender.message}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="violation_type" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="violation_type" className="block text-sm font-semibold text-gray-900 mb-2">
                   Violation Type
                 </label>
                 <select
                   id="violation_type"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                   {...register('violation_type')}
                 >
                   <option value="">Select type...</option>
@@ -320,13 +320,13 @@ export default function ViolationForm({ onSuccess, onCancel }: ViolationFormProp
 
             {/* GPS Coordinates */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
                 GPS Coordinates
               </label>
               <div className="flex space-x-2">
                 <input
                   type="text"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
                   placeholder="37.7749,-122.4194"
                   value={gpsCoordinates}
                   onChange={(e) => {
@@ -344,14 +344,14 @@ export default function ViolationForm({ onSuccess, onCancel }: ViolationFormProp
                   Get Location
                 </Button>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-600 font-medium">
                 Automatically capture your current location or enter coordinates manually
               </p>
             </div>
 
             {/* Photo Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Photo Evidence
               </label>
               
@@ -392,7 +392,7 @@ export default function ViolationForm({ onSuccess, onCancel }: ViolationFormProp
                       Upload Photo
                     </Button>
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-600 font-medium">
                     Take a photo with your camera or upload an existing image (max 5MB)
                   </p>
                 </div>
@@ -423,6 +423,7 @@ export default function ViolationForm({ onSuccess, onCancel }: ViolationFormProp
                   type="button"
                   variant="outline"
                   onClick={onCancel}
+                  className="font-medium"
                 >
                   Cancel
                 </Button>
@@ -430,6 +431,7 @@ export default function ViolationForm({ onSuccess, onCancel }: ViolationFormProp
               <Button
                 type="submit"
                 loading={isSubmitting}
+                className="font-medium"
               >
                 {isSubmitting ? 'Creating...' : 'Create Violation'}
               </Button>

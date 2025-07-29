@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import ViolationsTable from '@/components/dashboard/ViolationsTable';
+import LetterEditor from '@/components/forms/LetterEditor';
 import { Button } from '@/components/ui/Button';
 import { Violation } from '@/types';
 import { Plus, Download } from 'lucide-react';
@@ -21,6 +22,8 @@ export default function ViolationsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortField, setSortField] = useState<keyof Violation>('timestamp');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [selectedViolation, setSelectedViolation] = useState<Violation | null>(null);
+  const [isLetterEditorOpen, setIsLetterEditorOpen] = useState(false);
 
   useEffect(() => {
     loadViolations();
@@ -73,6 +76,11 @@ export default function ViolationsPage() {
   const handleViolationEdit = (violation: Violation) => {
     // Navigate to the violation detail page in edit mode
     router.push(`/dashboard/violations/${violation.id}`);
+  };
+
+  const handleViolationLetter = (violation: Violation) => {
+    setSelectedViolation(violation);
+    setIsLetterEditorOpen(true);
   };
 
   const handleSearchChange = (newSearchTerm: string) => {
@@ -161,6 +169,7 @@ export default function ViolationsPage() {
               onViolationDelete={handleViolationDelete}
               onViolationView={handleViolationView}
               onViolationEdit={handleViolationEdit}
+              onViolationLetter={handleViolationLetter}
               onSearchChange={handleSearchChange}
               onStatusFilterChange={handleStatusFilterChange}
               onSortChange={handleSortChange}
@@ -177,6 +186,18 @@ export default function ViolationsPage() {
           )}
         </div>
       </div>
+
+      {/* Letter Editor Modal */}
+      {selectedViolation && (
+        <LetterEditor
+          violation={selectedViolation}
+          isOpen={isLetterEditorOpen}
+          onClose={() => {
+            setIsLetterEditorOpen(false);
+            setSelectedViolation(null);
+          }}
+        />
+      )}
     </>
   );
 } 

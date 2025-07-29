@@ -24,7 +24,7 @@ from utils.exceptions import custom_exception_handler, CivicLogHOAException
 settings = get_settings()
 
 # Setup logging
-logger = setup_logging(settings.log_level, settings.log_file)
+logger = setup_logging(settings.log_level)
 
 # Initialize rate limiter
 rate_limiter = RateLimiter(settings.rate_limit_requests)
