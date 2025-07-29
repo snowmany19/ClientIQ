@@ -66,6 +66,19 @@ export default function ViolationsTable({
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   const [localStatusFilter, setLocalStatusFilter] = useState(statusFilter);
 
+  // Add bulk selection state
+  const [selectedViolations, setSelectedViolations] = useState<number[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
+
+  // Add advanced filter state
+  const [advancedFilters, setAdvancedFilters] = useState({
+    dateRange: '',
+    violationType: '',
+    repeatOffender: false,
+    hasPhotos: false,
+    gpsCoordinates: false
+  });
+
   const canEdit = userRole === 'admin' || userRole === 'hoa_board';
   const canDelete = userRole === 'admin' || userRole === 'hoa_board';
   const canGenerateLetter = userRole === 'admin' || userRole === 'hoa_board' || userRole === 'inspector';
@@ -103,6 +116,75 @@ export default function ViolationsTable({
         console.error('Failed to delete violation:', error);
       }
     }
+  };
+
+  // Add bulk operations
+  const handleBulkStatusUpdate = async (newStatus: string) => {
+    try {
+      await Promise.all(
+        selectedViolations.map(id => 
+          apiClient.updateViolationStatus(id, newStatus)
+        )
+      );
+      onViolationUpdate && onViolationUpdate({} as Violation); // Refresh
+      setSelectedViolations([]);
+    } catch (error) {
+      console.error('Bulk update failed:', error);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (confirm(`Are you sure you want to delete ${selectedViolations.length} violations?`)) {
+      try {
+        await Promise.all(
+          selectedViolations.map(id => 
+            apiClient.deleteViolation(id)
+          )
+        );
+        onViolationDelete && selectedViolations.forEach(id => onViolationDelete(id));
+        setSelectedViolations([]);
+      } catch (error) {
+        console.error('Bulk delete failed:', error);
+      }
+    }
+  };
+
+  // Add advanced search function
+  const applyAdvancedFilters = (violations: Violation[]) => {
+    return violations.filter(violation => {
+      // Date range filter
+      if (advancedFilters.dateRange) {
+        const violationDate = new Date(violation.timestamp);
+        const now = new Date();
+        const daysAgo = parseInt(advancedFilters.dateRange);
+        const cutoffDate = new Date(now.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
+        if (violationDate < cutoffDate) return false;
+      }
+
+      // Violation type filter
+      if (advancedFilters.violationType && violation.tags) {
+        if (!violation.tags.toLowerCase().includes(advancedFilters.violationType.toLowerCase())) {
+          return false;
+        }
+      }
+
+      // Repeat offender filter
+      if (advancedFilters.repeatOffender && violation.repeat_offender_score < 3) {
+        return false;
+      }
+
+      // Has photos filter
+      if (advancedFilters.hasPhotos && !violation.image_url) {
+        return false;
+      }
+
+      // Has GPS filter
+      if (advancedFilters.gpsCoordinates && !violation.gps_coordinates) {
+        return false;
+      }
+
+      return true;
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -156,6 +238,130 @@ export default function ViolationsTable({
           </div>
         </div>
       </div>
+
+      {/* Add advanced filters UI */}
+      <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-gray-900">Advanced Filters</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setAdvancedFilters({
+              dateRange: '',
+              violationType: '',
+              repeatOffender: false,
+              hasPhotos: false,
+              gpsCoordinates: false
+            })}
+          >
+            Clear All
+          </Button>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Date Range
+            </label>
+            <select
+              value={advancedFilters.dateRange}
+              onChange={(e) => setAdvancedFilters(prev => ({ ...prev, dateRange: e.target.value }))}
+              className="w-full text-sm border-gray-300 rounded-md"
+            >
+              <option value="">All Time</option>
+              <option value="7">Last 7 Days</option>
+              <option value="30">Last 30 Days</option>
+              <option value="90">Last 90 Days</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Violation Type
+            </label>
+            <input
+              type="text"
+              placeholder="e.g., parking, noise"
+              value={advancedFilters.violationType}
+              onChange={(e) => setAdvancedFilters(prev => ({ ...prev, violationType: e.target.value }))}
+              className="w-full text-sm border-gray-300 rounded-md"
+            />
+          </div>
+          
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="repeatOffender"
+              checked={advancedFilters.repeatOffender}
+              onChange={(e) => setAdvancedFilters(prev => ({ ...prev, repeatOffender: e.target.checked }))}
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+            />
+            <label htmlFor="repeatOffender" className="ml-2 text-xs text-gray-700">
+              Repeat Offenders Only
+            </label>
+          </div>
+          
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="hasPhotos"
+              checked={advancedFilters.hasPhotos}
+              onChange={(e) => setAdvancedFilters(prev => ({ ...prev, hasPhotos: e.target.checked }))}
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+            />
+            <label htmlFor="hasPhotos" className="ml-2 text-xs text-gray-700">
+              With Photos
+            </label>
+          </div>
+          
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="gpsCoordinates"
+              checked={advancedFilters.gpsCoordinates}
+              onChange={(e) => setAdvancedFilters(prev => ({ ...prev, gpsCoordinates: e.target.checked }))}
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+            />
+            <label htmlFor="gpsCoordinates" className="ml-2 text-xs text-gray-700">
+              With GPS
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Add bulk operations UI */}
+      {selectedViolations.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-blue-900">
+              {selectedViolations.length} violation(s) selected
+            </p>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkStatusUpdate('resolved')}
+              >
+                Mark Resolved
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkStatusUpdate('escalated')}
+              >
+                Escalate
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBulkDelete}
+              >
+                Delete Selected
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="flex-1 overflow-x-auto">

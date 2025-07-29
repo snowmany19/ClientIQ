@@ -16,6 +16,7 @@ interface AuthActions {
   logout: () => void;
   getCurrentUser: () => Promise<void>;
   clearError: () => void;
+  initializeAuth: () => Promise<void>;
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -95,6 +96,36 @@ export const useAuthStore = create<AuthStore>()(
 
       clearError: () => {
         set({ error: null });
+      },
+
+      initializeAuth: async () => {
+        // Check if we have a token in localStorage
+        if (typeof window !== 'undefined') {
+          const token = localStorage.getItem('auth_token');
+          if (token) {
+            try {
+              // Try to get current user with the stored token
+              const user = await apiClient.getCurrentUser();
+              set({
+                user,
+                token,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+              });
+            } catch (error) {
+              // Token is invalid, clear it
+              localStorage.removeItem('auth_token');
+              set({
+                user: null,
+                token: null,
+                isAuthenticated: false,
+                isLoading: false,
+                error: null,
+              });
+            }
+          }
+        }
       },
     }),
     {

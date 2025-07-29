@@ -17,6 +17,7 @@ import {
   AlertCircle,
   CheckCircle
 } from 'lucide-react';
+import { showInstallPrompt, isPWAInstallable, isPWAInstalled } from '@/lib/pwa';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
@@ -546,25 +547,58 @@ export default function SettingsPage() {
         <div className="p-4 bg-gray-50 rounded-lg">
           <h4 className="text-sm font-semibold text-gray-900 mb-2">PWA Settings</h4>
           <p className="text-sm text-gray-700 font-medium mb-3">Manage Progressive Web App features</p>
-          <div className="space-y-2">
-            <label className="flex items-center">
-              <input 
-                type="checkbox" 
-                checked={pwaSettings.offline}
-                onChange={(e) => setPwaSettings(prev => ({ ...prev, offline: e.target.checked }))}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
-              />
-              <span className="ml-2 text-sm text-gray-900 font-medium">Enable offline mode</span>
-            </label>
-            <label className="flex items-center">
-              <input 
-                type="checkbox" 
-                checked={pwaSettings.appSwitcher}
-                onChange={(e) => setPwaSettings(prev => ({ ...prev, appSwitcher: e.target.checked }))}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
-              />
-              <span className="ml-2 text-sm text-gray-900 font-medium">Show app in app switcher</span>
-            </label>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="flex items-center">
+                <input 
+                  type="checkbox" 
+                  checked={pwaSettings.offline}
+                  onChange={(e) => setPwaSettings(prev => ({ ...prev, offline: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                />
+                <span className="ml-2 text-sm text-gray-900 font-medium">Enable offline mode</span>
+              </label>
+              <label className="flex items-center">
+                <input 
+                  type="checkbox" 
+                  checked={pwaSettings.appSwitcher}
+                  onChange={(e) => setPwaSettings(prev => ({ ...prev, appSwitcher: e.target.checked }))}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                />
+                <span className="ml-2 text-sm text-gray-900 font-medium">Show app in app switcher</span>
+              </label>
+            </div>
+            
+            <div className="pt-3 border-t border-gray-200">
+              <h5 className="text-sm font-semibold text-gray-900 mb-2">Install App</h5>
+              <p className="text-sm text-gray-700 font-medium mb-3">Install CivicLogHOA as a mobile app for better experience</p>
+              
+              <div className="space-y-3">
+                <Button 
+                  onClick={showInstallPrompt}
+                  variant="outline"
+                  className="w-full"
+                  disabled={!isPWAInstallable()}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Install CivicLogHOA App
+                </Button>
+                
+                <div className="text-xs text-gray-500 space-y-1">
+                  <p>This will add the app to your home screen for quick access</p>
+                  {!isPWAInstallable() && (
+                    <p className="text-yellow-600">
+                      ⚠️ App installation requires HTTPS or localhost
+                    </p>
+                  )}
+                  {isPWAInstalled() && (
+                    <p className="text-green-600">
+                      ✅ App is already installed
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
