@@ -11,62 +11,60 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 # Subscription plans configuration
 SUBSCRIPTION_PLANS = {
-    "basic": {
-        "name": "Basic Plan",
-        "price_id": os.getenv("STRIPE_BASIC_PRICE_ID"),
-        "price": 29,
+    "starter": {
+        "name": "Starter",
+        "price_id": os.getenv("STRIPE_STARTER_PRICE_ID"),
+        "price": 199,
         "currency": "usd",
         "interval": "month",
         "features": [
-            "Up to 100 incidents per month",
-            "AI-powered incident summaries",
-            "PDF report generation",
-            "Basic analytics dashboard",
-            "Email support"
+            "Up to 100 homes",
+            "Basic violation tracking",
+            "Standard letter generation",
+            "Email support",
+            "Standard reports"
         ],
         "limits": {
-            "users": 1,  # Single user focused
-            "incidents_per_month": 100,
-            "storage_gb": 1
+            "users": 3,
+            "violations_per_month": 50,
+            "storage_gb": 5
         }
     },
-    "pro": {
-        "name": "Pro Plan",
-        "price_id": os.getenv("STRIPE_PRO_PRICE_ID"),
-        "price": 99,
+    "professional": {
+        "name": "Professional",
+        "price_id": os.getenv("STRIPE_PROFESSIONAL_PRICE_ID"),
+        "price": 499,
         "currency": "usd",
         "interval": "month",
         "features": [
-            "Up to 500 incidents per month",
-            "Advanced analytics and charts",
-            "Role-based access control",
+            "Up to 500 homes",
+            "Advanced analytics & reporting",
+            "AI-powered letter generation",
             "Priority support",
-            "Custom branding",
-            "API access"
+            "Custom integrations"
         ],
         "limits": {
-            "users": 5,  # Small team
-            "incidents_per_month": 500,
-            "storage_gb": 10
+            "users": 10,
+            "violations_per_month": 200,
+            "storage_gb": 20
         }
     },
     "enterprise": {
-        "name": "Enterprise Plan",
+        "name": "Enterprise",
         "price_id": os.getenv("STRIPE_ENTERPRISE_PRICE_ID"),
-        "price": 299,
+        "price": 999,
         "currency": "usd",
         "interval": "month",
         "features": [
-            "Unlimited incidents per month",
-            "Advanced security features",
+            "Unlimited homes",
+            "Full feature suite",
+            "Dedicated account manager",
             "Custom integrations",
-            "Dedicated support",
-            "SLA guarantees",
-            "On-premise option"
+            "Advanced compliance tools"
         ],
         "limits": {
-            "users": -1,  # Unlimited
-            "incidents_per_month": -1,  # Unlimited
+            "users": 50,
+            "violations_per_month": 1000,
             "storage_gb": 100
         }
     }
@@ -228,4 +226,43 @@ def get_plan_features(plan_id: str) -> List[str]:
     plan = SUBSCRIPTION_PLANS.get(plan_id)
     if not plan:
         return []
-    return plan["features"] 
+    return plan["features"]
+
+def enforce_plan_limits(user_plan: str, current_usage: Dict[str, int], resource: str) -> bool:
+    """Enforce plan limits and return True if within limits, False if exceeded."""
+    limits = get_usage_limits(user_plan)
+    if not limits:
+        return True  # No limits defined, allow access
+    
+    limit = limits.get(resource, -1)
+    if limit == -1:  # Unlimited
+        return True
+    
+    current = current_usage.get(resource, 0)
+    return current < limit
+
+def get_plan_upgrade_suggestion(user_plan: str, current_usage: Dict[str, int], resource: str) -> Dict[str, Any]:
+    """Get upgrade suggestion when limits are exceeded."""
+    current_plan = SUBSCRIPTION_PLANS.get(user_plan, {})
+    current_limit = current_plan.get("limits", {}).get(resource, 0)
+    current_usage_count = current_usage.get(resource, 0)
+    
+    # Find next plan with higher limits
+    plan_order = ["starter", "professional", "enterprise"]
+    current_index = plan_order.index(user_plan) if user_plan in plan_order else -1
+    
+    for plan_id in plan_order[current_index + 1:]:
+        plan = SUBSCRIPTION_PLANS.get(plan_id, {})
+        plan_limit = plan.get("limits", {}).get(resource, 0)
+        if plan_limit > current_limit:
+            return {
+                "current_plan": user_plan,
+                "current_limit": current_limit,
+                "current_usage": current_usage_count,
+                "suggested_plan": plan_id,
+                "suggested_limit": plan_limit,
+                "suggested_price": plan.get("price", 0),
+                "resource": resource
+            }
+    
+    return None 

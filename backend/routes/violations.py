@@ -9,6 +9,7 @@ from database import get_db
 from models import Violation, User, HOA, Resident
 from schemas import ViolationCreate, ViolationOut
 from utils.auth_utils import get_current_user, require_role, decode_token, require_active_subscription
+from utils.plan_enforcement import check_violation_limit, require_plan_feature
 from utils.image_uploader import save_image, extract_gps_from_image
 from utils.pdf import generate_pdf
 from utils.summary_generator import summarize_violation, classify_repeat_offender_score, calculate_repeat_offender_score
@@ -65,6 +66,7 @@ def create_violation(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _: User = Depends(require_active_subscription),
+    __: bool = Depends(check_violation_limit),
 ):
     # 🔍 Input Validation (centralized)
     try:

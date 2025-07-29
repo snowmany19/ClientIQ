@@ -163,26 +163,27 @@ export default function ViolationsPage() {
               </div>
             </div>
           ) : (
-            <ViolationsTable
-              violations={violations}
-              onViolationUpdate={handleViolationUpdate}
-              onViolationDelete={handleViolationDelete}
-              onViolationView={handleViolationView}
-              onViolationEdit={handleViolationEdit}
-              onViolationLetter={handleViolationLetter}
-              onSearchChange={handleSearchChange}
-              onStatusFilterChange={handleStatusFilterChange}
-              onSortChange={handleSortChange}
-              searchTerm={searchTerm}
-              statusFilter={statusFilter}
-              sortField={sortField}
-              sortDirection={sortDirection}
-              totalViolations={totalViolations}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              userRole={user?.role}
-            />
+                    <ViolationsTable
+          violations={violations}
+          loading={loading}
+          onViolationUpdate={handleViolationUpdate}
+          onViolationDelete={handleViolationDelete}
+          onViolationView={handleViolationView}
+          onViolationEdit={handleViolationEdit}
+          onViolationLetter={handleViolationLetter}
+          onSearchChange={handleSearchChange}
+          onStatusFilterChange={handleStatusFilterChange}
+          onSortChange={handleSortChange}
+          searchTerm={searchTerm}
+          statusFilter={statusFilter}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          totalViolations={totalViolations}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          userRole={user?.role}
+        />
           )}
         </div>
       </div>

@@ -516,6 +516,31 @@ class ApiClient {
     });
   }
 
+  // HOA Management
+  async getHOAs(): Promise<any[]> {
+    return this.request<any[]>('/hoas');
+  }
+
+  async createHOA(data: any): Promise<any> {
+    return this.request<any>('/hoas', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateHOA(hoaId: number, data: any): Promise<any> {
+    return this.request<any>(`/hoas/${hoaId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteHOA(hoaId: number): Promise<void> {
+    return this.request<void>(`/hoas/${hoaId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async generateLetterPDF(letterContent: string): Promise<Blob> {
     const response = await fetch(`${this.baseURL}/violations/generate-letter/pdf`, {
       method: 'POST',

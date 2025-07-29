@@ -3,7 +3,7 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  role: 'admin' | 'hoa_board' | 'inspector';
+  role: 'admin' | 'hoa_board' | 'inspector' | 'super_admin';
   subscription_status: 'active' | 'inactive' | 'cancelled';
   plan_id: string;
   hoa?: HOA;

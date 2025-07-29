@@ -18,9 +18,11 @@ import {
   FileText,
   Mail
 } from 'lucide-react';
+import { TableSkeleton } from '@/components/ui/LoadingSkeleton';
 
 interface ViolationsTableProps {
   violations: Violation[];
+  loading?: boolean;
   onViolationUpdate?: (violation: Violation) => void;
   onViolationDelete?: (id: number) => void;
   onViolationView?: (violation: Violation) => void;
@@ -42,6 +44,7 @@ interface ViolationsTableProps {
 
 export default function ViolationsTable({ 
   violations, 
+  loading = false,
   onViolationUpdate, 
   onViolationDelete,
   onViolationView,
@@ -231,7 +234,13 @@ export default function ViolationsTable({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {violations.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-4">
+                  <TableSkeleton />
+                </td>
+              </tr>
+            ) : violations.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                   <div className="flex flex-col items-center">
