@@ -4,14 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
-import Sidebar from '@/components/layout/Sidebar';
 import ViolationsTable from '@/components/dashboard/ViolationsTable';
 import { Button } from '@/components/ui/Button';
 import { Violation } from '@/types';
 import { Plus, Download } from 'lucide-react';
 
 export default function ViolationsPage() {
-  const { user, isAuthenticated, getCurrentUser } = useAuthStore();
+  const { user } = useAuthStore();
   const router = useRouter();
   const [violations, setViolations] = useState<Violation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,17 +23,8 @@ export default function ViolationsPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/');
-      return;
-    }
-
-    if (!user) {
-      getCurrentUser();
-    }
-
     loadViolations();
-  }, [isAuthenticated, user, router, getCurrentUser, currentPage, searchTerm, statusFilter, sortField, sortDirection]);
+  }, [currentPage, searchTerm, statusFilter, sortField, sortDirection]);
 
   const loadViolations = async () => {
     try {
@@ -121,83 +111,72 @@ export default function ViolationsPage() {
     }
   };
 
-  if (!isAuthenticated || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="h-screen flex bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-white shadow flex-shrink-0">
-          <div className="w-full px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Violations</h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  Manage and track HOA violations
-                </p>
-              </div>
-              <div className="flex items-center space-x-3">
-                <Button
-                  variant="outline"
-                  onClick={handleExportCSV}
-                  className="flex items-center"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </Button>
-                <Button
-                  onClick={() => router.push('/dashboard/violations/new')}
-                  className="flex items-center"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Violation
-                </Button>
-              </div>
+    <>
+      {/* Header */}
+      <div className="bg-white shadow flex-shrink-0">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Violations</h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Manage and track HOA violations
+              </p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="outline"
+                onClick={handleExportCSV}
+                className="flex items-center"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button
+                onClick={() => router.push('/dashboard/violations/new')}
+                className="flex items-center"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Violation
+              </Button>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-7xl mx-auto">
-            {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Loading violations...</p>
-                </div>
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-7xl mx-auto">
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600">Loading violations...</p>
               </div>
-            ) : (
-              <ViolationsTable
-                violations={violations}
-                onViolationUpdate={handleViolationUpdate}
-                onViolationDelete={handleViolationDelete}
-                onViolationView={handleViolationView}
-                onViolationEdit={handleViolationEdit}
-                onSearchChange={handleSearchChange}
-                onStatusFilterChange={handleStatusFilterChange}
-                onSortChange={handleSortChange}
-                searchTerm={searchTerm}
-                statusFilter={statusFilter}
-                sortField={sortField}
-                sortDirection={sortDirection}
-                totalViolations={totalViolations}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-                userRole={user?.role}
-              />
-            )}
-          </div>
+            </div>
+          ) : (
+            <ViolationsTable
+              violations={violations}
+              onViolationUpdate={handleViolationUpdate}
+              onViolationDelete={handleViolationDelete}
+              onViolationView={handleViolationView}
+              onViolationEdit={handleViolationEdit}
+              onSearchChange={handleSearchChange}
+              onStatusFilterChange={handleStatusFilterChange}
+              onSortChange={handleSortChange}
+              searchTerm={searchTerm}
+              statusFilter={statusFilter}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              totalViolations={totalViolations}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              userRole={user?.role}
+            />
+          )}
         </div>
       </div>
-    </div>
+    </>
   );
 } 

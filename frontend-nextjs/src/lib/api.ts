@@ -60,7 +60,13 @@ class ApiClient {
 
   private getToken(): string | null {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('auth_token');
+      // Try to get token from Zustand store first, then localStorage as fallback
+      try {
+        const authStore = JSON.parse(localStorage.getItem('auth-storage') || '{}');
+        return authStore.state?.token || localStorage.getItem('auth_token');
+      } catch {
+        return localStorage.getItem('auth_token');
+      }
     }
     return null;
   }
@@ -98,7 +104,7 @@ class ApiClient {
     return data;
   }
 
-  async logout(): Promise<void> {
+  logout(): void {
     this.removeToken();
   }
 

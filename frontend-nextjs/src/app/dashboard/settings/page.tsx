@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
-import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/Button';
 import { 
   User, 
@@ -21,8 +19,7 @@ import {
 } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { user, isAuthenticated, getCurrentUser } = useAuthStore();
-  const router = useRouter();
+  const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -56,18 +53,9 @@ export default function SettingsPage() {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/');
-      return;
-    }
-
-    if (!user) {
-      getCurrentUser();
-    }
-
     // Load initial data
     loadSettings();
-  }, [isAuthenticated, user, router, getCurrentUser]);
+  }, []);
 
   const loadSettings = async () => {
     try {
@@ -259,14 +247,6 @@ export default function SettingsPage() {
     }
   };
 
-  if (!isAuthenticated || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   const tabs = [
     { id: 'profile', name: 'Profile', icon: User },
     { id: 'notifications', name: 'Notifications', icon: Bell },
@@ -285,7 +265,7 @@ export default function SettingsPage() {
             </label>
             <input
               type="text"
-              value={user.username}
+              value={user?.username || ''}
               disabled
               className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
             />
@@ -296,7 +276,7 @@ export default function SettingsPage() {
             </label>
             <input
               type="email"
-              value={user.email}
+              value={user?.email || ''}
               disabled
               className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
             />
@@ -307,7 +287,7 @@ export default function SettingsPage() {
             </label>
             <input
               type="text"
-              value={user.role}
+              value={user?.role || ''}
               disabled
               className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 capitalize"
             />
@@ -318,7 +298,7 @@ export default function SettingsPage() {
             </label>
             <input
               type="text"
-              value={user.subscription_status || 'Active'}
+              value={user?.subscription_status || 'Active'}
               disabled
               className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 capitalize"
             />
@@ -612,73 +592,71 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="h-screen flex bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-white shadow flex-shrink-0">
-          <div className="w-full px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
-              <div className="flex items-center">
-                <h1 className="text-xl font-semibold text-gray-900">Settings</h1>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* Main content */}
-        <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-7xl mx-auto">
-            {message && (
-              <div className={`mb-4 p-4 rounded-md ${
-                message.type === 'success'
-                  ? 'bg-green-50 border border-green-200 text-green-800'
-                  : 'bg-red-50 border border-red-200 text-red-800'
-              }`}>
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    {message.type === 'success' ? (
-                      <CheckCircle className="h-5 w-5 text-green-400" />
-                    ) : (
-                      <AlertCircle className="h-5 w-5 text-red-400" />
-                    )}
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium">{message.text}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="bg-white shadow rounded-lg">
-              {/* Tabs */}
-              <div className="border-b border-gray-200">
-                <nav className="-mb-px flex space-x-8 px-6">
-                  {tabs.map((tab) => {
-                    const Icon = tab.icon;
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
-                          activeTab === tab.id
-                            ? 'border-blue-500 text-blue-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        <Icon className="h-4 w-4 mr-2" />
-                        {tab.name}
-                      </button>
-                    );
-                  })}
-                </nav>
-              </div>
-              {/* Tab content */}
-              <div className="p-6">
-                {renderTabContent()}
-              </div>
+    <>
+      {/* Header */}
+      <div className="bg-white shadow flex-shrink-0">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-semibold text-gray-900">Settings</h1>
             </div>
           </div>
         </div>
       </div>
-    </div>
+      
+      {/* Main content */}
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-7xl mx-auto">
+          {message && (
+            <div className={`mb-4 p-4 rounded-md ${
+              message.type === 'success'
+                ? 'bg-green-50 border border-green-200 text-green-800'
+                : 'bg-red-50 border border-red-200 text-red-800'
+            }`}>
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  {message.type === 'success' ? (
+                    <CheckCircle className="h-5 w-5 text-green-400" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-red-400" />
+                  )}
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium">{message.text}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="bg-white shadow rounded-lg">
+            {/* Tabs */}
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8 px-6">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center ${
+                        activeTab === tab.id
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 mr-2" />
+                      {tab.name}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+            {/* Tab content */}
+            <div className="p-6">
+              {renderTabContent()}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 } 

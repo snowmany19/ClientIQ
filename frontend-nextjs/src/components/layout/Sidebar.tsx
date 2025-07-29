@@ -28,11 +28,16 @@ const navigation = [
 export default function Sidebar() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const { user, logout, isAuthenticated } = useAuthStore();
 
   const handleLogout = () => {
     logout();
   };
+
+  // Don't render sidebar if not authenticated
+  if (!isAuthenticated || !user) {
+    return null;
+  }
 
   return (
     <>
