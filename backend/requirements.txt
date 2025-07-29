@@ -87,6 +87,7 @@ python-decouple==3.8
 python-dotenv==1.1.0
 python-jose==3.5.0
 python-multipart==0.0.20
+qrcode[pil]==7.4.2
 pyttsx3==2.98
 pytz==2025.2
 PyYAML==6.0.2

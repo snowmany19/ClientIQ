@@ -88,13 +88,13 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex bg-gray-50">
       <Sidebar />
       
-      <div className="lg:pl-64">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow flex-shrink-0">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center">
                 <h1 className="text-xl font-semibold text-gray-900">
@@ -103,10 +103,7 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-700">
-                  Welcome, {user.username}
-                </span>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {user.role}
+                  Welcome back, {user.username}
                 </span>
               </div>
             </div>
@@ -114,111 +111,113 @@ export default function Dashboard() {
         </div>
 
         {/* Main content */}
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          {/* Metrics Cards */}
-          {metrics && (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-              <MetricsCard
-                title="Total Violations"
-                value={metrics.total_violations}
-                icon={FileText}
-                color="blue"
-              />
-              <MetricsCard
-                title="Open Violations"
-                value={metrics.open_violations}
-                icon={AlertCircle}
-                color="yellow"
-              />
-              <MetricsCard
-                title="Resolved"
-                value={metrics.resolved_violations}
-                icon={CheckCircle}
-                color="green"
-              />
-              <MetricsCard
-                title="Resolution Rate"
-                value={`${metrics.resolution_rate}%`}
-                icon={TrendingUp}
-                color="purple"
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Metrics Cards */}
+            {metrics && (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+                <MetricsCard
+                  title="Total Violations"
+                  value={metrics.total_violations}
+                  icon={FileText}
+                  color="blue"
+                />
+                <MetricsCard
+                  title="Open Violations"
+                  value={metrics.open_violations}
+                  icon={AlertCircle}
+                  color="yellow"
+                />
+                <MetricsCard
+                  title="Resolved"
+                  value={metrics.resolved_violations}
+                  icon={CheckCircle}
+                  color="green"
+                />
+                <MetricsCard
+                  title="Resolution Rate"
+                  value={`${metrics.resolution_rate}%`}
+                  icon={TrendingUp}
+                  color="purple"
+                />
+              </div>
+            )}
+
+            {/* Recent Violations */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-medium text-gray-900">
+                  Recent Violations
+                </h2>
+                <button className="text-sm text-blue-600 hover:text-blue-500">
+                  View all violations →
+                </button>
+              </div>
+              <ViolationsTable
+                violations={violations.slice(0, 10)}
+                onViolationUpdate={handleViolationUpdate}
+                onViolationDelete={handleViolationDelete}
               />
             </div>
-          )}
 
-          {/* Recent Violations */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-gray-900">
-                Recent Violations
-              </h2>
-              <button className="text-sm text-blue-600 hover:text-blue-500">
-                View all violations →
-              </button>
-            </div>
-            <ViolationsTable
-              violations={violations.slice(0, 10)}
-              onViolationUpdate={handleViolationUpdate}
-              onViolationDelete={handleViolationDelete}
-            />
-          </div>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Users className="h-6 w-6 text-gray-400" />
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Repeat Offenders
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {metrics?.repeat_offenders || 0}
-                      </dd>
-                    </dl>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <Users className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">
+                          Repeat Offenders
+                        </dt>
+                        <dd className="text-lg font-medium text-gray-900">
+                          {metrics?.repeat_offenders || 0}
+                        </dd>
+                      </dl>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <MapPin className="h-6 w-6 text-gray-400" />
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Average Resolution Time
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {metrics?.average_resolution_time || 0} days
-                      </dd>
-                    </dl>
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <MapPin className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">
+                          Average Resolution Time
+                        </dt>
+                        <dd className="text-lg font-medium text-gray-900">
+                          {metrics?.average_resolution_time || 0} days
+                        </dd>
+                      </dl>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <AlertCircle className="h-6 w-6 text-gray-400" />
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Disputed Violations
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {metrics?.disputed_violations || 0}
-                      </dd>
-                    </dl>
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <AlertCircle className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">
+                          Disputed Violations
+                        </dt>
+                        <dd className="text-lg font-medium text-gray-900">
+                          {metrics?.disputed_violations || 0}
+                        </dd>
+                      </dl>
+                    </div>
                   </div>
                 </div>
               </div>

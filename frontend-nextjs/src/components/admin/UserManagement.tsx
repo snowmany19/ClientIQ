@@ -71,8 +71,7 @@ export default function UserManagement() {
 
       if (editingUser) {
         // Update existing user
-        // Note: You'll need to add updateUser method to your API client
-        // await apiClient.updateUser(editingUser.id, data);
+        await apiClient.updateUser(editingUser.id, data);
         setSuccess('User updated successfully');
       } else {
         // Create new user
@@ -104,8 +103,7 @@ export default function UserManagement() {
     }
 
     try {
-      // Note: You'll need to add deleteUser method to your API client
-      // await apiClient.deleteUser(userId);
+      await apiClient.deleteUser(userId);
       setSuccess('User deleted successfully');
       loadUsers();
     } catch (error) {

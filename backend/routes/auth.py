@@ -16,7 +16,7 @@ import pathlib
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 from database import get_db
-from models import User, HOA
+from models import User, HOA, UserSession
 from schemas import Token, UserInfo, UserCreate
 from utils.auth_utils import (
     verify_password, create_access_token, get_password_hash, get_current_user, 
@@ -26,6 +26,8 @@ from utils.email_alerts import send_email_alert
 from utils.logger import get_logger, log_security_event
 from core.config import get_settings
 from utils.validation import InputValidator, ValidationException
+from utils.password_validator import PasswordValidator
+import secrets
 
 # Get settings and logger
 settings = get_settings()
@@ -85,13 +87,39 @@ def login(
     # Log successful login
     if request:
         client_ip = request.client.host if request.client else "unknown"
-        log_security_event(
-            logger,
-            event="successful_login",
-            user_id=str(user.id),
-            ip_address=client_ip,
-            details={"username": user.username, "role": user.role}
-        )
+        # Log successful login (security event logging removed for now)
+
+    # Update user activity timestamps
+    user.last_login_at = datetime.utcnow()
+    user.last_activity_at = datetime.utcnow()
+    
+    # Create session record
+    session_token = secrets.token_urlsafe(32)
+    session_expires = datetime.utcnow() + timedelta(days=30)  # 30 day session
+    
+    # Get device info from user agent
+    user_agent = request.headers.get("user-agent", "Unknown") if request else "Unknown"
+    device_info = "Unknown Device"
+    if "Chrome" in user_agent:
+        device_info = "Chrome Browser"
+    elif "Safari" in user_agent:
+        device_info = "Safari Browser"
+    elif "Firefox" in user_agent:
+        device_info = "Firefox Browser"
+    elif "Mobile" in user_agent:
+        device_info = "Mobile Device"
+    
+    new_session = UserSession(
+        user_id=user.id,
+        session_token=session_token,
+        device_info=device_info,
+        ip_address=request.client.host if request and request.client else None,
+        user_agent=user_agent,
+        expires_at=session_expires
+    )
+    
+    db.add(new_session)
+    db.commit()
 
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
@@ -141,7 +169,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
     except ValidationException as ve:
         raise HTTPException(status_code=400, detail=str(ve))
 
-    is_valid, errors = validate_password(validated_password)
+    is_valid, errors = PasswordValidator().validate(validated_password)
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -238,7 +266,7 @@ def create_user_with_permissions(
             )
     
     # Validate password strength
-    is_valid, errors = validate_password(validated_password)
+    is_valid, errors = PasswordValidator().validate(validated_password)
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -308,7 +336,7 @@ def change_password(
         )
     
     # Validate new password strength
-    is_valid, errors = validate_password(new_password)
+    is_valid, errors = PasswordValidator().validate(new_password)
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -563,5 +591,163 @@ def delete_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete user: {str(e)}"
         )
+
+@router.post("/change-password")
+def change_password(
+    password_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Change user password"""
+    current_password = password_data.get("current_password")
+    new_password = password_data.get("new_password")
+    
+    if not current_password or not new_password:
+        raise HTTPException(status_code=400, detail="Current and new password are required")
+    
+    # Verify current password
+    if not verify_password(current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    # Hash new password
+    hashed_new_password = get_password_hash(new_password)
+    
+    # Update password
+    current_user.hashed_password = hashed_new_password
+    db.commit()
+    
+    return {"message": "Password updated successfully"}
+
+@router.get("/admin/users")
+def get_users(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all users (admin only)"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    users = db.query(User).all()
+    return [
+        {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "subscription_status": user.subscription_status,
+            "hoa_id": user.hoa_id
+        }
+        for user in users
+    ]
+
+@router.post("/admin/users")
+def create_user(
+    user_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new user (admin only)"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    username = user_data.get("username")
+    email = user_data.get("email")
+    password = user_data.get("password")
+    role = user_data.get("role")
+    hoa_id = user_data.get("hoa_id")
+    
+    if not all([username, email, password, role]):
+        raise HTTPException(status_code=400, detail="All fields are required")
+    
+    # Check if user already exists
+    existing_user = db.query(User).filter(
+        (User.username == username) | (User.email == email)
+    ).first()
+    
+    if existing_user:
+        raise HTTPException(status_code=400, detail="User already exists")
+    
+    # Create new user
+    hashed_password = get_password_hash(password)
+    new_user = User(
+        username=username,
+        email=email,
+        hashed_password=hashed_password,
+        role=role,
+        hoa_id=hoa_id,
+        subscription_status="active"
+    )
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return {
+        "id": new_user.id,
+        "username": new_user.username,
+        "email": new_user.email,
+        "role": new_user.role,
+        "subscription_status": new_user.subscription_status,
+        "hoa_id": new_user.hoa_id
+    }
+
+@router.put("/admin/users/{user_id}")
+def update_user(
+    user_id: int,
+    user_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a user (admin only)"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update fields
+    if "username" in user_data:
+        user.username = user_data["username"]
+    if "email" in user_data:
+        user.email = user_data["email"]
+    if "role" in user_data:
+        user.role = user_data["role"]
+    if "hoa_id" in user_data:
+        user.hoa_id = user_data["hoa_id"]
+    
+    db.commit()
+    db.refresh(user)
+    
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": user.role,
+        "subscription_status": user.subscription_status,
+        "hoa_id": user.hoa_id
+    }
+
+@router.delete("/admin/users/{user_id}")
+def delete_user(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a user (admin only)"""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    if current_user.id == user_id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db.delete(user)
+    db.commit()
+    
+    return {"message": "User deleted successfully"}
 
 

@@ -46,10 +46,8 @@ export default function ViolationDetailPage() {
   const loadViolation = async () => {
     try {
       setLoading(true);
-      // For now, we'll get the violation from the list
-      // In a real app, you'd have a specific endpoint for getting a single violation
-      const violations = await apiClient.getViolations({ skip: 0, limit: 1000 });
-      const foundViolation = violations.data.find(v => v.id === violationId);
+      // Use the specific violation endpoint instead of loading all violations
+      const foundViolation = await apiClient.getViolation(violationId);
       
       if (foundViolation) {
         setViolation(foundViolation);
@@ -101,22 +99,24 @@ export default function ViolationDetailPage() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      open: { color: 'bg-yellow-100 text-yellow-800', icon: AlertCircle },
-      under_review: { color: 'bg-blue-100 text-blue-800', icon: Clock },
-      resolved: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
-      disputed: { color: 'bg-red-100 text-red-800', icon: XCircle },
+      open: { color: 'bg-yellow-100 text-yellow-800 border border-yellow-300', icon: AlertCircle },
+      under_review: { color: 'bg-blue-100 text-blue-800 border border-blue-300', icon: Clock },
+      resolved: { color: 'bg-green-100 text-green-800 border border-green-300', icon: CheckCircle },
+      disputed: { color: 'bg-red-100 text-red-800 border border-red-300', icon: XCircle },
     };
     
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.open;
     const Icon = config.icon;
     
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
-        <Icon className="h-3 w-3 mr-1" />
+      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${config.color}`}>
+        <Icon className="h-4 w-4 mr-2 text-current" />
         {status.replace('_', ' ')}
       </span>
     );
   };
+
+  const canEdit = user?.role === 'admin' || user?.role === 'hoa_board';
 
   if (!isAuthenticated || !user) {
     return (
@@ -161,13 +161,13 @@ export default function ViolationDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex bg-gray-50">
       <Sidebar />
       
-      <div className="lg:pl-64">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-white shadow">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow flex-shrink-0">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center">
                 <Button
@@ -210,182 +210,198 @@ export default function ViolationDetailPage() {
                     </Button>
                   </>
                 ) : (
-                  <Button
-                    onClick={() => setEditing(true)}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
+                  canEdit ? (
+                    <Button
+                      onClick={() => setEditing(true)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                  ) : (
+                    <div className="text-sm text-gray-500">
+                      Only admins and HOA board members can edit violations
+                    </div>
+                  )
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Main content */}
-        <div className="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="bg-white shadow rounded-lg">
-            {/* Status Section */}
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium text-gray-900">Status</h2>
-                {editing ? (
-                  <select
-                    value={editedViolation.status || violation.status}
-                                         onChange={(e) => setEditedViolation(prev => ({ ...prev, status: e.target.value as any }))}
-                    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="open">Open</option>
-                    <option value="under_review">Under Review</option>
-                    <option value="resolved">Resolved</option>
-                    <option value="disputed">Disputed</option>
-                  </select>
-                ) : (
-                  <div className="flex items-center space-x-4">
-                    {getStatusBadge(violation.status)}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditing(true)}
+        {/* Main content - full height */}
+        <div className="flex-1 overflow-auto">
+          <div className="h-full bg-white">
+              {/* Status Section */}
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-medium text-gray-900">Status</h2>
+                  {editing ? (
+                    <select
+                      value={editedViolation.status || violation.status}
+                      onChange={(e) => setEditedViolation(prev => ({ ...prev, status: e.target.value as any }))}
+                      className="border-2 border-gray-300 rounded-md px-4 py-2 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                     >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Change Status
-                    </Button>
+                      <option value="open">Open</option>
+                      <option value="under_review">Under Review</option>
+                      <option value="resolved">Resolved</option>
+                      <option value="disputed">Disputed</option>
+                    </select>
+                  ) : (
+                    <div className="flex items-center space-x-4">
+                      {getStatusBadge(violation.status)}
+                      {canEdit ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditing(true)}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Change Status
+                        </Button>
+                      ) : (
+                        <div className="text-xs text-gray-500">
+                          Only admins and HOA board members can change status
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Details Section */}
+              <div className="px-6 py-6 flex-1">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 h-full">
+                  {/* Basic Information */}
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-6">Basic Information</h3>
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        {editing ? (
+                          <textarea
+                            value={editedViolation.description || violation.description}
+                            onChange={(e) => setEditedViolation(prev => ({ ...prev, description: e.target.value }))}
+                            className="block w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                            rows={4}
+                            placeholder="Enter violation description..."
+                          />
+                        ) : (
+                          <p className="text-base text-gray-900 bg-gray-50 rounded-lg p-4">{violation.description}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                        {editing ? (
+                          <input
+                            type="text"
+                            value={editedViolation.address || violation.address}
+                            onChange={(e) => setEditedViolation(prev => ({ ...prev, address: e.target.value }))}
+                            className="block w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                            placeholder="Enter address..."
+                          />
+                        ) : (
+                          <div className="flex items-center text-base text-gray-900 bg-gray-50 rounded-lg p-4">
+                            <MapPin className="h-5 w-5 mr-3 text-gray-500" />
+                            {violation.address}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Offender</label>
+                        {editing ? (
+                          <input
+                            type="text"
+                            value={editedViolation.offender || violation.offender}
+                            onChange={(e) => setEditedViolation(prev => ({ ...prev, offender: e.target.value }))}
+                            className="block w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                            placeholder="Enter offender name..."
+                          />
+                        ) : (
+                          <div className="flex items-center text-base text-gray-900 bg-gray-50 rounded-lg p-4">
+                            <User className="h-5 w-5 mr-3 text-gray-500" />
+                            {violation.offender}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                        <div className="flex items-center text-base text-gray-900 bg-gray-50 rounded-lg p-4">
+                          <Calendar className="h-5 w-5 mr-3 text-gray-500" />
+                          {new Date(violation.timestamp).toLocaleDateString()} at {new Date(violation.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Information */}
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-6">Additional Information</h3>
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                        {editing ? (
+                          <input
+                            type="text"
+                            value={editedViolation.tags || violation.tags || ''}
+                            onChange={(e) => setEditedViolation(prev => ({ ...prev, tags: e.target.value }))}
+                            className="block w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                            placeholder="Enter tags separated by commas"
+                          />
+                        ) : (
+                          <p className="text-base text-gray-900 bg-gray-50 rounded-lg p-4">{violation.tags || 'No tags'}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Repeat Offender Score</label>
+                        <p className="text-base text-gray-900 bg-gray-50 rounded-lg p-4">{violation.repeat_offender_score || 0}</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">HOA</label>
+                        <p className="text-base text-gray-900 bg-gray-50 rounded-lg p-4">{violation.hoa_name || 'N/A'}</p>
+                      </div>
+
+                      {violation.gps_coordinates && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">GPS Coordinates</label>
+                          <p className="text-base text-gray-900 bg-gray-50 rounded-lg p-4">{violation.gps_coordinates}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Summary Section */}
+                {violation.summary && (
+                  <div className="mt-8 pt-8 border-t border-gray-200">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">AI Summary</h3>
+                    <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+                      <div className="flex items-start">
+                        <FileText className="h-6 w-6 text-blue-600 mr-4 mt-1" />
+                        <p className="text-base text-gray-800 leading-relaxed">{violation.summary}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image Section */}
+                {violation.image_url && (
+                  <div className="mt-8 pt-8 border-t border-gray-200">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Evidence Photo</h3>
+                    <div className="max-w-2xl">
+                      <img
+                        src={violation.image_url}
+                        alt="Violation evidence"
+                        className="rounded-lg shadow-lg border border-gray-200"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Details Section */}
-            <div className="px-6 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Basic Information */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Description</label>
-                      {editing ? (
-                        <textarea
-                          value={editedViolation.description || violation.description}
-                          onChange={(e) => setEditedViolation(prev => ({ ...prev, description: e.target.value }))}
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                          rows={4}
-                        />
-                      ) : (
-                        <p className="mt-1 text-sm text-gray-900">{violation.description}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Address</label>
-                      {editing ? (
-                        <input
-                          type="text"
-                          value={editedViolation.address || violation.address}
-                          onChange={(e) => setEditedViolation(prev => ({ ...prev, address: e.target.value }))}
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                        />
-                      ) : (
-                        <div className="mt-1 flex items-center text-sm text-gray-900">
-                          <MapPin className="h-4 w-4 mr-2 text-gray-400" />
-                          {violation.address}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Offender</label>
-                      {editing ? (
-                        <input
-                          type="text"
-                          value={editedViolation.offender || violation.offender}
-                          onChange={(e) => setEditedViolation(prev => ({ ...prev, offender: e.target.value }))}
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                        />
-                      ) : (
-                        <div className="mt-1 flex items-center text-sm text-gray-900">
-                          <User className="h-4 w-4 mr-2 text-gray-400" />
-                          {violation.offender}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Date</label>
-                      <div className="mt-1 flex items-center text-sm text-gray-900">
-                        <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                        {new Date(violation.timestamp).toLocaleDateString()} at {new Date(violation.timestamp).toLocaleTimeString()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Additional Information */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Information</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Tags</label>
-                      {editing ? (
-                        <input
-                          type="text"
-                          value={editedViolation.tags || violation.tags || ''}
-                          onChange={(e) => setEditedViolation(prev => ({ ...prev, tags: e.target.value }))}
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                          placeholder="Enter tags separated by commas"
-                        />
-                      ) : (
-                        <p className="mt-1 text-sm text-gray-900">{violation.tags || 'No tags'}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Repeat Offender Score</label>
-                      <p className="mt-1 text-sm text-gray-900">{violation.repeat_offender_score || 0}</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">HOA</label>
-                      <p className="mt-1 text-sm text-gray-900">{violation.hoa_name || 'N/A'}</p>
-                    </div>
-
-                    {violation.gps_coordinates && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">GPS Coordinates</label>
-                        <p className="mt-1 text-sm text-gray-900">{violation.gps_coordinates}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Summary Section */}
-              {violation.summary && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">AI Summary</h3>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-start">
-                      <FileText className="h-5 w-5 text-blue-500 mr-3 mt-0.5" />
-                      <p className="text-sm text-gray-700">{violation.summary}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Image Section */}
-              {violation.image_url && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Evidence Photo</h3>
-                  <div className="max-w-md">
-                    <img
-                      src={violation.image_url}
-                      alt="Violation evidence"
-                      className="rounded-lg shadow-sm"
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
