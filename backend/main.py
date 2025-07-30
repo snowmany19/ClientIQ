@@ -4,12 +4,14 @@ import os
 import sys
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from prometheus_client import Counter, Histogram, generate_latest
 
 # 👇 Fix path issues for local imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -19,6 +21,7 @@ from core.config import get_settings
 from utils.logger import setup_logging, get_logger, log_api_request, log_error
 from utils.rate_limiter import RateLimiter, rate_limit_middleware, get_client_ip
 from utils.exceptions import custom_exception_handler, CivicLogHOAException
+from utils.cache import warm_cache, get_cache_stats
 
 # Get settings
 settings = get_settings()
@@ -28,6 +31,10 @@ logger = setup_logging(settings.log_level)
 
 # Initialize rate limiter
 rate_limiter = RateLimiter(settings.rate_limit_requests)
+
+# Prometheus metrics
+request_count = Counter('http_requests_total', 'Total HTTP requests', ['method', 'endpoint', 'status'])
+request_duration = Histogram('http_request_duration_seconds', 'HTTP request duration')
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -42,6 +49,14 @@ async def lifespan(app: FastAPI):
     os.makedirs("static/images", exist_ok=True)
     os.makedirs("static/reports", exist_ok=True)
     os.makedirs("logs", exist_ok=True)
+    
+    # Warm up cache on startup
+    try:
+        logger.info("Warming up cache...")
+        warm_cache()
+        logger.info("Cache warming completed")
+    except Exception as e:
+        logger.warning(f"Cache warming failed: {e}")
     
     logger.info("CivicLogHOA - HOA Violation Management Platform backend started successfully!")
     
@@ -94,13 +109,13 @@ app.add_middleware(
 # 🗜️ GZip Compression Middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# 📂 Mount static files
+# �� Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 🚨 Add custom exception handler
 app.add_exception_handler(Exception, custom_exception_handler)
 
-# 📊 Request Logging Middleware
+# 📊 Request Logging Middleware with Prometheus metrics
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
@@ -122,6 +137,14 @@ async def log_requests(request: Request, call_next):
             duration=duration
         )
         
+        # Update Prometheus metrics
+        request_count.labels(
+            method=request.method,
+            endpoint=request.url.path,
+            status=response.status_code
+        ).inc()
+        request_duration.observe(duration)
+        
         return response
         
     except Exception as e:
@@ -139,6 +162,14 @@ async def log_requests(request: Request, call_next):
             }
         )
         
+        # Update Prometheus metrics for errors
+        request_count.labels(
+            method=request.method,
+            endpoint=request.url.path,
+            status=500
+        ).inc()
+        request_duration.observe(duration)
+        
         # Re-raise the exception
         raise
 
@@ -146,6 +177,84 @@ async def log_requests(request: Request, call_next):
 @app.get("/")
 def read_root():
     return {"message": "CivicLogHOA - HOA Violation Management Platform backend is operational.", "version": "1.0.0"}
+
+# 🏥 Comprehensive health check endpoint
+@app.get("/health")
+async def health_check():
+    """Comprehensive health check endpoint for production monitoring."""
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0.0",
+        "environment": settings.environment,
+        "checks": {}
+    }
+    
+    # Check database
+    try:
+        from database import SessionLocal
+        from sqlalchemy import text
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        health_status["checks"]["database"] = "healthy"
+    except Exception as e:
+        health_status["checks"]["database"] = f"unhealthy: {str(e)}"
+        health_status["status"] = "unhealthy"
+    
+    # Check Redis
+    try:
+        from utils.cache import redis_client
+        redis_client.ping()
+        health_status["checks"]["redis"] = "healthy"
+    except Exception as e:
+        health_status["checks"]["redis"] = f"unhealthy: {str(e)}"
+        health_status["status"] = "unhealthy"
+    
+    # Check cache stats
+    try:
+        cache_stats = get_cache_stats()
+        health_status["checks"]["cache"] = {
+            "status": "healthy",
+            "stats": cache_stats
+        }
+    except Exception as e:
+        health_status["checks"]["cache"] = f"unhealthy: {str(e)}"
+    
+    # Return appropriate status code
+    status_code = 200 if health_status["status"] == "healthy" else 503
+    return Response(
+        content=str(health_status),
+        status_code=status_code,
+        media_type="application/json"
+    )
+
+# 📊 Prometheus metrics endpoint
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint for monitoring."""
+    return Response(generate_latest(), media_type="text/plain")
+
+# 🔄 Cache management endpoints
+@app.post("/api/cache/warm")
+async def warm_cache_endpoint():
+    """Manually trigger cache warming."""
+    try:
+        warm_cache()
+        return {"status": "success", "message": "Cache warming completed"}
+    except Exception as e:
+        logger.error(f"Manual cache warming failed: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/cache/stats")
+async def cache_stats_endpoint():
+    """Get cache statistics."""
+    try:
+        stats = get_cache_stats()
+        return {"status": "success", "stats": stats}
+    except Exception as e:
+        logger.error(f"Failed to get cache stats: {e}")
+        return {"status": "error", "message": str(e)}
 
 # 🔍 Schema verification on startup
 @app.on_event("startup")
