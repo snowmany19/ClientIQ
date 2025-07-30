@@ -6,7 +6,8 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi import FastAPI, Request, Response, JSONResponse
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -34,7 +35,7 @@ rate_limiter = RateLimiter(settings.rate_limit_requests)
 
 # Prometheus metrics
 request_count = Counter('http_requests_total', 'Total HTTP requests', ['method', 'endpoint', 'status'])
-request_duration = Histogram('http_request_duration_seconds', 'HTTP request duration')
+request_duration = Histogram('http_request_duration_seconds', 'HTTP request duration', ['method', 'endpoint'])
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
