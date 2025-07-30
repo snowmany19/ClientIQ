@@ -7,6 +7,7 @@ import qrcode
 import base64
 import io
 import secrets
+import pyotp
 
 from database import get_db
 from models import User, UserSession, Violation
@@ -212,6 +213,32 @@ def enable_2fa(
         "secret": secret,
         "message": "2FA enabled successfully"
     }
+
+@router.post("/verify-2fa")
+def verify_2fa(
+    verification_data: Dict[str, str],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Verify 2FA setup with a code"""
+    code = verification_data.get("code")
+    
+    if not code or len(code) != 6:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+    
+    if not current_user.two_factor_secret:
+        raise HTTPException(status_code=400, detail="2FA not set up")
+    
+    # Verify the TOTP code
+    totp = pyotp.TOTP(current_user.two_factor_secret)
+    
+    if totp.verify(code):
+        # 2FA is now fully enabled
+        current_user.two_factor_enabled = True
+        db.commit()
+        return {"message": "2FA verification successful", "enabled": True}
+    else:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
 
 @router.delete("/disable-2fa")
 def disable_2fa(

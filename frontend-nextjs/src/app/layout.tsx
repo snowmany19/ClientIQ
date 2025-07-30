@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { PWAProvider } from '@/components/providers/PWAProvider'
+import { ThemeProvider } from '@/components/ui/ThemeProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -58,9 +59,11 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/favicon.ico" />
       </head>
       <body className={inter.className}>
-        <PWAProvider>
-          {children}
-        </PWAProvider>
+        <ThemeProvider>
+          <PWAProvider>
+            {children}
+          </PWAProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
