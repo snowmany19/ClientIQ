@@ -17,6 +17,8 @@ from utils.email_alerts import send_email_alert
 from utils.logger import get_logger
 from utils.validation import InputValidator, ValidationException
 from utils.workflow import trigger_violation_workflow
+from utils.celery_tasks import generate_violation_pdf_async, send_email_notification_async, process_image_upload_async
+from utils.cache import invalidate_user_cache, invalidate_hoa_cache
 import tzlocal
 import os
 from fastapi.responses import FileResponse, StreamingResponse
@@ -98,105 +100,119 @@ def create_violation(
                 logger.info(f"Auto-extracted GPS coordinates: {extracted_gps}")
         except Exception as e:
             logger.warning(f"Failed to extract GPS from image: {e}")
+
+    # 🏠 Find or create HOA
+    hoa_obj = db.query(HOA).filter(HOA.name == validated_hoa).first()
+    if not hoa_obj:
+        hoa_obj = HOA(name=validated_hoa, location="Unknown")
+        db.add(hoa_obj)
+        db.flush()  # Get the ID
+
+    # 🏠 Find or create resident
+    resident = db.query(Resident).filter(
+        Resident.address == validated_address,
+        Resident.hoa_id == hoa_obj.id
+    ).first()
     
-    # Save image with mobile-optimized processing
-    image_path = None
+    if not resident:
+        resident = Resident(
+            name=validated_offender,
+            address=validated_address,
+            hoa_id=hoa_obj.id
+        )
+        db.add(resident)
+        db.flush()
+
+    # 📸 Handle image upload
+    image_url = None
     if file:
-        mobile_opt = mobile_capture if mobile_capture is not None else False
-        image_path = save_image(file, mobile_optimized=mobile_opt)
-    
-    # Get HOA object by HOA number (e.g., "066" -> HOA ID 66)
-    hoa_obj = None
-    if hoa.startswith("HOA #"):
         try:
-            hoa_id = int(hoa.split("#")[1])
-            hoa_obj = db.query(HOA).filter(HOA.id == hoa_id).first()
-        except (ValueError, IndexError):
-            pass
-    
-    hoa_location = str(hoa_obj.location) if hoa_obj is not None and hoa_obj.location is not None else str(hoa)
-    
-    # Use system local time
-    local_tz = tzlocal.get_localzone()
-    current_time = datetime.now(local_tz).strftime("%B %d, %Y at %I:%M %p %Z")
-    
-    summary, tags = summarize_violation(validated_description, hoa_location, current_time)
-    repeat_offender_score = calculate_repeat_offender_score(address, offender, db)
+            image_url = save_image(file)
+            logger.info(f"Image saved: {image_url}")
+        except Exception as e:
+            logger.error(f"Failed to save image: {e}")
+            raise HTTPException(status_code=500, detail="Failed to save image")
 
-    violation_data = {
-        "id": 0,
-        "timestamp": datetime.utcnow().isoformat(),
-        "hoa": hoa,
-        "address": address,
-        "location": location,
-        "offender": offender,
-        "tags": tags,
-        "description": validated_description,
-        "summary": summary,
-        "image_path": image_path,
-        "username": current_user.username,
-        "gps_coordinates": final_gps_coordinates,
-        "violation_type": violation_type,
-        "mobile_capture": mobile_capture
-    }
+    # 🤖 AI Processing (async)
+    try:
+        # Generate summary using OpenAI
+        summary = summarize_violation(validated_description)
+        
+        # Classify repeat offender score
+        repeat_offender_score = classify_repeat_offender_score(validated_description, validated_offender)
+        
+        # Calculate final repeat offender score
+        final_repeat_score = calculate_repeat_offender_score(
+            validated_offender, 
+            validated_address, 
+            repeat_offender_score,
+            db
+        )
+        
+        logger.info(f"AI processing completed - Summary: {len(summary)} chars, Score: {final_repeat_score}")
+        
+    except Exception as e:
+        logger.error(f"AI processing failed: {e}")
+        # Fallback values
+        summary = f"Violation report: {validated_description[:200]}..."
+        final_repeat_score = 1
 
-    pdf_path = generate_pdf(violation_data)
-
+    # 📝 Create violation record
     violation = Violation(
         description=validated_description,
         summary=summary,
-        tags=",".join(tags) if isinstance(tags, list) else tags,
-        repeat_offender_score=repeat_offender_score,
-        image_url=image_path,
-        pdf_path=pdf_path,
-        hoa_name=hoa,
-        address=address,
-        location=location,
-        offender=offender,
+        hoa_name=validated_hoa,
+        address=validated_address,
+        location=validated_location,
+        offender=validated_offender,
         gps_coordinates=final_gps_coordinates,
-        user_id=current_user.id,  # ✅ Associate with authenticated user
+        repeat_offender_score=final_repeat_score,
+        image_url=image_url,
+        user_id=current_user.id,
+        hoa_id=hoa_obj.id
     )
+    
     db.add(violation)
     db.commit()
     db.refresh(violation)
+    
+    # 🔄 Trigger background tasks
+    try:
+        # Generate PDF asynchronously
+        generate_violation_pdf_async.delay(violation.id)
+        
+        # Send email notification asynchronously
+        send_email_notification_async.delay(current_user.id, violation.id)
+        
+        # Process image asynchronously if uploaded
+        if image_url:
+            process_image_upload_async.delay(image_url, violation.id)
+        
+        logger.info(f"Background tasks triggered for violation {violation.id}")
+    except Exception as e:
+        logger.error(f"Failed to trigger background tasks: {e}")
+        # Don't fail the request if background tasks fail
+    
+    # 🧹 Invalidate related caches
+    try:
+        invalidate_user_cache(current_user.id)
+        invalidate_hoa_cache(hoa_obj.id)
+    except Exception as e:
+        logger.warning(f"Cache invalidation failed: {e}")
+    
+    # 🔄 Trigger workflow
+    try:
+        trigger_violation_workflow(violation, current_user, db)
+    except Exception as e:
+        logger.error(f"Workflow trigger failed: {e}")
 
-    # Ensure violation_number is always set
-    if violation.violation_number is None:
-        violation.violation_number = violation.id
-        db.commit()
-        db.refresh(violation)
+    # 📊 Update resident violation count
+    resident.violation_count += 1
+    db.commit()
 
-    # --- PDF RENAMING PATCH ---
-    if os.path.exists(pdf_path):
-        new_pdf_name = f"violation_{violation.id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.pdf"
-        new_pdf_path = os.path.join(REPORTS_DIR, new_pdf_name)
-        shutil.move(pdf_path, new_pdf_path)
-        setattr(violation, 'pdf_path', str(new_pdf_path))
-        db.commit()
-    # --- END PATCH ---
-
-    # 🔔 Trigger automated workflow
-    trigger_violation_workflow(violation, db)
-
-    return {
-        "id": violation.id,
-        "violation_number": violation.violation_number,
-        "timestamp": violation.timestamp,
-        "description": violation.description,
-        "summary": summary,
-        "tags": ",".join(tags) if isinstance(tags, list) else tags,
-        "repeat_offender_score": violation.repeat_offender_score,
-        "hoa_name": violation.hoa_name,
-        "address": violation.address,
-        "location": violation.location,
-        "offender": violation.offender,
-        "gps_coordinates": violation.gps_coordinates,
-        "status": violation.status,
-        "pdf_path": violation.pdf_path,
-        "image_url": violation.image_url,
-        "user_id": violation.user_id,
-        "inspected_by": current_user.username,
-    }
+    logger.info(f"Violation created successfully: {violation.id}")
+    
+    return violation
 
 @router.get("/")
 def get_all_violations(

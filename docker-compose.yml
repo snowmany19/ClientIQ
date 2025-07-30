@@ -28,15 +28,24 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://civicloghoa_user:civicloghoa_pass@db:5432/civicloghoa_db
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - ./backend/static/reports:/app/static/reports
     networks:
       - hoanet
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   redis:
     image: redis:7-alpine
@@ -48,6 +57,58 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  celery-worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://civicloghoa_user:civicloghoa_pass@db:5432/civicloghoa_db
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./backend/static/reports:/app/static/reports
+    networks:
+      - hoanet
+    command: celery -A utils.celery_tasks worker --loglevel=info --concurrency=4
+    healthcheck:
+      test: ["CMD", "celery", "-A", "utils.celery_tasks", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  celery-beat:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://civicloghoa_user:civicloghoa_pass@db:5432/civicloghoa_db
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./backend/static/reports:/app/static/reports
+    networks:
+      - hoanet
+    command: celery -A utils.celery_tasks beat --loglevel=info
 
   frontend:
     build:
