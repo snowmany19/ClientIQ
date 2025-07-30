@@ -26,8 +26,8 @@ export default function HeroSection() {
               </h1>
               <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
                 Professional, AI-powered violation management platform for HOAs. 
-                Automate reporting, streamline communication, and maintain compliance 
-                with our comprehensive solution.
+                Starting at $199/month. Automate reporting, streamline communication, 
+                and maintain compliance with our comprehensive solution.
               </p>
               <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
                 <div className="rounded-md shadow">
