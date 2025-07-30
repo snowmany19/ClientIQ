@@ -221,22 +221,20 @@ def get_hoa_id_by_name(hoa_name: str) -> Optional[int]:
 def send_violation_notification(user: User, violation: Violation) -> None:
     """Send violation notification to user."""
     try:
-        subject = f"New Violation Report - {getattr(violation, 'hoa_name', 'Unknown HOA')}"
-        body = f"""
-        A new violation has been reported:
+        from utils.email_service import email_service
         
-        Violation #: {getattr(violation, 'violation_number', 'N/A')}
-        Address: {getattr(violation, 'address', 'N/A')}
-        Location: {getattr(violation, 'location', 'N/A')}
-        Resident: {getattr(violation, 'offender', 'N/A')}
-        Description: {getattr(violation, 'description', 'N/A')}
-        Repeat Offender Score: {getattr(violation, 'repeat_offender_score', 1)}
-        
-        Please review and take appropriate action.
-        """
-        
-        # TODO: Implement email sending
-        logger.info(f"Violation notification prepared for user {user.username}")
+        if user.email:
+            success = email_service.send_violation_notification(
+                violation=violation,
+                recipient_email=user.email,
+                notification_type="initial"
+            )
+            if success:
+                logger.info(f"Violation notification sent to user {user.username} at {user.email}")
+            else:
+                logger.warning(f"Failed to send violation notification to {user.email}")
+        else:
+            logger.warning(f"User {user.username} has no email address configured")
         
     except Exception as e:
         logger.warning(f"Failed to send violation notification: {e}")
@@ -244,21 +242,20 @@ def send_violation_notification(user: User, violation: Violation) -> None:
 def send_escalation_notification(user: User, violation: Violation) -> None:
     """Send escalation notification to HOA board member."""
     try:
-        subject = f"URGENT: Violation Escalation - {getattr(violation, 'hoa_name', 'Unknown HOA')}"
-        body = f"""
-        A violation has been escalated for HOA board review:
+        from utils.email_service import email_service
         
-        Violation #: {getattr(violation, 'violation_number', 'N/A')}
-        Address: {getattr(violation, 'address', 'N/A')}
-        Resident: {getattr(violation, 'offender', 'N/A')}
-        Repeat Offender Score: {getattr(violation, 'repeat_offender_score', 1)}
-        Status: {getattr(violation, 'status', 'unknown')}
-        
-        This violation requires immediate attention from the HOA board.
-        """
-        
-        # TODO: Implement email sending
-        logger.info(f"Escalation notification prepared for user {user.username}")
+        if user.email:
+            success = email_service.send_escalation_notification(
+                violation=violation,
+                recipient_email=user.email,
+                escalation_reason="High repeat offender score or unresolved violation"
+            )
+            if success:
+                logger.info(f"Escalation notification sent to user {user.username} at {user.email}")
+            else:
+                logger.warning(f"Failed to send escalation notification to {user.email}")
+        else:
+            logger.warning(f"User {user.username} has no email address configured")
         
     except Exception as e:
         logger.warning(f"Failed to send escalation notification: {e}")
@@ -266,17 +263,25 @@ def send_escalation_notification(user: User, violation: Violation) -> None:
 def send_formal_warning_email(violation: Violation) -> None:
     """Send formal warning email with PDF attachment."""
     try:
-        subject = f"Formal Warning - {getattr(violation, 'hoa_name', 'Unknown HOA')}"
-        body = f"""
-        A formal warning has been issued for violation #{getattr(violation, 'violation_number', 'N/A')}.
+        from utils.email_service import email_service
         
-        Please review the attached PDF for details and required corrective actions.
+        # Get the PDF path if it exists
+        pdf_path = getattr(violation, 'pdf_path', None)
         
-        This is a formal warning and may result in fines if not addressed promptly.
-        """
+        # For now, we'll send to a default email - in production this would be configurable
+        # or sent to the resident's email if available
+        recipient_email = "hoa-board@example.com"  # This should be configurable
         
-        # TODO: Implement email with PDF attachment
-        logger.info(f"Formal warning email prepared for violation {violation.id}")
+        success = email_service.send_formal_warning(
+            violation=violation,
+            recipient_email=recipient_email,
+            pdf_path=pdf_path
+        )
+        
+        if success:
+            logger.info(f"Formal warning email sent for violation {violation.id}")
+        else:
+            logger.warning(f"Failed to send formal warning email for violation {violation.id}")
         
     except Exception as e:
         logger.warning(f"Failed to send formal warning email: {e}")
@@ -284,19 +289,22 @@ def send_formal_warning_email(violation: Violation) -> None:
 def send_follow_up_email(violation: Violation) -> None:
     """Send follow-up email for second violations."""
     try:
-        subject = f"Follow-up Notice - {getattr(violation, 'hoa_name', 'Unknown HOA')}"
-        body = f"""
-        This is a follow-up notice for violation #{getattr(violation, 'violation_number', 'N/A')}.
+        from utils.email_service import email_service
         
-        Address: {getattr(violation, 'address', 'N/A')}
-        Resident: {getattr(violation, 'offender', 'N/A')}
-        Description: {getattr(violation, 'description', 'N/A')}
+        # For now, we'll send to a default email - in production this would be configurable
+        # or sent to the resident's email if available
+        recipient_email = "hoa-board@example.com"  # This should be configurable
         
-        Please ensure this violation is addressed promptly to avoid further action.
-        """
+        success = email_service.send_violation_notification(
+            violation=violation,
+            recipient_email=recipient_email,
+            notification_type="follow-up"
+        )
         
-        # TODO: Implement email sending
-        logger.info(f"Follow-up email prepared for violation {violation.id}")
+        if success:
+            logger.info(f"Follow-up email sent for violation {violation.id}")
+        else:
+            logger.warning(f"Failed to send follow-up email for violation {violation.id}")
         
     except Exception as e:
         logger.warning(f"Failed to send follow-up email: {e}")
