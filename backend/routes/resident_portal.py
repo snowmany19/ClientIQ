@@ -22,10 +22,9 @@ def get_my_violations(
 ):
     """Get violations for the current resident."""
     try:
-        # Find resident by user ID or email
+        # Find resident by email (since Resident doesn't have user_id)
         resident = db.query(Resident).filter(
-            (Resident.user_id == current_user.id) |
-            (Resident.email == current_user.email)
+            Resident.email == current_user.email
         ).first()
         
         if not resident:
@@ -58,10 +57,9 @@ def get_violation_details(
 ):
     """Get detailed information about a specific violation."""
     try:
-        # Find resident
+        # Find resident by email
         resident = db.query(Resident).filter(
-            (Resident.user_id == current_user.id) |
-            (Resident.email == current_user.email)
+            Resident.email == current_user.email
         ).first()
         
         if not resident:
@@ -116,10 +114,9 @@ def submit_dispute(
 ):
     """Submit a dispute for a violation."""
     try:
-        # Find resident
+        # Find resident by email
         resident = db.query(Resident).filter(
-            (Resident.user_id == current_user.id) |
-            (Resident.email == current_user.email)
+            Resident.email == current_user.email
         ).first()
         
         if not resident:
@@ -159,7 +156,7 @@ def submit_dispute(
         if existing_dispute:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Dispute already submitted for this violation"
+                detail="Dispute already exists for this violation"
             )
         
         # Save evidence file if provided
@@ -175,8 +172,7 @@ def submit_dispute(
             evidence=evidence,
             evidence_file_path=evidence_file_path,
             contact_preference=contact_preference,
-            status="pending",
-            submitted_at=datetime.utcnow()
+            status="pending"
         )
         
         db.add(dispute)
@@ -184,16 +180,13 @@ def submit_dispute(
         db.refresh(dispute)
         
         # Update violation status
-        db.query(Violation).filter(Violation.id == violation_id).update(
-            {"status": "disputed"}
-        )
+        violation.status = "disputed"
         db.commit()
         
-        # Send notification to HOA board
+        # Send notification
         send_dispute_notification(dispute, violation, resident, db)
         
         logger.info(f"Dispute submitted for violation {violation_id} by resident {resident.id}")
-        
         return dispute
         
     except HTTPException:
@@ -211,12 +204,11 @@ def get_my_disputes(
     current_user: User = Depends(get_current_user),
     _: User = Depends(require_active_subscription),
 ):
-    """Get disputes submitted by the current resident."""
+    """Get disputes for the current resident."""
     try:
-        # Find resident
+        # Find resident by email
         resident = db.query(Resident).filter(
-            (Resident.user_id == current_user.id) |
-            (Resident.email == current_user.email)
+            Resident.email == current_user.email
         ).first()
         
         if not resident:
@@ -225,15 +217,13 @@ def get_my_disputes(
                 detail="Resident profile not found"
             )
         
-        # Get disputes
+        # Get disputes for this resident
         disputes = db.query(Dispute).filter(
             Dispute.resident_id == resident.id
         ).order_by(Dispute.submitted_at.desc()).all()
         
         return disputes
         
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get resident disputes: {e}")
         raise HTTPException(
@@ -250,10 +240,9 @@ def get_dispute_details(
 ):
     """Get detailed information about a specific dispute."""
     try:
-        # Find resident
+        # Find resident by email
         resident = db.query(Resident).filter(
-            (Resident.user_id == current_user.id) |
-            (Resident.email == current_user.email)
+            Resident.email == current_user.email
         ).first()
         
         if not resident:
@@ -298,12 +287,11 @@ def contact_hoa(
     current_user: User = Depends(get_current_user),
     _: User = Depends(require_active_subscription),
 ):
-    """Send a message to the HOA board."""
+    """Contact HOA board members."""
     try:
-        # Find resident
+        # Find resident by email
         resident = db.query(Resident).filter(
-            (Resident.user_id == current_user.id) |
-            (Resident.email == current_user.email)
+            Resident.email == current_user.email
         ).first()
         
         if not resident:
@@ -313,29 +301,29 @@ def contact_hoa(
             )
         
         # Get HOA board members
-        hoa_board_members = db.query(User).filter(
-            User.role == "hoa_board",
-            User.hoa_id == resident.hoa_id
+        hoa_members = db.query(User).filter(
+            User.hoa_id == resident.hoa_id,
+            User.role.in_(["hoa_board", "admin"])
         ).all()
         
-        if not hoa_board_members:
+        if not hoa_members:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="HOA board members not found"
+                detail="No HOA board members found"
             )
         
-        # Send message to all HOA board members
-        for member in hoa_board_members:
-            send_hoa_contact_message(member, resident, subject, message, violation_id)
+        # Send message to all board members
+        for member in hoa_members:
+            if member.email:
+                send_hoa_contact_message(member, resident, subject, message, violation_id)
         
-        logger.info(f"Contact message sent to HOA board by resident {resident.id}")
-        
-        return {"message": "Message sent successfully to HOA board"}
+        logger.info(f"HOA contact message sent by resident {resident.id} to {len(hoa_members)} board members")
+        return {"message": "Message sent to HOA board members"}
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to send contact message: {e}")
+        logger.error(f"Failed to send HOA contact message: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to send message"
@@ -347,12 +335,11 @@ def get_resident_profile(
     current_user: User = Depends(get_current_user),
     _: User = Depends(require_active_subscription),
 ):
-    """Get the current resident's profile information."""
+    """Get resident profile information."""
     try:
-        # Find resident
+        # Find resident by email
         resident = db.query(Resident).filter(
-            (Resident.user_id == current_user.id) |
-            (Resident.email == current_user.email)
+            Resident.email == current_user.email
         ).first()
         
         if not resident:
@@ -361,19 +348,16 @@ def get_resident_profile(
                 detail="Resident profile not found"
             )
         
-        # Get violation statistics
-        violations = db.query(Violation).filter(
+        # Get violation count
+        violation_count = db.query(Violation).filter(
             (Violation.address.ilike(f"%{resident.address}%")) |
             (Violation.offender.ilike(f"%{resident.name}%"))
-        ).all()
+        ).count()
         
-        stats = {
-            "total_violations": len(violations),
-            "open_violations": len([v for v in violations if v.status == "open"]),
-            "resolved_violations": len([v for v in violations if v.status == "resolved"]),
-            "disputed_violations": len([v for v in violations if v.status == "disputed"]),
-            "average_repeat_offender_score": sum(v.repeat_offender_score or 1 for v in violations) / len(violations) if violations else 0
-        }
+        # Get dispute count
+        dispute_count = db.query(Dispute).filter(
+            Dispute.resident_id == resident.id
+        ).count()
         
         return {
             "resident": {
@@ -382,9 +366,17 @@ def get_resident_profile(
                 "address": resident.address,
                 "email": resident.email,
                 "phone": resident.phone,
-                "violation_count": resident.violation_count
+                "notes": resident.notes,
+                "violation_count": violation_count,
+                "dispute_count": dispute_count
             },
-            "statistics": stats
+            "user": {
+                "username": current_user.username,
+                "email": current_user.email,
+                "first_name": current_user.first_name,
+                "last_name": current_user.last_name,
+                "phone": current_user.phone
+            }
         }
         
     except HTTPException:
@@ -396,22 +388,20 @@ def get_resident_profile(
             detail="Failed to retrieve profile"
         )
 
+# Helper functions
+
 def save_evidence_file(file: UploadFile, violation_id: int, resident_id: int) -> Optional[str]:
-    """Save evidence file for dispute."""
+    """Save evidence file and return the file path."""
     try:
+        # Create directory if it doesn't exist
         import os
-        from uuid import uuid4
-        
-        # Create evidence directory
-        evidence_dir = "static/evidence"
+        evidence_dir = f"static/evidence/violation_{violation_id}"
         os.makedirs(evidence_dir, exist_ok=True)
         
         # Generate filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        unique_id = str(uuid4())[:8]
-        file_extension = os.path.splitext(file.filename)[1] if file.filename else ".pdf"
-        filename = f"evidence_v{violation_id}_r{resident_id}_{timestamp}_{unique_id}{file_extension}"
-        file_path = os.path.join(evidence_dir, filename)
+        filename = f"evidence_{resident_id}_{timestamp}_{file.filename}"
+        file_path = f"{evidence_dir}/{filename}"
         
         # Save file
         with open(file_path, "wb") as buffer:
@@ -425,17 +415,17 @@ def save_evidence_file(file: UploadFile, violation_id: int, resident_id: int) ->
         return None
 
 def send_dispute_notification(dispute: Dispute, violation: Violation, resident: Resident, db: Session) -> None:
-    """Send notification to HOA board about new dispute."""
+    """Send dispute notification to HOA board members."""
     try:
         from utils.email_service import email_service
         
         # Get HOA board members
-        hoa_board_members = db.query(User).filter(
-            User.role == "hoa_board",
-            User.hoa_id == resident.hoa_id
+        hoa_members = db.query(User).filter(
+            User.hoa_id == resident.hoa_id,
+            User.role.in_(["hoa_board", "admin"])
         ).all()
         
-        for member in hoa_board_members:
+        for member in hoa_members:
             if member.email:
                 success = email_service.send_dispute_notification(
                     dispute=dispute,
@@ -444,38 +434,43 @@ def send_dispute_notification(dispute: Dispute, violation: Violation, resident: 
                     recipient_email=member.email
                 )
                 if success:
-                    logger.info(f"Dispute notification sent to HOA board member {member.username} at {member.email}")
+                    logger.info(f"Dispute notification sent to {member.email}")
                 else:
                     logger.warning(f"Failed to send dispute notification to {member.email}")
-            else:
-                logger.warning(f"HOA board member {member.username} has no email address configured")
-            
+                    
     except Exception as e:
-        logger.warning(f"Failed to send dispute notification: {e}")
+        logger.error(f"Failed to send dispute notification: {e}")
 
 def send_hoa_contact_message(member: User, resident: Resident, subject: str, message: str, violation_id: Optional[int]) -> None:
-    """Send contact message to HOA board member."""
+    """Send HOA contact message."""
     try:
-        email_subject = f"Resident Contact: {subject}"
-        email_body = f"""
-        Message from resident {resident.name} ({resident.address}):
+        from utils.email_service import email_service
         
-        Subject: {subject}
-        Message: {message}
-        """
-        
-        if violation_id:
-            email_body += f"\nRelated to Violation #{violation_id}"
-        
-        email_body += f"""
-        
-        Contact Information:
-        Email: {resident.email}
-        Phone: {resident.phone}
-        """
-        
-        # TODO: Implement email sending
-        logger.info(f"Contact message prepared for HOA board member {member.username}")
-        
+        if member.email:
+            success = email_service.send_email(
+                to_email=member.email,
+                subject=f"HOA Contact: {subject}",
+                body=f"""
+                Message from resident {resident.name} ({resident.email}):
+                
+                {message}
+                
+                Resident Address: {resident.address}
+                {f'Related Violation ID: {violation_id}' if violation_id else ''}
+                """,
+                html_body=f"""
+                <h3>Message from resident {resident.name}</h3>
+                <p><strong>From:</strong> {resident.email}</p>
+                <p><strong>Address:</strong> {resident.address}</p>
+                {f'<p><strong>Related Violation ID:</strong> {violation_id}</p>' if violation_id else ''}
+                <hr>
+                <p>{message.replace(chr(10), '<br>')}</p>
+                """
+            )
+            if success:
+                logger.info(f"HOA contact message sent to {member.email}")
+            else:
+                logger.warning(f"Failed to send HOA contact message to {member.email}")
+                
     except Exception as e:
-        logger.warning(f"Failed to send contact message: {e}") 
+        logger.error(f"Failed to send HOA contact message: {e}") 

@@ -22,7 +22,7 @@ const userSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters').max(50, 'Username must be less than 50 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['admin', 'hoa_board', 'inspector', 'super_admin']),
+  role: z.enum(['admin', 'hoa_board', 'inspector', 'super_admin', 'resident']),
   hoa_id: z.number().optional(),
 });
 
@@ -373,14 +373,14 @@ export default function UserManagement() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => handleEdit(user)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => handleDelete(user.id)}
                       >

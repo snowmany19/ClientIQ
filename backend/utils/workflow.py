@@ -99,7 +99,7 @@ def escalate_to_hoa_board(violation: Violation, db: Session) -> None:
         )
         db.commit()
         
-        # Send notification to HOA board members
+        # Send escalation notifications to HOA board members
         hoa_name_str = getattr(violation, 'hoa_name', '') or ''
         hoa_board_members = get_hoa_board_members(hoa_name_str, db)
         for member in hoa_board_members:
@@ -108,17 +108,19 @@ def escalate_to_hoa_board(violation: Violation, db: Session) -> None:
         logger.info(f"Escalated violation {violation.id} to HOA board")
         
     except Exception as e:
-        logger.warning(f"Failed to escalate to HOA board: {e}")
+        logger.warning(f"Failed to escalate violation: {e}")
 
 def send_formal_warning(violation: Violation, db: Session) -> None:
-    """Send formal warning for pattern violations."""
+    """Send formal warning for repeat violations."""
     try:
-        # Generate formal warning PDF
-        warning_data = prepare_warning_data(violation)
-        # warning_pdf = generate_pdf(warning_data, output_dir="static/warnings")
-        
         # Send formal warning email
         send_formal_warning_email(violation)
+        
+        # Update violation status
+        db.query(Violation).filter(Violation.id == violation.id).update(
+            {"status": "under_review"}
+        )
+        db.commit()
         
         logger.info(f"Sent formal warning for violation {violation.id}")
         
@@ -126,7 +128,7 @@ def send_formal_warning(violation: Violation, db: Session) -> None:
         logger.warning(f"Failed to send formal warning: {e}")
 
 def send_follow_up_notice(violation: Violation, db: Session) -> None:
-    """Send follow-up notice for second violations."""
+    """Send follow-up notice for second violation."""
     try:
         # Send follow-up email
         send_follow_up_email(violation)
@@ -137,13 +139,15 @@ def send_follow_up_notice(violation: Violation, db: Session) -> None:
         logger.warning(f"Failed to send follow-up notice: {e}")
 
 def schedule_follow_up_reminders(violation: Violation, db: Session) -> None:
-    """Schedule automated follow-up reminders."""
+    """Schedule follow-up reminders based on repeat offender score."""
     try:
-        # Schedule reminders based on violation type and severity
         score = getattr(violation, 'repeat_offender_score', 1) or 1
         score_int = int(score) if score else 1
+        
+        # Get reminder schedule based on score
         reminder_days = get_reminder_schedule(score_int)
         
+        # Schedule reminders
         for days in reminder_days:
             reminder_date = datetime.utcnow() + timedelta(days=days)
             schedule_reminder(violation, reminder_date)
@@ -154,25 +158,29 @@ def schedule_follow_up_reminders(violation: Violation, db: Session) -> None:
         logger.warning(f"Failed to schedule reminders: {e}")
 
 def get_reminder_schedule(score: int) -> List[int]:
-    """Get reminder schedule based on violation type and severity."""
+    """Get reminder schedule based on repeat offender score."""
     if score >= 4:
-        return [3, 7, 14]  # Chronic violator - frequent reminders
+        return [7, 14, 30]  # Chronic violator - multiple reminders
     elif score >= 3:
-        return [7, 14]     # Pattern developing - moderate reminders
+        return [7, 21]       # Pattern developing - two reminders
     elif score >= 2:
-        return [14]        # Second violation - single reminder
+        return [14]          # Second violation - one reminder
     else:
         return [30]        # First violation - gentle reminder
 
 def schedule_reminder(violation: Violation, reminder_date: datetime) -> None:
-    """Schedule a reminder for a specific date."""
+    """Schedule a reminder for a specific date using Celery."""
     try:
-        # In a production system, this would use a task queue like Celery
-        # For now, we'll log the reminder
-        logger.info(f"Scheduled reminder for violation {violation.id} on {reminder_date}")
+        from utils.celery_tasks import celery_app
         
-        # TODO: Implement actual scheduling with Celery or similar
-        # celery_app.send_task('send_reminder', args=[violation.id, reminder_date])
+        # Schedule the reminder task
+        celery_app.send_task(
+            'utils.celery_tasks.send_reminder_notification',
+            args=[violation.id, reminder_date.isoformat()],
+            eta=reminder_date
+        )
+        
+        logger.info(f"Scheduled reminder for violation {violation.id} on {reminder_date}")
         
     except Exception as e:
         logger.warning(f"Failed to schedule reminder: {e}")
@@ -268,13 +276,14 @@ def send_formal_warning_email(violation: Violation) -> None:
         # Get the PDF path if it exists
         pdf_path = getattr(violation, 'pdf_path', None)
         
-        # For now, we'll send to a default email - in production this would be configurable
-        # or sent to the resident's email if available
-        recipient_email = "hoa-board@example.com"  # This should be configurable
+        # Prepare warning data
+        warning_data = prepare_warning_data(violation)
         
+        # Send formal warning email
         success = email_service.send_formal_warning(
             violation=violation,
-            recipient_email=recipient_email,
+            recipient_email=warning_data.get('resident_email', ''),
+            warning_data=warning_data,
             pdf_path=pdf_path
         )
         
@@ -287,18 +296,18 @@ def send_formal_warning_email(violation: Violation) -> None:
         logger.warning(f"Failed to send formal warning email: {e}")
 
 def send_follow_up_email(violation: Violation) -> None:
-    """Send follow-up email for second violations."""
+    """Send follow-up email for second violation."""
     try:
         from utils.email_service import email_service
         
-        # For now, we'll send to a default email - in production this would be configurable
-        # or sent to the resident's email if available
-        recipient_email = "hoa-board@example.com"  # This should be configurable
+        # Prepare follow-up data
+        follow_up_data = prepare_warning_data(violation)
         
-        success = email_service.send_violation_notification(
+        # Send follow-up email
+        success = email_service.send_follow_up_notice(
             violation=violation,
-            recipient_email=recipient_email,
-            notification_type="follow-up"
+            recipient_email=follow_up_data.get('resident_email', ''),
+            follow_up_data=follow_up_data
         )
         
         if success:
@@ -310,21 +319,33 @@ def send_follow_up_email(violation: Violation) -> None:
         logger.warning(f"Failed to send follow-up email: {e}")
 
 def prepare_warning_data(violation: Violation) -> Dict[str, Any]:
-    """Prepare data for formal warning PDF."""
-    return {
-        "id": getattr(violation, 'id', 0),
-        "violation_number": getattr(violation, 'violation_number', 0),
-        "timestamp": getattr(violation, 'timestamp', datetime.utcnow()),
-        "hoa": getattr(violation, 'hoa_name', 'Unknown HOA'),
-        "address": getattr(violation, 'address', 'N/A'),
-        "location": getattr(violation, 'location', 'N/A'),
-        "offender": getattr(violation, 'offender', 'N/A'),
-        "description": getattr(violation, 'description', 'N/A'),
-        "summary": getattr(violation, 'summary', 'N/A'),
-        "repeat_offender_score": getattr(violation, 'repeat_offender_score', 1),
-        "status": "formal_warning",
-        "username": "HOA Board",
-        "tags": getattr(violation, 'tags', ''),
-        "image_path": getattr(violation, 'image_url', ''),
-        "gps_coordinates": getattr(violation, 'gps_coordinates', '')
-    } 
+    """Prepare warning data for email templates."""
+    try:
+        # Get resident information
+        address_str = getattr(violation, 'address', '') or ''
+        offender_str = getattr(violation, 'offender', '') or ''
+        
+        # Try to find resident
+        from database import SessionLocal
+        db = SessionLocal()
+        resident = find_resident(address_str, offender_str, db)
+        
+        warning_data = {
+            'violation_number': getattr(violation, 'violation_number', ''),
+            'description': getattr(violation, 'description', ''),
+            'address': address_str,
+            'location': getattr(violation, 'location', ''),
+            'timestamp': getattr(violation, 'timestamp', datetime.utcnow()).isoformat(),
+            'repeat_offender_score': getattr(violation, 'repeat_offender_score', 1),
+            'resident_name': getattr(resident, 'name', offender_str) if resident else offender_str,
+            'resident_email': getattr(resident, 'email', '') if resident else '',
+            'resident_phone': getattr(resident, 'phone', '') if resident else '',
+            'hoa_name': getattr(violation, 'hoa_name', ''),
+        }
+        
+        db.close()
+        return warning_data
+        
+    except Exception as e:
+        logger.warning(f"Failed to prepare warning data: {e}")
+        return {} 

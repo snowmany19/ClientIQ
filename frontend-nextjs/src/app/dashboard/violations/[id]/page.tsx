@@ -136,7 +136,7 @@ export default function ViolationDetailPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Button
-                variant="ghost"
+                variant="outline"
                 onClick={() => router.push('/dashboard/violations')}
                 className="mr-4"
               >
