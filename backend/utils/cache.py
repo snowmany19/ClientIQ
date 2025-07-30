@@ -6,7 +6,7 @@ from functools import wraps
 from typing import Optional, Any, Union
 from datetime import timedelta
 import os
-from utils.logger import get_logger
+from .logger import get_logger
 
 # Redis configuration
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
