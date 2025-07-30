@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
+import { TwoFactorModal } from '@/components/ui/TwoFactorModal';
+import { useTheme } from '@/components/ui/ThemeProvider';
 import { 
   User, 
   Bell, 
@@ -21,10 +23,15 @@ import { showInstallPrompt, isPWAInstallable, isPWAInstalled } from '@/lib/pwa';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
+  const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // 2FA state
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [twoFactorData, setTwoFactorData] = useState<{ qr_code: string; secret: string } | null>(null);
   
   // Password change state
   const [passwordData, setPasswordData] = useState({
@@ -42,7 +49,6 @@ export default function SettingsPage() {
   });
 
   // Appearance settings
-  const [theme, setTheme] = useState('light');
   const [pwaSettings, setPwaSettings] = useState({
     offline: true,
     appSwitcher: true,
@@ -73,7 +79,6 @@ export default function SettingsPage() {
         reports: settings.notifications.reports,
       });
       
-      setTheme(settings.appearance.theme);
       setPwaSettings({
         offline: settings.appearance.pwa_offline,
         appSwitcher: settings.appearance.pwa_app_switcher,
@@ -142,11 +147,7 @@ export default function SettingsPage() {
         pwa_app_switcher: pwaSettings.appSwitcher,
       });
       
-      // Apply theme immediately
-      applyTheme(theme);
-      
       // Save to localStorage for persistence
-      localStorage.setItem('theme', theme);
       localStorage.setItem('pwa_offline', pwaSettings.offline.toString());
       localStorage.setItem('pwa_app_switcher', pwaSettings.appSwitcher.toString());
       
@@ -157,38 +158,6 @@ export default function SettingsPage() {
       setLoading(false);
     }
   };
-
-  const applyTheme = (selectedTheme: string) => {
-    const root = document.documentElement;
-    
-    // Remove existing theme classes
-    root.classList.remove('light', 'dark');
-    
-    if (selectedTheme === 'dark') {
-      root.classList.add('dark');
-    } else if (selectedTheme === 'auto') {
-      // Auto theme - use system preference
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        root.classList.add('dark');
-      }
-    }
-    // For light theme, just remove dark class (default)
-  };
-
-  // Load saved theme on component mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    const savedPwaOffline = localStorage.getItem('pwa_offline') === 'true';
-    const savedPwaAppSwitcher = localStorage.getItem('pwa_app_switcher') === 'true';
-    
-    setTheme(savedTheme);
-    setPwaSettings({
-      offline: savedPwaOffline,
-      appSwitcher: savedPwaAppSwitcher,
-    });
-    
-    applyTheme(savedTheme);
-  }, []);
 
   const handleExportData = async () => {
     try {
@@ -214,14 +183,28 @@ export default function SettingsPage() {
     try {
       setLoading(true);
       const result = await apiClient.enable2FA();
-      setTwoFactorEnabled(true);
-      showMessage('success', '2FA enabled successfully. Please scan the QR code with your authenticator app.');
-      // In a real app, you'd show a modal with the QR code
-      console.log('2FA QR Code:', result.qr_code);
+      setTwoFactorData(result);
+      setShow2FAModal(true);
     } catch (error) {
       showMessage('error', 'Failed to enable 2FA');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async (code: string): Promise<boolean> => {
+    try {
+      const result = await apiClient.verify2FA(code);
+      if (result.enabled) {
+        setTwoFactorEnabled(true);
+        setShow2FAModal(false);
+        setTwoFactorData(null);
+        showMessage('success', '2FA enabled successfully!');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      return false;
     }
   };
 
@@ -535,7 +518,7 @@ export default function SettingsPage() {
           </label>
           <select
             value={theme}
-            onChange={(e) => setTheme(e.target.value)}
+            onChange={(e) => setTheme(e.target.value as 'light' | 'dark' | 'auto')}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
           >
             <option value="light">Light</option>
@@ -691,6 +674,20 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* 2FA Modal */}
+      {twoFactorData && (
+        <TwoFactorModal
+          isOpen={show2FAModal}
+          onClose={() => {
+            setShow2FAModal(false);
+            setTwoFactorData(null);
+          }}
+          qrCode={twoFactorData.qr_code}
+          secret={twoFactorData.secret}
+          onVerify={handleVerify2FA}
+        />
+      )}
     </>
   );
 } 

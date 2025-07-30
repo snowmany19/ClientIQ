@@ -493,6 +493,13 @@ class ApiClient {
     });
   }
 
+  async verify2FA(code: string): Promise<{ message: string; enabled: boolean }> {
+    return this.request<{ message: string; enabled: boolean }>('/user-settings/verify-2fa', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  }
+
   async disable2FA(): Promise<{ message: string }> {
     return this.request<{ message: string }>('/user-settings/disable-2fa', {
       method: 'DELETE',
