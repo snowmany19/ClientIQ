@@ -11,6 +11,9 @@ export default function CTASection() {
           <span className="block">Ready to get started?</span>
           <span className="block text-blue-200">Start your free trial today.</span>
         </h2>
+        <p className="mt-4 text-lg text-blue-100">
+          Professional HOA management starting at $199/month
+        </p>
         <div className="mt-8 flex lg:mt-0 lg:flex-shrink-0">
           <div className="inline-flex rounded-md shadow">
             <Link
