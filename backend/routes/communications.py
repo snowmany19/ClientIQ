@@ -9,7 +9,7 @@ from models import Violation, User, Resident, Communication, Notification
 from schemas import CommunicationCreate, CommunicationOut, NotificationOut
 from utils.auth_utils import get_current_user, require_active_subscription
 from utils.logger import get_logger
-from utils.email_alerts import send_email_alert
+from utils.email_alerts import send_violation_notification_email
 
 router = APIRouter(prefix="/communications", tags=["Communications"])
 logger = get_logger("communications")
@@ -345,7 +345,9 @@ def send_escalation(
         
         # Send emails
         for recipient_email in recipients:
-            send_escalation_email(recipient_email, violation, escalation_reason, current_user)
+            send_violation_notification_email(
+                recipient_email, violation, "escalation", escalation_message, current_user
+            )
             
             # Create notification record
             notification = Notification(

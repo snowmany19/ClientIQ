@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from models import Violation, User, Resident
 from utils.logger import get_logger
-from utils.email_alerts import send_email_alert
+from utils.email_alerts import send_violation_notification_email
 from utils.pdf import generate_pdf
 
 logger = get_logger("workflow")
