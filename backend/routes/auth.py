@@ -185,7 +185,11 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         username=validated_username,
         hashed_password=hashed_pw,
         email=validated_email,
-        role=user.role or "employee",
+        first_name=user.first_name,
+        last_name=user.last_name,
+        company_name=user.company_name,
+        phone=user.phone,
+        role=user.role or "inspector",
     )
     db.add(new_user)
     db.commit()

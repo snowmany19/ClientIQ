@@ -45,6 +45,10 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., description="User password (min 8 chars)")
+    first_name: Optional[str] = Field(None, description="User's first name")
+    last_name: Optional[str] = Field(None, description="User's last name")
+    company_name: Optional[str] = Field(None, description="Company or HOA name")
+    phone: Optional[str] = Field(None, description="User's phone number")
 
 class UserOut(UserBase):
     id: int = Field(..., description="Unique user identifier")

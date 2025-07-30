@@ -53,6 +53,10 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     email = Column(String, unique=True, nullable=True)
+    first_name = Column(String, nullable=True)  # User's first name
+    last_name = Column(String, nullable=True)   # User's last name
+    company_name = Column(String, nullable=True)  # Company or HOA name
+    phone = Column(String, nullable=True)       # User's phone number
     role = Column(String, default="inspector")  # inspector | hoa_board | admin
     hoa_id = Column(Integer, ForeignKey("hoas.id"), nullable=True)  # HOA assignment (renamed from store_id)
     
