@@ -6,7 +6,7 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -120,120 +120,129 @@ app.add_exception_handler(Exception, custom_exception_handler)
 async def log_requests(request: Request, call_next):
     start_time = time.time()
     
-    # Get client IP
-    client_ip = get_client_ip(request)
+    # Log request
+    log_api_request(
+        logger,
+        method=request.method,
+        path=str(request.url.path),
+        status_code=0,  # Will be updated after response
+        user_id=None,  # Will be extracted if authenticated
+        duration=None  # Will be calculated after response
+    )
     
     # Process request
-    try:
-        response = await call_next(request)
-        duration = time.time() - start_time
-        
-        # Log successful request
-        log_api_request(
-            logger,
-            method=request.method,
-            path=str(request.url.path),
-            status_code=response.status_code,
-            duration=duration
-        )
-        
-        # Update Prometheus metrics
-        request_count.labels(
-            method=request.method,
-            endpoint=request.url.path,
-            status=response.status_code
-        ).inc()
-        request_duration.observe(duration)
-        
-        return response
-        
-    except Exception as e:
-        duration = time.time() - start_time
-        
-        # Log error
-        log_error(
-            logger,
-            error=e,
-            context={
-                "method": request.method,
-                "path": str(request.url.path),
-                "client_ip": client_ip,
-                "duration": duration
-            }
-        )
-        
-        # Update Prometheus metrics for errors
-        request_count.labels(
-            method=request.method,
-            endpoint=request.url.path,
-            status=500
-        ).inc()
-        request_duration.observe(duration)
-        
-        # Re-raise the exception
-        raise
+    response = await call_next(request)
+    
+    # Calculate duration
+    duration = time.time() - start_time
+    
+    # Update metrics
+    request_count.labels(
+        method=request.method,
+        endpoint=request.url.path,
+        status=response.status_code
+    ).inc()
+    
+    request_duration.labels(
+        method=request.method,
+        endpoint=request.url.path
+    ).observe(duration)
+    
+    # Update logging with final values
+    log_api_request(
+        logger,
+        method=request.method,
+        path=str(request.url.path),
+        status_code=response.status_code,
+        user_id=None,  # Could extract from JWT if needed
+        duration=duration
+    )
+    
+    return response
 
-# ✅ Health check
-@app.get("/")
-def read_root():
-    return {"message": "CivicLogHOA - HOA Violation Management Platform backend is operational.", "version": "1.0.0"}
-
-# 🏥 Comprehensive health check endpoint
+# 🏥 Health Check Endpoint
 @app.get("/health")
 async def health_check():
-    """Comprehensive health check endpoint for production monitoring."""
+    """Comprehensive health check for production monitoring."""
     health_status = {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "version": "1.0.0",
         "environment": settings.environment,
-        "checks": {}
+        "services": {}
     }
     
-    # Check database
+    # Check database connection
     try:
         from database import SessionLocal
         from sqlalchemy import text
         db = SessionLocal()
         db.execute(text("SELECT 1"))
         db.close()
-        health_status["checks"]["database"] = "healthy"
+        health_status["services"]["database"] = "healthy"
     except Exception as e:
-        health_status["checks"]["database"] = f"unhealthy: {str(e)}"
-        health_status["status"] = "unhealthy"
+        health_status["services"]["database"] = f"unhealthy: {str(e)}"
+        health_status["status"] = "degraded"
     
-    # Check Redis
+    # Check Redis connection (if configured)
     try:
         from utils.cache import redis_client
-        redis_client.ping()
-        health_status["checks"]["redis"] = "healthy"
+        if hasattr(redis_client, 'ping'):
+            redis_client.ping()
+            health_status["services"]["redis"] = "healthy"
+        else:
+            health_status["services"]["redis"] = "not_configured"
     except Exception as e:
-        health_status["checks"]["redis"] = f"unhealthy: {str(e)}"
-        health_status["status"] = "unhealthy"
+        health_status["services"]["redis"] = f"unhealthy: {str(e)}"
+        health_status["status"] = "degraded"
     
-    # Check cache stats
+    # Check external services
     try:
-        cache_stats = get_cache_stats()
-        health_status["checks"]["cache"] = {
-            "status": "healthy",
-            "stats": cache_stats
-        }
-    except Exception as e:
-        health_status["checks"]["cache"] = f"unhealthy: {str(e)}"
+        if settings.openai_api_key:
+            health_status["services"]["openai"] = "configured"
+        else:
+            health_status["services"]["openai"] = "not_configured"
+    except:
+        health_status["services"]["openai"] = "not_configured"
+    
+    try:
+        if settings.stripe_secret_key:
+            health_status["services"]["stripe"] = "configured"
+        else:
+            health_status["services"]["stripe"] = "not_configured"
+    except:
+        health_status["services"]["stripe"] = "not_configured"
+    
+    # Check SMTP configuration
+    try:
+        if settings.smtp_username and settings.smtp_password:
+            health_status["services"]["smtp"] = "configured"
+        else:
+            health_status["services"]["smtp"] = "not_configured"
+    except:
+        health_status["services"]["smtp"] = "not_configured"
     
     # Return appropriate status code
     status_code = 200 if health_status["status"] == "healthy" else 503
-    return Response(
-        content=str(health_status),
+    
+    return JSONResponse(
+        content=health_status,
         status_code=status_code,
-        media_type="application/json"
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
     )
 
-# 📊 Prometheus metrics endpoint
+# 📊 Metrics Endpoint
 @app.get("/metrics")
 async def metrics():
-    """Prometheus metrics endpoint for monitoring."""
-    return Response(generate_latest(), media_type="text/plain")
+    """Prometheus metrics endpoint."""
+    return Response(
+        content=generate_latest(),
+        media_type="text/plain"
+    )
 
 # 🔄 Cache management endpoints
 @app.post("/api/cache/warm")
