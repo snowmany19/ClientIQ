@@ -427,6 +427,8 @@ def save_evidence_file(file: UploadFile, violation_id: int, resident_id: int) ->
 def send_dispute_notification(dispute: Dispute, violation: Violation, resident: Resident, db: Session) -> None:
     """Send notification to HOA board about new dispute."""
     try:
+        from utils.email_service import email_service
+        
         # Get HOA board members
         hoa_board_members = db.query(User).filter(
             User.role == "hoa_board",
@@ -434,21 +436,19 @@ def send_dispute_notification(dispute: Dispute, violation: Violation, resident: 
         ).all()
         
         for member in hoa_board_members:
-            subject = f"New Dispute Filed - Violation #{violation.violation_number}"
-            body = f"""
-            A new dispute has been filed:
-            
-            Violation #: {violation.violation_number}
-            Resident: {resident.name}
-            Address: {resident.address}
-            Reason: {dispute.reason}
-            Contact Preference: {dispute.contact_preference}
-            
-            Please review and respond accordingly.
-            """
-            
-            # TODO: Implement email sending
-            logger.info(f"Dispute notification prepared for HOA board member {member.username}")
+            if member.email:
+                success = email_service.send_dispute_notification(
+                    dispute=dispute,
+                    violation=violation,
+                    resident=resident,
+                    recipient_email=member.email
+                )
+                if success:
+                    logger.info(f"Dispute notification sent to HOA board member {member.username} at {member.email}")
+                else:
+                    logger.warning(f"Failed to send dispute notification to {member.email}")
+            else:
+                logger.warning(f"HOA board member {member.username} has no email address configured")
             
     except Exception as e:
         logger.warning(f"Failed to send dispute notification: {e}")

@@ -492,10 +492,18 @@ def send_violation_notification_email(
 ) -> None:
     """Send violation notification email."""
     try:
-        subject = f"{notification_type.title()} - Violation #{violation.violation_number}"
+        from utils.email_service import email_service
         
-        # TODO: Implement actual email sending
-        logger.info(f"Violation notification email prepared for {recipient_email}")
+        success = email_service.send_violation_notification(
+            violation=violation,
+            recipient_email=recipient_email,
+            notification_type=notification_type
+        )
+        
+        if success:
+            logger.info(f"Violation notification email sent to {recipient_email}")
+        else:
+            logger.warning(f"Failed to send violation notification email to {recipient_email}")
         
     except Exception as e:
         logger.warning(f"Failed to send violation notification email: {e}")
@@ -508,10 +516,18 @@ def send_escalation_email(
 ) -> None:
     """Send escalation email to HOA board member."""
     try:
-        subject = f"URGENT: Violation Escalation - #{violation.violation_number}"
+        from utils.email_service import email_service
         
-        # TODO: Implement actual email sending
-        logger.info(f"Escalation email prepared for {recipient_email}")
+        success = email_service.send_escalation_notification(
+            violation=violation,
+            recipient_email=recipient_email,
+            escalation_reason=escalation_reason
+        )
+        
+        if success:
+            logger.info(f"Escalation email sent to {recipient_email}")
+        else:
+            logger.warning(f"Failed to send escalation email to {recipient_email}")
         
     except Exception as e:
         logger.warning(f"Failed to send escalation email: {e}") 

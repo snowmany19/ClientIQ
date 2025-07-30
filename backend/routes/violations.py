@@ -934,9 +934,9 @@ def update_violation_status(
         try:
             from sqlalchemy import text
             new_db.execute(text("SELECT 1"))
-            print("DEBUG: Database connection test successful")
+            logger.debug("Database connection test successful")
         except Exception as e:
-            print(f"DEBUG: Database connection test failed: {e}")
+            logger.error(f"Database connection test failed: {e}")
             new_db.close()
             raise HTTPException(status_code=500, detail="Database connection failed")
         
@@ -989,7 +989,7 @@ def update_violation_status(
         # logger.info(f"Violation {violation_id} status changed from {old_status} to {new_status} by {current_user.username}")
         
         # Send notifications based on status change
-        # Temporarily disabled to debug database error
+        # Status update functionality
         # if new_status == "resolved":
         #     send_resolution_notification(violation, current_user, new_db)
         # elif new_status == "under_review":
@@ -1048,21 +1048,26 @@ def update_violation_status_simple(
 def send_resolution_notification(violation: Violation, user: User, db: Session):
     """Send notification when violation is resolved."""
     try:
-        subject = f"Violation #{violation.violation_number} Resolved"
-        body = f"""
-        Violation has been marked as resolved:
+        from utils.email_service import email_service
         
-        Violation #: {violation.violation_number}
-        Address: {violation.address}
-        Resident: {violation.offender}
-        Resolved by: {user.username}
-        Resolution notes: {getattr(violation, 'resolution_notes', 'None provided')}
+        # Get HOA board members to notify
+        hoa_board_members = db.query(User).filter(
+            User.role == "hoa_board",
+            User.hoa_id == user.hoa_id
+        ).all()
         
-        This violation is now closed and archived.
-        """
-        
-        # TODO: Send email to relevant parties
-        logger.info(f"Resolution notification prepared for violation {violation.id}")
+        for member in hoa_board_members:
+            if member.email:
+                success = email_service.send_resolution_notification(
+                    violation=violation,
+                    recipient_email=member.email,
+                    resolved_by=user.username,
+                    resolution_notes=getattr(violation, 'resolution_notes', None)
+                )
+                if success:
+                    logger.info(f"Resolution notification sent to {member.email}")
+                else:
+                    logger.warning(f"Failed to send resolution notification to {member.email}")
         
     except Exception as e:
         logger.warning(f"Failed to send resolution notification: {e}")
@@ -1070,20 +1075,25 @@ def send_resolution_notification(violation: Violation, user: User, db: Session):
 def send_review_notification(violation: Violation, user: User, db: Session):
     """Send notification when violation is under review."""
     try:
-        subject = f"Violation #{violation.violation_number} Under Review"
-        body = f"""
-        Violation has been escalated for review:
+        from utils.email_service import email_service
         
-        Violation #: {violation.violation_number}
-        Address: {violation.address}
-        Resident: {violation.offender}
-        Reviewed by: {user.username}
+        # Get HOA board members to notify
+        hoa_board_members = db.query(User).filter(
+            User.role == "hoa_board",
+            User.hoa_id == user.hoa_id
+        ).all()
         
-        This violation requires HOA board attention.
-        """
-        
-        # TODO: Send email to HOA board members
-        logger.info(f"Review notification prepared for violation {violation.id}")
+        for member in hoa_board_members:
+            if member.email:
+                success = email_service.send_escalation_notification(
+                    violation=violation,
+                    recipient_email=member.email,
+                    escalation_reason="Violation escalated for HOA board review"
+                )
+                if success:
+                    logger.info(f"Review notification sent to {member.email}")
+                else:
+                    logger.warning(f"Failed to send review notification to {member.email}")
         
     except Exception as e:
         logger.warning(f"Failed to send review notification: {e}")
