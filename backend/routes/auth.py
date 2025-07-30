@@ -22,7 +22,7 @@ from utils.auth_utils import (
     verify_password, create_access_token, get_password_hash, get_current_user, 
     require_role, validate_password
 )
-from utils.email_alerts import send_email_alert
+from utils.email_alerts import send_violation_notification_email
 from utils.logger import get_logger, log_security_event
 from core.config import get_settings
 from utils.validation import InputValidator, ValidationException

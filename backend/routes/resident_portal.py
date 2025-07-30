@@ -9,7 +9,7 @@ from models import Violation, User, Resident, Dispute
 from schemas import ViolationOut, DisputeCreate, DisputeOut
 from utils.auth_utils import get_current_user, require_active_subscription
 from utils.logger import get_logger
-from utils.email_alerts import send_email_alert
+from utils.email_alerts import send_violation_notification_email
 
 router = APIRouter(prefix="/resident-portal", tags=["Resident Portal"])
 logger = get_logger("resident_portal")

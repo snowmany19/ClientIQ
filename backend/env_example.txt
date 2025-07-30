@@ -1,5 +1,5 @@
 # ========================================
-# 🚀 IncidentIQ (A.I.ncident) ENVIRONMENT EXAMPLE
+# 🚀 CivicLogHOA ENVIRONMENT EXAMPLE
 # ========================================
 # Copy this file to .env and update with your actual values
 # NEVER commit .env files to version control
@@ -7,17 +7,18 @@
 # Quick Start:
 # 1. Set DATABASE_URL for PostgreSQL (see below)
 # 2. Fill in all required secrets (Stripe, OpenAI, etc.)
-# 3. Set ENVIRONMENT=production for production deployment
-# 4. Run: alembic upgrade head
-# 5. Run: python init_db.py (to seed demo data)
+# 3. Configure SMTP for email notifications
+# 4. Set ENVIRONMENT=production for production deployment
+# 5. Run: alembic upgrade head
+# 6. Run: python init_db.py (to seed demo data)
 # ========================================
 
 # ========================================
 # 🗄️ DATABASE CONFIGURATION
 # ========================================
-DATABASE_URL=postgresql://aincident_user:your_secure_password@localhost/aincident_prod
+DATABASE_URL=postgresql://civicloghoa_user:your_secure_password@localhost/civicloghoa_db
 # For local testing only (not recommended for production):
-# DATABASE_URL=sqlite:///./incidentiq.db
+# DATABASE_URL=sqlite:///./civicloghoa.db
 
 # ========================================
 # 🔑 JWT CONFIGURATION
@@ -78,12 +79,43 @@ LOG_LEVEL=INFO
 LOG_FILE=logs/app.log
 
 # ========================================
-# 📧 EMAIL SETTINGS (OPTIONAL)
+# 📧 SMTP EMAIL CONFIGURATION
 # ========================================
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USERNAME=your_email@gmail.com
-EMAIL_PASSWORD=your_app_password
+# Gmail SMTP Configuration (Recommended)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your_email@gmail.com
+SMTP_PASSWORD=your_app_password_here
+FROM_EMAIL=noreply@civicloghoa.com
+APP_URL=https://yourdomain.com
+
+# Alternative SMTP Providers:
+# 
+# Outlook/Hotmail:
+# SMTP_SERVER=smtp-mail.outlook.com
+# SMTP_PORT=587
+# 
+# Yahoo:
+# SMTP_SERVER=smtp.mail.yahoo.com
+# SMTP_PORT=587
+# 
+# Custom SMTP Server:
+# SMTP_SERVER=your-smtp-server.com
+# SMTP_PORT=587
+# SMTP_USERNAME=your_username
+# SMTP_PASSWORD=your_password
+
+# ========================================
+# 🔐 2FA CONFIGURATION
+# ========================================
+# 2FA is automatically enabled when SMTP is configured
+# Users can enable/disable 2FA from the settings page
+
+# ========================================
+# 🎨 THEME CONFIGURATION
+# ========================================
+# Theme settings are managed through the frontend
+# Users can choose: light, dark, or auto (system preference)
 
 # ========================================
 # 🚀 PRODUCTION DEPLOYMENT
@@ -92,4 +124,5 @@ EMAIL_PASSWORD=your_app_password
 # ENVIRONMENT=production
 # DEBUG=false
 # Use a proper database (PostgreSQL)
-# Configure email settings (Optional)
+# Configure SMTP settings for email notifications
+# Set up SSL certificates for HTTPS

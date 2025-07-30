@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Optional
 from utils.logger import get_logger
 from utils.cache import invalidate_user_cache, invalidate_hoa_cache
+from utils.email_alerts import send_violation_notification_email
 
 # Configure Celery
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/1")
@@ -92,11 +93,17 @@ def send_email_notification_async(self, user_id: int, violation_id: int, notific
             return {"status": "error", "message": "User or violation not found"}
         
         # Send email notification
-        success = send_email_alert(
-            recipient_email=user.email,
-            subject=f"New Violation Report - {violation.violation_number}",
-            message=f"A new violation has been reported for {violation.address}",
-            violation_id=violation_id
+        success = send_violation_notification_email(
+            user_email=user.email,
+            user_name=user.username,
+            violation_data={
+                "violation_number": violation.violation_number,
+                "description": violation.description,
+                "address": violation.address,
+                "location": violation.location,
+                "timestamp": violation.timestamp.isoformat() if violation.timestamp else "",
+                "status": violation.status
+            }
         )
         
         if success:

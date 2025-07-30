@@ -13,7 +13,7 @@ from utils.plan_enforcement import check_violation_limit, require_plan_feature
 from utils.image_uploader import save_image, extract_gps_from_image
 from utils.pdf import generate_pdf
 from utils.summary_generator import summarize_violation, classify_repeat_offender_score, calculate_repeat_offender_score
-from utils.email_alerts import send_email_alert
+from utils.email_alerts import send_violation_notification_email
 from utils.logger import get_logger
 from utils.validation import InputValidator, ValidationException
 from utils.workflow import trigger_violation_workflow
