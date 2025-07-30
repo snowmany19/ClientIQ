@@ -244,7 +244,7 @@ export default function ViolationsTable({
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium text-gray-900">Advanced Filters</h3>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => setAdvancedFilters({
               dateRange: '',
@@ -352,7 +352,7 @@ export default function ViolationsTable({
                 Escalate
               </Button>
               <Button
-                variant="destructive"
+                variant="danger"
                 size="sm"
                 onClick={handleBulkDelete}
               >
@@ -480,7 +480,7 @@ export default function ViolationsTable({
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => onViolationView?.(violation)}
                         title="View details"
@@ -490,7 +490,7 @@ export default function ViolationsTable({
                       </Button>
                       {canEdit && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => onViolationEdit?.(violation)}
                           title="Edit violation"
@@ -501,7 +501,7 @@ export default function ViolationsTable({
                       )}
                       {canGenerateLetter && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => onViolationLetter?.(violation)}
                           title="Generate letter"
@@ -512,7 +512,7 @@ export default function ViolationsTable({
                       )}
                       {canDelete && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => handleDelete(violation.id)}
                           title="Delete violation"

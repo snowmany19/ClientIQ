@@ -14,7 +14,8 @@ import {
   LogOut,
   Menu,
   X,
-  Building
+  Building,
+  User
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -28,6 +29,7 @@ export default function Sidebar() {
     { name: 'Users', href: '/dashboard/users', icon: Users },
     { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
     ...(user?.role === 'super_admin' ? [{ name: 'HOAs', href: '/dashboard/hoas', icon: Building }] : []),
+    ...(user?.role === 'resident' ? [{ name: 'Resident Portal', href: '/dashboard/resident-portal', icon: User }] : []),
     { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];

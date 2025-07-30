@@ -15,10 +15,11 @@ def add_performance_indexes():
     indexes = [
         # Violations table indexes
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_violations_timestamp ON violations(timestamp)",
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_violations_hoa_id ON violations(hoa_id)",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_violations_hoa_name ON violations(hoa_name)",
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_violations_status ON violations(status)",
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_violations_user_id ON violations(user_id)",
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_violations_offender ON violations(offender)",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_violations_address ON violations(address)",
         
         # Users table indexes
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email ON users(email)",
@@ -44,7 +45,7 @@ def add_performance_indexes():
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at)",
         
         # Composite indexes for common query patterns
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_violations_hoa_status ON violations(hoa_id, status)",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_violations_hoa_status ON violations(hoa_name, status)",
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_violations_user_timestamp ON violations(user_id, timestamp)",
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_residents_hoa_address ON residents(hoa_id, address)",
     ]

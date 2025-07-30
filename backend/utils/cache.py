@@ -188,6 +188,9 @@ def warm_cache():
         db.close()
         logger.info(f"Cache warming completed: {len(hoas)} HOAs, {len(active_users)} users")
         
+    except ImportError as e:
+        logger.warning(f"Cache warming skipped due to import error: {e}")
+        # Continue without cache warming - this is not critical
     except Exception as e:
         logger.error(f"Cache warming failed: {e}")
 

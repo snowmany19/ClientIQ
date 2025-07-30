@@ -478,7 +478,7 @@ export default function SettingsPage() {
                     <p className="text-xs text-gray-500">{session.location} • {session.last_activity}</p>
                   </div>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => handleRevokeSession(session.id)}
                     className="text-red-600 hover:text-red-700"

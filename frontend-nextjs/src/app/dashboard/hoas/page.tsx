@@ -161,14 +161,14 @@ export default function HOAManagementPage() {
                   </div>
                   <div className="flex space-x-2">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => setEditingHOA(hoa)}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => handleDeleteHOA(hoa.id)}
                     >

@@ -124,6 +124,75 @@ def send_email_notification_async(self, user_id: int, violation_id: int, notific
             db.close()
 
 @celery_app.task(bind=True, max_retries=3)
+def send_reminder_notification(self, violation_id: int, reminder_date_str: str):
+    """Send reminder notification for a violation."""
+    try:
+        from database import SessionLocal
+        from models import Violation, Resident
+        from utils.email_service import email_service
+        
+        db = SessionLocal()
+        violation = db.query(Violation).filter(Violation.id == violation_id).first()
+        
+        if not violation:
+            logger.error(f"Violation {violation_id} not found for reminder notification")
+            return {"status": "error", "message": "Violation not found"}
+        
+        # Find resident by address or offender name
+        address_str = getattr(violation, 'address', '') or ''
+        offender_str = getattr(violation, 'offender', '') or ''
+        
+        resident = None
+        if address_str:
+            resident = db.query(Resident).filter(
+                Resident.address.ilike(f"%{address_str}%")
+            ).first()
+        
+        if not resident and offender_str:
+            resident = db.query(Resident).filter(
+                Resident.name.ilike(f"%{offender_str}%")
+            ).first()
+        
+        # Send reminder email
+        if resident and resident.email:
+            success = email_service.send_follow_up_notice(
+                violation=violation,
+                recipient_email=resident.email,
+                follow_up_data={
+                    'violation_number': getattr(violation, 'violation_number', ''),
+                    'description': getattr(violation, 'description', ''),
+                    'address': address_str,
+                    'location': getattr(violation, 'location', ''),
+                    'timestamp': getattr(violation, 'timestamp', datetime.utcnow()).isoformat(),
+                    'repeat_offender_score': getattr(violation, 'repeat_offender_score', 1),
+                    'resident_name': getattr(resident, 'name', offender_str),
+                    'resident_email': resident.email,
+                    'resident_phone': getattr(resident, 'phone', ''),
+                    'hoa_name': getattr(violation, 'hoa_name', ''),
+                }
+            )
+            
+            if success:
+                logger.info(f"Reminder notification sent for violation {violation_id} to {resident.email}")
+                return {"status": "success", "reminder_sent": True}
+            else:
+                logger.warning(f"Failed to send reminder notification for violation {violation_id}")
+                return {"status": "error", "message": "Email sending failed"}
+        else:
+            logger.warning(f"No resident email found for violation {violation_id} reminder")
+            return {"status": "error", "message": "No resident email found"}
+        
+    except Exception as e:
+        logger.error(f"Reminder notification failed for violation {violation_id}: {e}")
+        # Retry with exponential backoff
+        if self.request.retries < self.max_retries:
+            raise self.retry(countdown=60 * (2 ** self.request.retries))
+        return {"status": "error", "message": str(e)}
+    finally:
+        if 'db' in locals():
+            db.close()
+
+@celery_app.task(bind=True, max_retries=3)
 def process_image_upload_async(self, image_path: str, violation_id: int):
     """Process uploaded image asynchronously (resize, optimize, etc.)."""
     try:

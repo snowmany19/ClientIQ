@@ -199,7 +199,7 @@ export default function ViolationForm({ onSuccess, onCancel }: ViolationFormProp
               </h1>
               {onCancel && (
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   onClick={onCancel}
                 >
                   <X className="h-4 w-4" />

@@ -1,13 +1,9 @@
-import smtplib
 import os
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from jinja2 import Template
 from utils.logger import get_logger
+from utils.email_service import email_service
 
 logger = get_logger("email_alerts")
 
@@ -196,11 +192,6 @@ EMAIL_TEMPLATES = {
 
 class EmailAlertService:
     def __init__(self):
-        self.smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-        self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        self.smtp_username = os.getenv("SMTP_USERNAME")
-        self.smtp_password = os.getenv("SMTP_PASSWORD")
-        self.from_email = os.getenv("FROM_EMAIL", "noreply@civicloghoa.com")
         self.app_url = os.getenv("APP_URL", "http://localhost:3000")
         
     def send_email(
@@ -213,10 +204,6 @@ class EmailAlertService:
     ) -> bool:
         """Send an email using a template"""
         try:
-            if not self.smtp_username or not self.smtp_password:
-                logger.warning("SMTP credentials not configured, skipping email send")
-                return False
-                
             # Get template
             template_html = EMAIL_TEMPLATES.get(template_name)
             if not template_html:
@@ -232,37 +219,23 @@ class EmailAlertService:
                 security_url=f"{self.app_url}/dashboard/settings"
             )
             
-            # Create message
-            msg = MIMEMultipart('alternative')
-            msg['From'] = self.from_email
-            msg['To'] = to_email
-            msg['Subject'] = subject
-            
-            # Add HTML content
-            html_part = MIMEText(html_content, 'html')
-            msg.attach(html_part)
-            
-            # Add attachment if provided
+            # Prepare attachments
+            attachments = []
             if attachment_path and os.path.exists(attachment_path):
-                with open(attachment_path, "rb") as attachment:
-                    part = MIMEBase('application', 'octet-stream')
-                    part.set_payload(attachment.read())
-                    
-                encoders.encode_base64(part)
-                part.add_header(
-                    'Content-Disposition',
-                    f'attachment; filename= {os.path.basename(attachment_path)}'
-                )
-                msg.attach(part)
+                attachments.append({
+                    'file_path': attachment_path,
+                    'filename': os.path.basename(attachment_path),
+                    'content_type': 'application/octet-stream'
+                })
             
-            # Send email
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
-                server.send_message(msg)
-                
-            logger.info(f"Email sent successfully to {to_email}: {subject}")
-            return True
+            # Send email using the email service
+            return email_service.send_email(
+                to_email=to_email,
+                subject=subject,
+                body="",  # Text version will be auto-generated
+                html_body=html_content,
+                attachments=attachments
+            )
             
         except Exception as e:
             logger.error(f"Failed to send email to {to_email}: {str(e)}")
