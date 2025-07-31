@@ -26,8 +26,14 @@ export default function ViolationsPage() {
   const [isLetterEditorOpen, setIsLetterEditorOpen] = useState(false);
 
   useEffect(() => {
+    // Redirect residents to resident portal
+    if (user?.role === 'resident') {
+      router.push('/dashboard/resident-portal');
+      return;
+    }
+    
     loadViolations();
-  }, [currentPage, searchTerm, statusFilter, sortField, sortDirection]);
+  }, [user, router, currentPage, searchTerm, statusFilter, sortField, sortDirection]);
 
   const loadViolations = async () => {
     try {

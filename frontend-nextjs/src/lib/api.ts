@@ -348,10 +348,11 @@ class ApiClient {
   async updateUser(userId: number, userData: {
     username?: string;
     email?: string;
+    password?: string;
     role?: string;
     hoa_id?: number;
   }): Promise<User> {
-    return this.request<User>(`/admin/users/${userId}`, {
+    return this.request<User>(`/users/${userId}`, {
       method: 'PUT',
       body: JSON.stringify(userData),
     });
@@ -563,6 +564,51 @@ class ApiClient {
     }
 
     return response.blob();
+  }
+
+  // Violation Letter Management
+  async sendViolationLetter(violationId: number, recipientEmail: string): Promise<any> {
+    const response = await this.request(`/violations/${violationId}/send-letter`, {
+      method: 'POST',
+      body: JSON.stringify({ recipient_email: recipientEmail }),
+    });
+    return response;
+  }
+
+  async getLetterStatus(violationId: number): Promise<any> {
+    const response = await this.request(`/violations/${violationId}/letter-status`);
+    return response;
+  }
+
+  async resendViolationLetter(violationId: number, recipientEmail: string): Promise<any> {
+    const response = await this.request(`/violations/${violationId}/resend-letter`, {
+      method: 'POST',
+      body: JSON.stringify({ recipient_email: recipientEmail }),
+    });
+    return response;
+  }
+
+  // Resident Portal - Letters
+  async getMyViolations(): Promise<any> {
+    const response = await this.request('/resident-portal/my-violations');
+    return response;
+  }
+
+  async getMyLetters(): Promise<any> {
+    const response = await this.request('/resident-portal/my-letters');
+    return response;
+  }
+
+  async getViolationLetter(violationId: number): Promise<any> {
+    const response = await this.request(`/resident-portal/violation/${violationId}/letter`);
+    return response;
+  }
+
+  async markLetterAsRead(violationId: number): Promise<any> {
+    const response = await this.request(`/resident-portal/violation/${violationId}/mark-letter-read`, {
+      method: 'POST',
+    });
+    return response;
   }
 
 }

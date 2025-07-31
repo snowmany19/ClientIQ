@@ -1314,3 +1314,188 @@ def generate_letter_pdf(
     except Exception as e:
         logger.error(f"Failed to generate letter PDF: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate PDF")
+
+@router.post("/{violation_id}/send-letter")
+def send_violation_letter_email(
+    violation_id: int,
+    recipient_email: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
+):
+    """Send violation letter via email to resident."""
+    try:
+        # Get violation details
+        violation = db.query(Violation).filter(Violation.id == violation_id).first()
+        if not violation:
+            raise HTTPException(status_code=404, detail="Violation not found")
+        
+        # Check if user can access this violation
+        if not can_access_hoa(current_user, violation.hoa_name, db):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied. You can only send letters for violations in your assigned HOA."
+            )
+        
+        # Generate letter if not already generated
+        if not violation.letter_content:
+            # Generate letter using existing logic
+            letter_response = generate_violation_letter(violation_id, db, current_user, _)
+            violation.letter_content = letter_response.letter_content
+            violation.letter_generated_at = datetime.utcnow()
+        
+        # Generate PDF if not exists
+        pdf_path = None
+        if not violation.pdf_path:
+            from utils.pdf import generate_violation_pdf
+            pdf_path = generate_violation_pdf(violation)
+            violation.pdf_path = pdf_path
+        
+        # Send email
+        from utils.email_service import email_service
+        success = email_service.send_violation_letter(
+            violation=violation,
+            recipient_email=recipient_email,
+            letter_content=violation.letter_content,
+            pdf_path=violation.pdf_path,
+            sent_by_user_id=current_user.id
+        )
+        
+        if success:
+            # Update violation with letter tracking info
+            violation.letter_sent_at = datetime.utcnow()
+            violation.letter_recipient_email = recipient_email
+            violation.letter_status = "sent"
+            violation.letter_sent_by = current_user.id
+            
+            # Create violation letter record
+            from models import ViolationLetter
+            violation_letter = ViolationLetter(
+                violation_id=violation.id,
+                letter_content=violation.letter_content,
+                recipient_email=recipient_email,
+                sent_by=current_user.id,
+                status="sent"
+            )
+            db.add(violation_letter)
+            db.commit()
+            
+            logger.info(f"Violation letter sent successfully to {recipient_email} for violation {violation_id}")
+            return {"status": "success", "message": "Letter sent successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send letter")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to send violation letter: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send letter")
+
+@router.get("/{violation_id}/letter-status")
+def get_letter_status(
+    violation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
+):
+    """Get letter status for a violation."""
+    try:
+        violation = db.query(Violation).filter(Violation.id == violation_id).first()
+        if not violation:
+            raise HTTPException(status_code=404, detail="Violation not found")
+        
+        # Check access permissions
+        if not can_access_hoa(current_user, violation.hoa_name, db):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied"
+            )
+        
+        from models import ViolationLetter
+        letters = db.query(ViolationLetter).filter(
+            ViolationLetter.violation_id == violation_id
+        ).order_by(ViolationLetter.sent_at.desc()).all()
+        
+        return {
+            "violation_id": violation_id,
+            "letter_generated_at": violation.letter_generated_at,
+            "letter_sent_at": violation.letter_sent_at,
+            "letter_status": violation.letter_status,
+            "letter_recipient_email": violation.letter_recipient_email,
+            "letters_sent": [
+                {
+                    "id": letter.id,
+                    "recipient_email": letter.recipient_email,
+                    "sent_at": letter.sent_at,
+                    "status": letter.status,
+                    "opened_at": letter.opened_at,
+                    "clicked_at": letter.clicked_at
+                }
+                for letter in letters
+            ]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get letter status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get letter status")
+
+@router.post("/{violation_id}/resend-letter")
+def resend_violation_letter(
+    violation_id: int,
+    recipient_email: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
+):
+    """Resend violation letter to a different email address."""
+    try:
+        # Get violation details
+        violation = db.query(Violation).filter(Violation.id == violation_id).first()
+        if not violation:
+            raise HTTPException(status_code=404, detail="Violation not found")
+        
+        # Check if user can access this violation
+        if not can_access_hoa(current_user, violation.hoa_name, db):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied. You can only send letters for violations in your assigned HOA."
+            )
+        
+        if not violation.letter_content:
+            raise HTTPException(status_code=400, detail="No letter content found. Generate letter first.")
+        
+        # Send email
+        from utils.email_service import email_service
+        success = email_service.send_violation_letter(
+            violation=violation,
+            recipient_email=recipient_email,
+            letter_content=violation.letter_content,
+            pdf_path=violation.pdf_path,
+            sent_by_user_id=current_user.id
+        )
+        
+        if success:
+            # Create new violation letter record
+            from models import ViolationLetter
+            violation_letter = ViolationLetter(
+                violation_id=violation.id,
+                letter_content=violation.letter_content,
+                recipient_email=recipient_email,
+                sent_by=current_user.id,
+                status="sent"
+            )
+            db.add(violation_letter)
+            db.commit()
+            
+            logger.info(f"Violation letter resent to {recipient_email} for violation {violation_id}")
+            return {"status": "success", "message": "Letter resent successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to resend letter")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to resend violation letter: {e}")
+        raise HTTPException(status_code=500, detail="Failed to resend letter")

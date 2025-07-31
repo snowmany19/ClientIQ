@@ -85,7 +85,22 @@ export default function UserManagement() {
       loadUsers();
     } catch (error) {
       console.error('Failed to save user:', error);
-      setError(error instanceof Error ? error.message : 'Failed to save user');
+      let errorMessage = 'Failed to save user';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        // Handle API error objects
+        if ('detail' in error) {
+          errorMessage = String(error.detail);
+        } else {
+          errorMessage = JSON.stringify(error);
+        }
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      setError(errorMessage);
     }
   };
 
@@ -132,6 +147,8 @@ export default function UserManagement() {
         return <UsersIcon className="h-4 w-4 text-blue-500" />;
       case 'inspector':
         return <UserIcon className="h-4 w-4 text-green-500" />;
+      case 'resident':
+        return <UserIcon className="h-4 w-4 text-purple-500" />;
       default:
         return <UserIcon className="h-4 w-4 text-gray-500" />;
     }
@@ -142,6 +159,7 @@ export default function UserManagement() {
       admin: 'bg-red-100 text-red-800',
       hoa_board: 'bg-blue-100 text-blue-800',
       inspector: 'bg-green-100 text-green-800',
+      resident: 'bg-purple-100 text-purple-800',
     };
 
     return (
@@ -281,6 +299,7 @@ export default function UserManagement() {
                   <option value="hoa_board">HOA Board</option>
                   <option value="inspector">Inspector</option>
                   <option value="super_admin">Super Admin</option>
+                  <option value="resident">Resident</option>
                 </select>
                 {errors.role && (
                   <p className="mt-1 text-sm text-red-700 font-medium">{errors.role.message}</p>

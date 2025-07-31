@@ -18,7 +18,13 @@ export default function LoginForm() {
     
     try {
       await login(username, password);
-      router.push('/dashboard');
+      // Redirect based on user role
+      const { user } = useAuthStore.getState();
+      if (user?.role === 'resident') {
+        router.push('/dashboard/resident-portal');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error) {
       // Error is handled by the store
     }

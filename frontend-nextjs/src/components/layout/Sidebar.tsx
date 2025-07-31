@@ -23,16 +23,20 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout, isAuthenticated } = useAuthStore();
   
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Violations', href: '/dashboard/violations', icon: FileText },
-    { name: 'Users', href: '/dashboard/users', icon: Users },
-    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-    ...(user?.role === 'super_admin' ? [{ name: 'HOAs', href: '/dashboard/hoas', icon: Building }] : []),
-    ...(user?.role === 'resident' ? [{ name: 'Resident Portal', href: '/dashboard/resident-portal', icon: User }] : []),
-    { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
-    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-  ];
+  const navigation = user?.role === 'resident' 
+    ? [
+        { name: 'Resident Portal', href: '/dashboard/resident-portal', icon: User },
+        { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+      ]
+    : [
+        { name: 'Dashboard', href: '/dashboard', icon: Home },
+        { name: 'Violations', href: '/dashboard/violations', icon: FileText },
+        { name: 'Users', href: '/dashboard/users', icon: Users },
+        { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+        ...(user?.role === 'super_admin' ? [{ name: 'HOAs', href: '/dashboard/hoas', icon: Building }] : []),
+        { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
+        { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+      ];
 
   const handleLogout = () => {
     logout();
