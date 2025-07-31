@@ -17,7 +17,7 @@ sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 from database import get_db
 from models import User, HOA, UserSession
-from schemas import Token, UserInfo, UserCreate
+from schemas import Token, UserInfo, UserCreate, UserUpdate
 from utils.auth_utils import (
     verify_password, create_access_token, get_password_hash, get_current_user, 
     require_role, validate_password
@@ -463,18 +463,14 @@ def seed_default_users(db: Session = Depends(get_db)):
 @router.put("/users/{user_id}", response_model=UserInfo)
 def edit_user(
     user_id: int,
-    user_update: UserCreate,
+    user_update: UserUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Edit user details (admin/staff only)
+    Edit user details (admin/super_admin only)
     """
-    if current_user.role == "employee":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Employees cannot edit users."
-        )
+
     
     # Get user to edit
     user_to_edit = db.query(User).filter(User.id == user_id).first()
@@ -484,18 +480,12 @@ def edit_user(
             detail="User not found."
         )
     
-    # Check permissions
-    if current_user.role == "staff":
-        if user_to_edit.role not in ["employee"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Staff can only edit employee accounts."
-            )
-        if user_update.role not in ["employee"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Staff can only assign employee roles."
-            )
+    # Check permissions - only admin and super_admin can edit users
+    if current_user.role not in ["admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can edit users."
+        )
     
     # Update user fields
     if user_update.username != user_to_edit.username:
@@ -519,7 +509,19 @@ def edit_user(
     user_to_edit.role = user_update.role
     
     # Update password if provided
-    if user_update.password is not None and len(user_update.password) >= 6:
+    if user_update.password is not None:
+        if len(user_update.password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 8 characters long."
+            )
+        # Validate password strength
+        is_valid, errors = PasswordValidator().validate(user_update.password)
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Password validation failed: {'; '.join(errors)}"
+            )
         user_to_edit.hashed_password = get_password_hash(user_update.password)
     
     try:

@@ -39,11 +39,20 @@ class Violation(Base):
     reviewed_by = Column(String, nullable=True)        # Who reviewed the violation
 
     image_url = Column(String, nullable=True)    # Optional image path
-    pdf_path = Column(String, nullable=True)     # Generated PDF path
+    pdf_path = Column(String, nullable=True)
+
+    # Letter tracking fields
+    letter_generated_at = Column(DateTime, nullable=True)
+    letter_sent_at = Column(DateTime, nullable=True)
+    letter_content = Column(Text, nullable=True)
+    letter_recipient_email = Column(String, nullable=True)
+    letter_status = Column(String, default="not_sent")  # not_sent, sent, delivered, opened
+    letter_sent_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # 🔗 FK to inspector
     user_id = Column(Integer, ForeignKey("users.id"))
-    user = relationship("User", back_populates="violations")
+    user = relationship("User", back_populates="violations", foreign_keys=[user_id])
+    letter_sender = relationship("User", foreign_keys=[letter_sent_by])
 
 # 🧑 User table with role-based access
 class User(Base):
@@ -57,7 +66,7 @@ class User(Base):
     last_name = Column(String, nullable=True)   # User's last name
     company_name = Column(String, nullable=True)  # Company or HOA name
     phone = Column(String, nullable=True)       # User's phone number
-    role = Column(String, default="inspector")  # inspector | hoa_board | admin
+    role = Column(String, default="inspector")  # inspector | hoa_board | admin | resident
     hoa_id = Column(Integer, ForeignKey("hoas.id"), nullable=True)  # HOA assignment (renamed from store_id)
     
     # 💳 Billing fields
@@ -87,7 +96,7 @@ class User(Base):
     last_login_at = Column(DateTime, nullable=True)
     last_activity_at = Column(DateTime, nullable=True)
 
-    violations = relationship("Violation", back_populates="user", cascade="all, delete-orphan")
+    violations = relationship("Violation", back_populates="user", cascade="all, delete-orphan", foreign_keys="[Violation.user_id]")
     hoa = relationship("HOA")  # Relationship to assigned HOA
 
 # 📱 User Session table for session management
@@ -132,6 +141,8 @@ class Resident(Base):
     notes = Column(Text)
     violation_count = Column(Integer, default=0)  # Track repeat violations
 
+    hoa = relationship("HOA")
+
 # 📝 Dispute table (for resident violation disputes)
 class Dispute(Base):
     __tablename__ = "disputes"
@@ -149,7 +160,26 @@ class Dispute(Base):
     violation = relationship("Violation")
     resident = relationship("Resident")
 
-# 📨 Communication table (for tracking notifications sent about violations)
+# 📧 Violation Letter table for tracking letter delivery
+class ViolationLetter(Base):
+    __tablename__ = "violation_letters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    violation_id = Column(Integer, ForeignKey("violations.id"), nullable=False)
+    letter_content = Column(Text, nullable=False)
+    recipient_email = Column(String, nullable=False)
+    sent_at = Column(DateTime, default=datetime.utcnow)
+    sent_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    status = Column(String, default="sent")  # sent, delivered, opened, clicked, failed
+    email_message_id = Column(String, nullable=True)
+    opened_at = Column(DateTime, nullable=True)
+    clicked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    violation = relationship("Violation")
+    sender = relationship("User")
+
+# 📞 Communication table for tracking all communications
 class Communication(Base):
     __tablename__ = "communications"
 
@@ -165,7 +195,7 @@ class Communication(Base):
     violation = relationship("Violation")
     sender = relationship("User")
 
-# 🛎️ Notification table (for tracking delivery/read status)
+# 🔔 Notification table for tracking individual notifications
 class Notification(Base):
     __tablename__ = "notifications"
 

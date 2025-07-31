@@ -34,9 +34,13 @@ export default function DashboardLayout({
       return;
     }
 
-    // Redirect to dashboard if on login page but authenticated
+    // Redirect to appropriate page if on login page but authenticated
     if (isAuthenticated && pathname === '/') {
-      router.push('/dashboard');
+      if (user?.role === 'resident') {
+        router.push('/dashboard/resident-portal');
+      } else {
+        router.push('/dashboard');
+      }
       return;
     }
   }, [isAuthenticated, isLoading, pathname, router]);

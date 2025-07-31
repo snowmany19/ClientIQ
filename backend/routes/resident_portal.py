@@ -28,10 +28,9 @@ def get_my_violations(
         ).first()
         
         if not resident:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Resident profile not found"
-            )
+            # Return empty list if no resident profile found
+            logger.warning(f"No resident profile found for user {current_user.email}")
+            return []
         
         # Get violations for this resident
         violations = db.query(Violation).filter(
@@ -474,3 +473,212 @@ def send_hoa_contact_message(member: User, resident: Resident, subject: str, mes
                 
     except Exception as e:
         logger.error(f"Failed to send HOA contact message: {e}") 
+
+@router.get("/violation/{violation_id}/letter")
+def get_violation_letter(
+    violation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
+):
+    """Get violation letter for resident viewing."""
+    try:
+        # Find resident by email
+        resident = db.query(Resident).filter(
+            Resident.email == current_user.email
+        ).first()
+        
+        if not resident:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Resident profile not found"
+            )
+        
+        # Get violation
+        violation = db.query(Violation).filter(Violation.id == violation_id).first()
+        
+        if not violation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Violation not found"
+            )
+        
+        # Check if resident owns this violation
+        if not (
+            violation.address and resident.address and 
+            violation.address.lower() in resident.address.lower()
+        ) and not (
+            violation.offender and resident.name and
+            violation.offender.lower() in resident.name.lower()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to this violation"
+            )
+        
+        # Get letter information
+        from models import ViolationLetter
+        letters = db.query(ViolationLetter).filter(
+            ViolationLetter.violation_id == violation_id,
+            ViolationLetter.recipient_email == current_user.email
+        ).order_by(ViolationLetter.sent_at.desc()).all()
+        
+        return {
+            "violation_id": violation.id,
+            "violation_number": violation.violation_number,
+            "letter_content": violation.letter_content,
+            "letter_generated_at": violation.letter_generated_at,
+            "letter_sent_at": violation.letter_sent_at,
+            "letter_status": violation.letter_status,
+            "letters_sent": [
+                {
+                    "id": letter.id,
+                    "sent_at": letter.sent_at,
+                    "status": letter.status,
+                    "opened_at": letter.opened_at
+                }
+                for letter in letters
+            ]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get violation letter: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve violation letter"
+        )
+
+@router.get("/my-letters")
+def get_my_letters(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
+):
+    """Get all letters sent to the current resident."""
+    try:
+        # Find resident by email
+        resident = db.query(Resident).filter(
+            Resident.email == current_user.email
+        ).first()
+        
+        if not resident:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Resident profile not found"
+            )
+        
+        # Get violations for this resident
+        violations = db.query(Violation).filter(
+            (Violation.address.ilike(f"%{resident.address}%")) |
+            (Violation.offender.ilike(f"%{resident.name}%"))
+        ).all()
+        
+        violation_ids = [v.id for v in violations]
+        
+        # Get letters for these violations
+        from models import ViolationLetter
+        letters = db.query(ViolationLetter).filter(
+            ViolationLetter.violation_id.in_(violation_ids),
+            ViolationLetter.recipient_email == current_user.email
+        ).order_by(ViolationLetter.sent_at.desc()).all()
+        
+        # Get violation details for each letter
+        result = []
+        for letter in letters:
+            violation = next((v for v in violations if v.id == letter.violation_id), None)
+            if violation:
+                result.append({
+                    "letter_id": letter.id,
+                    "violation_id": violation.id,
+                    "violation_number": violation.violation_number,
+                    "description": violation.description,
+                    "address": violation.address,
+                    "sent_at": letter.sent_at,
+                    "status": letter.status,
+                    "opened_at": letter.opened_at,
+                    "letter_content": letter.letter_content
+                })
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get resident letters: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve letters"
+        )
+
+@router.post("/violation/{violation_id}/mark-letter-read")
+def mark_letter_as_read(
+    violation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_active_subscription),
+):
+    """Mark a violation letter as read by the resident."""
+    try:
+        # Find resident by email
+        resident = db.query(Resident).filter(
+            Resident.email == current_user.email
+        ).first()
+        
+        if not resident:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Resident profile not found"
+            )
+        
+        # Get violation
+        violation = db.query(Violation).filter(Violation.id == violation_id).first()
+        
+        if not violation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Violation not found"
+            )
+        
+        # Check if resident owns this violation
+        if not (
+            violation.address and resident.address and 
+            violation.address.lower() in resident.address.lower()
+        ) and not (
+            violation.offender and resident.name and
+            violation.offender.lower() in resident.name.lower()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to this violation"
+            )
+        
+        # Update letter status
+        from models import ViolationLetter
+        letter = db.query(ViolationLetter).filter(
+            ViolationLetter.violation_id == violation_id,
+            ViolationLetter.recipient_email == current_user.email
+        ).order_by(ViolationLetter.sent_at.desc()).first()
+        
+        if letter:
+            letter.opened_at = datetime.utcnow()
+            letter.status = "opened"
+            db.commit()
+            
+            logger.info(f"Letter marked as read by resident {current_user.email} for violation {violation_id}")
+            return {"status": "success", "message": "Letter marked as read"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Letter not found"
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to mark letter as read: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to mark letter as read"
+        ) 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
@@ -18,14 +19,21 @@ import {
 
 export default function Dashboard() {
   const { user } = useAuthStore();
+  const router = useRouter();
   const [violations, setViolations] = useState<Violation[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Redirect residents to resident portal
+    if (user?.role === 'resident') {
+      router.push('/dashboard/resident-portal');
+      return;
+    }
+    
     // Load dashboard data
     loadDashboardData();
-  }, []);
+  }, [user, router]);
 
   const loadDashboardData = async () => {
     try {

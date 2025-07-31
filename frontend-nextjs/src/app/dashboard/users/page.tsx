@@ -10,6 +10,12 @@ export default function UsersPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // Redirect residents to resident portal
+    if (user?.role === 'resident') {
+      router.push('/dashboard/resident-portal');
+      return;
+    }
+    
     // Check if user has permission to access user management
     if (user && user.role === 'inspector') {
       router.push('/dashboard');
@@ -17,15 +23,20 @@ export default function UsersPage() {
   }, [user, router]);
 
   // Check permissions
-  if (user?.role === 'inspector') {
+  if (user?.role === 'resident' || user?.role === 'inspector') {
     return (
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-              <p className="text-gray-600">You don't have permission to access user management.</p>
-            </div>
+                      <div className="text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+            <p className="text-gray-600">
+              {user?.role === 'resident' 
+                ? 'Residents cannot access user management.' 
+                : 'You don\'t have permission to access user management.'
+              }
+            </p>
+          </div>
           </div>
         </div>
       </div>

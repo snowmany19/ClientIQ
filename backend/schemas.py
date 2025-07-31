@@ -35,7 +35,7 @@ class HOAInfo(BaseModel):
 # ✅ User Schemas
 # ===========================
 
-ValidRoles = Literal["admin", "hoa_board", "inspector"]
+ValidRoles = Literal["admin", "hoa_board", "inspector", "super_admin", "resident"]
 
 class UserBase(BaseModel):
     username: str = Field(..., description="Unique username (3-20 chars, alphanumeric + underscore)")
@@ -45,6 +45,13 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., description="User password (min 8 chars)")
+    first_name: Optional[str] = Field(None, description="User's first name")
+    last_name: Optional[str] = Field(None, description="User's last name")
+    company_name: Optional[str] = Field(None, description="Company or HOA name")
+    phone: Optional[str] = Field(None, description="User's phone number")
+
+class UserUpdate(UserBase):
+    password: Optional[str] = Field(None, description="User password (min 8 chars if provided)")
     first_name: Optional[str] = Field(None, description="User's first name")
     last_name: Optional[str] = Field(None, description="User's last name")
     company_name: Optional[str] = Field(None, description="Company or HOA name")

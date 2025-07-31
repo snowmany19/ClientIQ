@@ -381,6 +381,100 @@ class EmailService:
             logger.error(f"Failed to send formal warning: {e}")
             return False
     
+    def send_violation_letter(
+        self, 
+        violation, 
+        recipient_email: str,
+        letter_content: str,
+        pdf_path: Optional[str] = None,
+        sent_by_user_id: Optional[int] = None
+    ) -> bool:
+        """Send violation letter email with optional PDF attachment."""
+        try:
+            subject = f"Official HOA Violation Notice - #{violation.violation_number} - {violation.hoa_name}"
+            
+            # Create HTML body for the letter
+            html_body = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                    .header {{ background: #3b82f6; color: white; padding: 20px; text-align: center; }}
+                    .content {{ padding: 20px; background: #f9fafb; }}
+                    .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+                    .letter-content {{ background: white; padding: 20px; margin: 15px 0; border-left: 4px solid #3b82f6; white-space: pre-line; }}
+                    .button {{ display: inline-block; padding: 10px 20px; background: #3b82f6; color: white; text-decoration: none; border-radius: 5px; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>📋 Official HOA Violation Notice</h1>
+                        <p>Violation #{violation.violation_number}</p>
+                    </div>
+                    <div class="content">
+                        <p>Dear Resident,</p>
+                        <p>This is an official notice regarding a violation of the HOA community guidelines.</p>
+                        
+                        <div class="letter-content">
+                            {letter_content}
+                        </div>
+                        
+                        <p>You can also view this violation and submit any disputes through your resident portal.</p>
+                        
+                        <a href="{os.getenv('APP_URL', 'http://localhost:3000')}/dashboard/resident-portal" class="button">
+                            View in Resident Portal
+                        </a>
+                    </div>
+                    <div class="footer">
+                        <p>This is an official communication from {violation.hoa_name}</p>
+                        <p>© {datetime.now().year} CivicLogHOA. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            # Create text body
+            text_body = f"""
+            Official HOA Violation Notice - #{violation.violation_number} - {violation.hoa_name}
+            
+            Dear Resident,
+            
+            This is an official notice regarding a violation of the HOA community guidelines.
+            
+            {letter_content}
+            
+            You can also view this violation and submit any disputes through your resident portal.
+            
+            Best regards,
+            {violation.hoa_name} Management Team
+            """
+            
+            # Prepare attachments
+            attachments = []
+            if pdf_path and os.path.exists(pdf_path):
+                attachments.append({
+                    'file_path': pdf_path,
+                    'filename': f"violation_letter_{violation.violation_number}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    'content_type': 'application/pdf'
+                })
+            
+            # Send email
+            success = self.send_email(recipient_email, subject, text_body, html_body, attachments)
+            
+            if success:
+                logger.info(f"Violation letter sent successfully to {recipient_email} for violation {violation.id}")
+            else:
+                logger.error(f"Failed to send violation letter to {recipient_email} for violation {violation.id}")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to send violation letter: {e}")
+            return False
+    
     def _create_violation_notification_html(self, violation: Violation, notification_type: str) -> str:
         """Create HTML body for violation notification."""
         severity_color = "#ff4444" if violation.repeat_offender_score > 2 else "#ff8800" if violation.repeat_offender_score > 1 else "#00aa00"
