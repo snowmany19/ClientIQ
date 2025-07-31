@@ -29,10 +29,15 @@ export default function BillingDashboard() {
   const loadBillingData = async () => {
     try {
       setLoading(true);
+      console.log('Loading billing data...');
+      
       const [plansData, subscriptionData] = await Promise.all([
         apiClient.getSubscriptionPlans(),
         apiClient.getUserSubscription()
       ]);
+      
+      console.log('Plans data received:', plansData);
+      console.log('Subscription data received:', subscriptionData);
       
       setPlans(plansData.plans);
       setSubscription(subscriptionData);
