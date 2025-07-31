@@ -1,37 +1,37 @@
 LICENSE AGREEMENT
 Copyright (c) 2025 Security Flaw Solutions LLC
 
-This license governs the use, resale, and modification of the A.I.ncident software application.
+This license governs the use, resale, and modification of the HOA-Log software application.
 
 1. GRANT OF EXCLUSIVE LICENSE
    Upon purchase, the buyer (“Licensee”) is granted an exclusive, transferable license to:
 
-* Use, deploy, and modify the A.I.ncident codebase for commercial or internal purposes
+* Use, deploy, and modify the HOA-Log codebase for commercial or internal purposes
 * Rebrand, customize, and operate the software in their chosen business vertical
 * Sell or operate the platform as their own branded product
 
 This license is exclusive within the purchased branding.
 
 2. BRAND & VERTICAL OWNERSHIP
-   The Licensee is granted full commercial ownership rights to the A.I.ncident name, logo, UI theme, and associated visual branding provided at the time of sale.
+   The Licensee is granted full commercial ownership rights to the HOA-Log name, logo, UI theme, and associated visual branding provided at the time of sale.
 
 Security Flaw Solutions LLC agrees not to:
 
 * Compete within the same market using the same or similar branding
-* Sell or market a competing tool using the A.I.ncident engine in the Licensee's defined vertical
+* Sell or market a competing tool using the HOA-Log engine in the Licensee's defined vertical
 
 "Vertical" is defined as a specific industry or market segment (e.g., retail incident tracking, dental compliance, school security reporting).
 This exclusivity applies only to the vertical defined at time of sale.
 
 2.1 VERTICAL SCOPE LIMITATION
-The Licensee is granted exclusive rights to the A.I.ncident software within the vertical of **retail incident reporting**, defined as tools specifically designed for managing in-store physical security events (e.g., theft, safety, employee-related incidents) in retail settings.
+The Licensee is granted exclusive rights to the HOA-Log software within the vertical of **HOA violation management**, defined as tools specifically designed for managing community violations, resident communications, and compliance tracking in homeowners association settings.
 
 Security Flaw Solutions LLC retains the right to develop and commercialize other software products — including those with incident-related features — provided they target **different industries**, use **distinct branding**, or offer **materially different functionality**.
 
 3. MODULAR ENGINE IP RETENTION
-   Security Flaw Solutions LLC retains full ownership of the underlying modular engine, architecture, and reusable components used to build A.I.ncident.
+   Security Flaw Solutions LLC retains full ownership of the underlying modular engine, architecture, and reusable components used to build HOA-Log.
 
-* The Licensee may not extract, repackage, or resell the engine as a template, starter kit, or framework
+* The Licensee may not extract, repackage, or resell the HOA-Log engine as a template, starter kit, or framework
 * The Licensee may not reverse-engineer the codebase to build competing products in other verticals
 * Security Flaw Solutions LLC may reuse all non-vertical-specific code in other SaaS products or projects
 
@@ -49,7 +49,7 @@ Security Flaw Solutions LLC retains the right to develop and commercialize other
    This agreement is governed by the laws of the State of Ohio, without regard to conflict of law principles.
 
 7. ACCEPTANCE
-   By completing the purchase and accessing the A.I.ncident software, the Licensee agrees to all terms outlined above.
+   By completing the purchase and accessing the HOA-Log software, the Licensee agrees to all terms outlined above.
 
 
 

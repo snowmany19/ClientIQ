@@ -1,15 +1,15 @@
 📋 **Legal Notice**  
 This project, including all code and content, is the property of Security Flaw Solutions LLC. Unauthorized use or distribution is prohibited.
 
-# CivicLogHOA — HOA Violation Management Platform
+# HOA-Log — HOA Violation Management Platform
 
-A production-ready, modular SaaS platform for HOA violation management, built with FastAPI (backend), Streamlit (frontend), PostgreSQL, and Stripe. Includes robust RBAC, PDF reporting, file uploads, and subscription billing.
+A production-ready, modular SaaS platform for HOA violation management, built with FastAPI (backend), Next.js (frontend), PostgreSQL, and Stripe. Includes robust RBAC, PDF reporting, file uploads, and subscription billing.
 
 ---
 
 ## 🚀 Features
 - **FastAPI Backend** — Secure, scalable REST API
-- **Streamlit Frontend** — Modern, interactive dashboard
+- **Next.js Frontend** — Modern, interactive dashboard
 - **PostgreSQL Database** — Production-grade relational DB
 - **Stripe Billing** — Subscription management & webhooks
 - **Role-Based Access** — Admin, HOA Board, Inspector
@@ -26,7 +26,7 @@ A production-ready, modular SaaS platform for HOA violation management, built wi
 ### 1. **Clone the Repository**
 ```bash
 git clone <your-repo-url>
-cd CivicLogHOA
+cd hoa-log
 ```
 
 ### 2. **Set Up PostgreSQL Locally**
@@ -43,9 +43,9 @@ cd CivicLogHOA
 # Create database and user
 psql postgres
 # In psql shell:
-CREATE DATABASE civicloghoa_db;
-CREATE USER civicloghoa_user WITH PASSWORD 'yourpassword';
-GRANT ALL PRIVILEGES ON DATABASE civicloghoa_db TO civicloghoa_user;
+CREATE DATABASE hoa_log_db;
+CREATE USER hoa_log_user WITH PASSWORD 'yourpassword';
+GRANT ALL PRIVILEGES ON DATABASE hoa_log_db TO hoa_log_user;
 \q
 ```
 
@@ -54,7 +54,7 @@ GRANT ALL PRIVILEGES ON DATABASE civicloghoa_db TO civicloghoa_user;
 cd backend
 cp env_example.txt .env
 # Edit .env and set:
-# DATABASE_URL=postgresql://civicloghoa_user:yourpassword@localhost:5432/civicloghoa_db
+# DATABASE_URL=postgresql://hoa_log_user:yourpassword@localhost:5432/hoa_log_db
 # (Fill in all other required secrets: Stripe, OpenAI, etc.)
 ```
 
@@ -65,8 +65,8 @@ cd backend
 pip install -r requirements.txt
 
 # Frontend
-cd ../frontend
-pip install -r requirements.txt
+cd ../frontend-nextjs
+npm install
 ```
 
 ### 5. **Run Database Migrations**
@@ -85,9 +85,9 @@ python init_db.py
 # Backend (FastAPI)
 uvicorn main:app --reload
 
-# Frontend (Streamlit)
-cd ../frontend
-streamlit run dashboard.py
+# Frontend (Next.js)
+cd ../frontend-nextjs
+npm run dev
 ```
 
 ---
@@ -106,8 +106,8 @@ streamlit run dashboard.py
 ## 🧑‍💻 Handoff & Ownership
 - All code, data, and configuration are now ready for transfer
 - `.env` contains all secrets and environment-specific settings (never commit this file)
-- See `PERFORMANCE_NOTES.md` for scaling and optimization
-- See `SECURITY_AUDIT_REPORT.md` for security best practices
+- See `scripts/README.md` for utility scripts and setup
+- See `SMTP_SETUP_GUIDE.md` for email configuration
 - All migration/test scripts are included in `backend/`
 - For questions, contact the original developer (see Support)
 - **Please review the [Terms of Sale](TERMS_OF_SALE.md) before completing your purchase.**
@@ -123,6 +123,18 @@ streamlit run dashboard.py
   ```
 - Coverage reports are generated in `backend/htmlcov/`
 
+## 🐳 Docker Deployment
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
 ---
 
 ## 🛠️ Troubleshooting
@@ -134,8 +146,8 @@ streamlit run dashboard.py
 
 ---
 
-## Terms of Sale
-By purchasing, you agree to the [Terms of Sale](TERMS_OF_SALE.md), which outline final sale, warranty, intellectual property, and buyer responsibilities.
+## License
+This software is proprietary and confidential. Unauthorized copying, distribution, or modification is prohibited.
 
 ---
 
@@ -144,7 +156,7 @@ By purchasing, you agree to the [Terms of Sale](TERMS_OF_SALE.md), which outline
 
 This software is proprietary and confidential. Unauthorized copying, distribution, or modification is prohibited.
 
-Use of this software is also subject to the [Terms of Sale](TERMS_OF_SALE.md).
+See [LICENSE.txt](LICENSE.txt) for full license terms.
 
 ---
 
