@@ -77,9 +77,21 @@ export interface SubscriptionPlan {
   interval: string;
   features: string[];
   limits: {
-    violations_per_month: number;
+    hoas: number;
+    units: number;
     users: number;
+    violations_per_month: number;
+    storage_gb: number;
   };
+}
+
+export interface PricingTier {
+  name: string;
+  price: number | string;
+  hoaLimit: number | string;
+  unitLimit: number | string;
+  userLimit: number | string;
+  description: string;
 }
 
 export interface UserSubscription {
@@ -91,8 +103,11 @@ export interface UserSubscription {
   cancel_at_period_end: boolean;
   features: string[];
   limits: {
-    violations_per_month: number;
+    hoas: number;
+    units: number;
     users: number;
+    violations_per_month: number;
+    storage_gb: number;
   };
 }
 

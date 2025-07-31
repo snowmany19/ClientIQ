@@ -262,19 +262,21 @@ class ApiClient {
   // Billing
   async getSubscriptionPlans(): Promise<{ plans: SubscriptionPlan[] }> {
     try {
-      const response = await this.request<{ plans: any; message: string }>('/billing/plans');
+      const response = await this.request<{ plans: any[] }>('/billing/plans');
       
-      // Transform the backend response to match frontend expectations
-      const plansArray = Object.entries(response.plans || {}).map(([id, plan]: [string, any]) => ({
-        id,
+      const plansArray = response.plans.map((plan) => ({
+        id: plan.id || plan.name?.toLowerCase(),
         name: plan.name,
         price: plan.price,
         currency: plan.currency,
         interval: plan.interval,
         features: plan.features || [],
         limits: {
-          violations_per_month: plan.limits?.incidents_per_month || 0,
-          users: plan.limits?.users || 0
+          hoas: plan.limits?.hoas || 1,
+          units: plan.limits?.units || 25,
+          users: plan.limits?.users || 2,
+          violations_per_month: plan.limits?.violations_per_month || plan.limits?.incidents_per_month || 50,
+          storage_gb: plan.limits?.storage_gb || 5
         }
       }));
       
@@ -304,8 +306,11 @@ class ApiClient {
       cancel_at_period_end: false,
       features: response.features,
       limits: {
-        violations_per_month: response.limits.incidents_per_month,
-        users: response.limits.users
+        hoas: response.limits?.hoas || 1,
+        units: response.limits?.units || 25,
+        users: response.limits?.users || 2,
+        violations_per_month: response.limits?.violations_per_month || response.limits?.incidents_per_month || 50,
+        storage_gb: response.limits?.storage_gb || 5
       }
     };
   }

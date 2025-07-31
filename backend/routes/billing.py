@@ -271,23 +271,33 @@ def get_usage_stats(
     """Get current usage statistics."""
     from sqlalchemy import text
     
-    # Count incidents for current user/store using raw SQL
+    # Count violations for current user/store using raw SQL
     try:
-        incident_count = db.execute(
+        violation_count = db.execute(
             text("SELECT COUNT(*) FROM violations WHERE user_id = :user_id"),
             {"user_id": current_user.id}
         ).scalar()
     except Exception as e:
-        logger.error(f"Error getting incident count: {e}")
-        incident_count = 0
+        logger.error(f"Error getting violation count: {e}")
+        violation_count = 0
+    
+    # Count users for this HOA (excluding residents)
+    try:
+        user_count = db.execute(
+            text("SELECT COUNT(*) FROM users WHERE hoa_id = :hoa_id AND role != 'resident'"),
+            {"hoa_id": current_user.hoa_id}
+        ).scalar()
+    except Exception as e:
+        logger.error(f"Error getting user count: {e}")
+        user_count = 1  # Fallback to current user only
     
     # Get plan limits
     plan_limits = get_usage_limits(str(current_user.plan_id))
     
     return {
         "usage": {
-            "incidents": incident_count,
-            "users": 1  # Current user
+            "violations_per_month": violation_count,
+            "users": user_count
         },
         "limits": plan_limits,
         "plan_id": current_user.plan_id
@@ -310,13 +320,18 @@ def get_usage_limits_route(
     db: Session = Depends(get_db)
 ):
     """Get usage limits for current user's plan."""
-    plan_id = str(current_user.plan_id or "basic")
-    plan = SUBSCRIPTION_PLANS.get(plan_id, SUBSCRIPTION_PLANS.get("basic"))
+    plan_id = str(current_user.plan_id or "starter")
+    plan = SUBSCRIPTION_PLANS.get(plan_id, SUBSCRIPTION_PLANS.get("starter"))
     limits = plan.get("limits", {}) if plan else {}
     return {
         "plan": plan_id,
-        "max_incidents": limits.get("incidents_per_month", 100),
-        "max_users": limits.get("users", 1)
+        "limits": {
+            "hoas": limits.get("hoas", 1),
+            "units": limits.get("units", 25),
+            "users": limits.get("users", 2),
+            "violations_per_month": limits.get("violations_per_month", 50),
+            "storage_gb": limits.get("storage_gb", 5)
+        }
     }
 
 @router.get("/history")

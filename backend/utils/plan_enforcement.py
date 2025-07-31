@@ -59,9 +59,10 @@ def check_user_limit(
             detail="No active subscription plan"
         )
     
-    # Get current user count for this HOA
+    # Get current user count for this HOA (excluding residents)
     user_count = db.query(User).filter(
-        User.hoa_id == current_user.hoa_id
+        User.hoa_id == current_user.hoa_id,
+        User.role != "resident"  # Exclude residents from user limit
     ).count()
     
     current_usage = {"users": user_count}
@@ -108,12 +109,14 @@ def require_plan_feature(
     
     # Define feature requirements for each plan
     plan_features = {
-        "starter": ["basic_violations", "standard_letters", "email_support"],
-        "professional": ["basic_violations", "standard_letters", "email_support", 
-                        "advanced_analytics", "ai_letters", "priority_support"],
-        "enterprise": ["basic_violations", "standard_letters", "email_support", 
-                      "advanced_analytics", "ai_letters", "priority_support",
-                      "dedicated_support", "custom_integrations", "compliance_tools"]
+        "starter": ["basic_violations", "standard_letters", "email_support", "mobile_capture", "ai_analysis", "professional_reports", "automated_communication"],
+        "business": ["basic_violations", "standard_letters", "email_support", "mobile_capture", "ai_analysis", "professional_reports", "automated_communication", 
+                    "advanced_analytics", "ai_letters", "priority_support", "custom_integrations"],
+        "pro": ["basic_violations", "standard_letters", "email_support", "mobile_capture", "ai_analysis", "professional_reports", "automated_communication", 
+                "advanced_analytics", "ai_letters", "priority_support", "custom_integrations", "multi_hoa_management"],
+        "enterprise": ["basic_violations", "standard_letters", "email_support", "mobile_capture", "ai_analysis", "professional_reports", "automated_communication", 
+                      "advanced_analytics", "ai_letters", "priority_support", "custom_integrations", "multi_hoa_management",
+                      "dedicated_support", "compliance_tools"]
     }
     
     user_features = plan_features.get(current_user.plan_id, [])
@@ -141,9 +144,10 @@ def get_usage_stats(
         Violation.timestamp >= start_of_month
     ).count()
     
-    # Get user count for this HOA
+    # Get user count for this HOA (excluding residents)
     user_count = db.query(User).filter(
-        User.hoa_id == current_user.hoa_id
+        User.hoa_id == current_user.hoa_id,
+        User.role != "resident"  # Exclude residents from user limit
     ).count()
     
     limits = get_usage_limits(current_user.plan_id)

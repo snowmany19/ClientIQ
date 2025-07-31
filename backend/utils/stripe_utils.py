@@ -14,39 +14,74 @@ SUBSCRIPTION_PLANS = {
     "starter": {
         "name": "Starter",
         "price_id": os.getenv("STRIPE_STARTER_PRICE_ID"),
-        "price": 199,
+        "price": 99,
         "currency": "usd",
         "interval": "month",
         "features": [
-            "Up to 100 homes",
+            "Mobile violation capture",
+            "AI-powered analysis",
+            "Professional reporting",
+            "Automated communication",
             "Basic violation tracking",
             "Standard letter generation",
             "Email support",
             "Standard reports"
         ],
         "limits": {
-            "users": 3,
+            "hoas": 1,
+            "units": 25,
+            "users": 2,
             "violations_per_month": 50,
             "storage_gb": 5
         }
     },
-    "professional": {
-        "name": "Professional",
-        "price_id": os.getenv("STRIPE_PROFESSIONAL_PRICE_ID"),
-        "price": 499,
+    "business": {
+        "name": "Business",
+        "price_id": os.getenv("STRIPE_BUSINESS_PRICE_ID"),
+        "price": 299,
         "currency": "usd",
         "interval": "month",
         "features": [
-            "Up to 500 homes",
+            "Mobile violation capture",
+            "AI-powered analysis",
+            "Professional reporting",
+            "Automated communication",
             "Advanced analytics & reporting",
             "AI-powered letter generation",
             "Priority support",
             "Custom integrations"
         ],
         "limits": {
-            "users": 10,
+            "hoas": 1,
+            "units": 100,
+            "users": 5,
             "violations_per_month": 200,
             "storage_gb": 20
+        }
+    },
+    "pro": {
+        "name": "Pro",
+        "price_id": os.getenv("STRIPE_PRO_PRICE_ID"),
+        "price": 499,
+        "currency": "usd",
+        "interval": "month",
+        "features": [
+            "Mobile violation capture",
+            "AI-powered analysis",
+            "Professional reporting",
+            "Automated communication",
+            "Advanced analytics & reporting",
+            "AI-powered letter generation",
+            "Priority support",
+            "Custom integrations",
+            "Multi-HOA management"
+        ],
+        "limits": {
+            "hoas": 2,
+            "units": 250,
+            "users": 10,
+            "violations_per_month": 500,
+            "storage_gb": 50
         }
     },
     "enterprise": {
@@ -56,14 +91,22 @@ SUBSCRIPTION_PLANS = {
         "currency": "usd",
         "interval": "month",
         "features": [
-            "Unlimited homes",
-            "Full feature suite",
-            "Dedicated account manager",
+            "Mobile violation capture",
+            "AI-powered analysis",
+            "Professional reporting",
+            "Automated communication",
+            "Advanced analytics & reporting",
+            "AI-powered letter generation",
+            "Priority support",
             "Custom integrations",
+            "Multi-HOA management",
+            "Dedicated account manager",
             "Advanced compliance tools"
         ],
         "limits": {
-            "users": 50,
+            "hoas": 5,
+            "units": 500,
+            "users": 20,
             "violations_per_month": 1000,
             "storage_gb": 100
         }
@@ -248,7 +291,7 @@ def get_plan_upgrade_suggestion(user_plan: str, current_usage: Dict[str, int], r
     current_usage_count = current_usage.get(resource, 0)
     
     # Find next plan with higher limits
-    plan_order = ["starter", "professional", "enterprise"]
+    plan_order = ["starter", "business", "pro", "enterprise"]
     current_index = plan_order.index(user_plan) if user_plan in plan_order else -1
     
     for plan_id in plan_order[current_index + 1:]:

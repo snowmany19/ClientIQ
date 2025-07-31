@@ -195,7 +195,7 @@ export default function BillingDashboard() {
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Available Plans</h2>
         
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {Array.isArray(plans) ? plans.map((plan) => (
             <div
               key={plan.id}
@@ -214,13 +214,34 @@ export default function BillingDashboard() {
                   <span className="text-gray-500">/{plan.interval}</span>
                 </div>
 
+                {/* Plan Limits */}
+                <div className="mt-4 space-y-2 text-sm text-gray-600">
+                  <div>
+                    <span className="font-medium">HOAs:</span> {plan.limits.hoas === -1 ? 'Unlimited' : plan.limits.hoas}
+                  </div>
+                  <div>
+                    <span className="font-medium">Units:</span> {plan.limits.units === -1 ? 'Unlimited' : plan.limits.units}
+                  </div>
+                  <div>
+                    <span className="font-medium">Users:</span> {plan.limits.users === -1 ? 'Unlimited' : plan.limits.users}
+                  </div>
+                  <div>
+                    <span className="font-medium">Violations:</span> {plan.limits.violations_per_month === -1 ? 'Unlimited' : plan.limits.violations_per_month}/month
+                  </div>
+                </div>
+
                 <ul className="mt-6 space-y-3">
-                  {plan.features.map((feature, index) => (
+                  {plan.features.slice(0, 4).map((feature, index) => (
                     <li key={index} className="flex items-center text-sm text-gray-600">
                       <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
                       {feature}
                     </li>
                   ))}
+                  {plan.features.length > 4 && (
+                    <li className="text-sm text-gray-400">
+                      +{plan.features.length - 4} more features
+                    </li>
+                  )}
                 </ul>
 
                 <div className="mt-6">
@@ -240,7 +261,7 @@ export default function BillingDashboard() {
               </div>
             </div>
           )) : (
-            <div className="col-span-3 text-center py-8">
+            <div className="col-span-4 text-center py-8">
               <p className="text-gray-500">Loading plans...</p>
             </div>
           )}
@@ -269,7 +290,7 @@ export default function BillingDashboard() {
         <div className="bg-white shadow rounded-lg p-6">
           <h2 className="text-lg font-medium text-gray-900 mb-4">Usage This Month</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center">
                 <Zap className="h-5 w-5 text-blue-500 mr-3" />
@@ -306,6 +327,46 @@ export default function BillingDashboard() {
               <div className="text-right">
                 <div className="text-sm font-medium text-gray-900">
                   {subscription.limits.users === -1 ? '∞' : '0%'}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center">
+                <CreditCard className="h-5 w-5 text-purple-500 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">HOAs</p>
+                  <p className="text-sm text-gray-500">
+                    {subscription.limits.hoas === -1 
+                      ? 'Unlimited' 
+                      : `${0} / ${subscription.limits.hoas}`
+                    }
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-medium text-gray-900">
+                  {subscription.limits.hoas === -1 ? '∞' : '0%'}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center">
+                <Calendar className="h-5 w-5 text-orange-500 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Units</p>
+                  <p className="text-sm text-gray-500">
+                    {subscription.limits.units === -1 
+                      ? 'Unlimited' 
+                      : `${0} / ${subscription.limits.units}`
+                    }
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-medium text-gray-900">
+                  {subscription.limits.units === -1 ? '∞' : '0%'}
                 </div>
               </div>
             </div>
