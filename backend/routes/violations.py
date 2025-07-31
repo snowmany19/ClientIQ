@@ -222,11 +222,12 @@ def get_all_violations(
     tag: Optional[str] = None,
     resident_id: Optional[int] = None,
     status: Optional[str] = None,
+    search: Optional[str] = None,  # Add search parameter
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _: User = Depends(require_active_subscription),
 ):
-    from sqlalchemy import text
+    from sqlalchemy import text, or_
     
     # 🔍 Input validation for pagination
     if skip < 0:
@@ -277,6 +278,18 @@ def get_all_violations(
     
     if status is not None:
         query = query.filter(Violation.status == status)
+    
+    # Apply search filter
+    if search is not None and search.strip():
+        search_term = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                Violation.description.ilike(search_term),
+                Violation.address.ilike(search_term),
+                Violation.offender.ilike(search_term),
+                Violation.tags.ilike(search_term)
+            )
+        )
     
     # Get total count for pagination
     total = query.count()
@@ -432,11 +445,13 @@ def get_dashboard_data(
     tag: Optional[str] = None,
     resident_id: Optional[int] = None,
     status: Optional[str] = None,
+    search: Optional[str] = None,  # Add search parameter
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _: User = Depends(require_active_subscription),
 ):
     """Get all dashboard data in a single optimized call."""
+    from sqlalchemy import or_
     
     # 🔐 RBAC: Filter violations based on user role using SQLAlchemy ORM
     query = db.query(Violation)
@@ -481,6 +496,18 @@ def get_dashboard_data(
     
     if status is not None:
         query = query.filter(Violation.status == status)
+    
+    # Apply search filter
+    if search is not None and search.strip():
+        search_term = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                Violation.description.ilike(search_term),
+                Violation.address.ilike(search_term),
+                Violation.offender.ilike(search_term),
+                Violation.tags.ilike(search_term)
+            )
+        )
     
     # Get total count for pagination
     total = query.count()

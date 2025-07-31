@@ -119,6 +119,7 @@ class ApiClient {
     hoa_id?: number;
     tag?: string;
     status?: string;
+    search?: string;  // Add search parameter
   }): Promise<PaginatedResponse<Violation>> {
     const searchParams = new URLSearchParams();
     if (params) {
@@ -615,6 +616,19 @@ class ApiClient {
       method: 'POST',
     });
     return response;
+  }
+
+  async submitDemoRequest(demoData: {
+    name: string;
+    email: string;
+    company?: string;
+    phone?: string;
+    message?: string;
+  }): Promise<{ message: string; status: string }> {
+    return this.request<{ message: string; status: string }>('/communications/demo-request', {
+      method: 'POST',
+      body: JSON.stringify(demoData),
+    });
   }
 
 }

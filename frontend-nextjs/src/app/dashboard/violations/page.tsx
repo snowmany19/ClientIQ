@@ -33,7 +33,14 @@ export default function ViolationsPage() {
     }
     
     loadViolations();
-  }, [user, router, currentPage, searchTerm, statusFilter, sortField, sortDirection]);
+  }, [user, router, currentPage, statusFilter, sortField, sortDirection]);
+
+  // Separate effect for search to prevent constant reloads
+  useEffect(() => {
+    if (searchTerm !== undefined) {
+      loadViolations();
+    }
+  }, [searchTerm]);
 
   const loadViolations = async () => {
     try {
@@ -44,7 +51,7 @@ export default function ViolationsPage() {
       };
       
       if (searchTerm) {
-        // Note: Backend doesn't support search yet, so we'll filter client-side for now
+        params.search = searchTerm;  // Pass search to backend
       }
       
       if (statusFilter !== 'all') {

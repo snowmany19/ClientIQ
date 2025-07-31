@@ -450,6 +450,74 @@ def get_communication_stats(
             detail="Failed to retrieve communication statistics"
         )
 
+@router.post("/demo-request")
+def submit_demo_request(
+    request: dict,
+    db: Session = Depends(get_db)
+):
+    """Submit a demo request from the landing page."""
+    try:
+        # Extract demo request data
+        name = request.get('name', '')
+        email = request.get('email', '')
+        company = request.get('company', '')
+        phone = request.get('phone', '')
+        message = request.get('message', '')
+        
+        # Validate required fields
+        if not name or not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Name and email are required"
+            )
+        
+        # Create demo request email content
+        subject = f"New Demo Request: {name} from {company or 'Unknown Company'}"
+        
+        email_content = f"""
+        New Demo Request Received
+        
+        Name: {name}
+        Email: {email}
+        Company/HOA: {company or 'Not specified'}
+        Phone: {phone or 'Not specified'}
+        
+        Message:
+        {message or 'No additional message provided'}
+        
+        ---
+        This request was submitted from the demo page at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        """
+        
+        # Send notification email to admin
+        try:
+            from utils.email_service import send_email
+            send_email(
+                to_email="admin@civicloghoa.com",  # Replace with actual admin email
+                subject=subject,
+                body=email_content
+            )
+        except Exception as e:
+            logger.error(f"Failed to send demo request email: {e}")
+            # Don't fail the request if email fails
+        
+        # Log the demo request
+        logger.info(f"Demo request received from {name} ({email}) at {datetime.now()}")
+        
+        return {
+            "message": "Demo request submitted successfully. We'll contact you within 24 hours.",
+            "status": "success"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing demo request: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to submit demo request"
+        )
+
 def get_resident_for_violation(violation: Violation, db: Session) -> Optional[Resident]:
     """Get resident for a violation."""
     try:

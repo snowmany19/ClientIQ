@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Mail, Download } from 'lucide-react';
 import ResidentInviteForm from '@/components/forms/ResidentInviteForm';
+import UserCreationForm from '@/components/forms/UserCreationForm';
 import { apiClient } from '@/lib/api';
 
 interface User {
@@ -22,6 +23,7 @@ export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [showUserForm, setShowUserForm] = useState(false);
   const [inviteResults, setInviteResults] = useState<any>(null);
 
   useEffect(() => {
@@ -82,6 +84,11 @@ export default function UserManagement() {
     }
   };
 
+  const handleUserCreated = () => {
+    setShowUserForm(false);
+    fetchUsers(); // Refresh the users list
+  };
+
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin': return 'bg-red-100 text-red-800';
@@ -120,6 +127,15 @@ export default function UserManagement() {
     );
   }
 
+  if (showUserForm) {
+    return (
+      <UserCreationForm
+        onUserCreated={handleUserCreated}
+        onCancel={() => setShowUserForm(false)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -137,7 +153,7 @@ export default function UserManagement() {
             <Mail className="h-4 w-4 mr-2" />
             Invite Residents
           </Button>
-          <Button>
+          <Button onClick={() => setShowUserForm(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add User
           </Button>
