@@ -117,8 +117,8 @@ services:
     env_file:
       - .env
     environment:
-      # Set API URL to backend container
-      NEXT_PUBLIC_API_URL: http://localhost:8000/api
+      # Set API URL to backend container for Docker communication
+      NEXT_PUBLIC_API_URL: http://backend:8000/api
     depends_on:
       - backend
     networks:

@@ -528,4 +528,18 @@ class EmailService:
 
 
 # Global email service instance
-email_service = EmailService() 
+email_service = EmailService()
+
+def send_email(
+    to_email: str,
+    subject: str,
+    html_content: str,
+    text_content: str = ""
+) -> bool:
+    """Standalone function to send email for resident invitations."""
+    return email_service.send_email(
+        to_email=to_email,
+        subject=subject,
+        body=text_content,
+        html_body=html_content
+    ) 

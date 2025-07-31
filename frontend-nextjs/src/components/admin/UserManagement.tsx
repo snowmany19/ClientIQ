@@ -1,342 +1,185 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Mail, Download } from 'lucide-react';
+import ResidentInviteForm from '@/components/forms/ResidentInviteForm';
 import { apiClient } from '@/lib/api';
-import { User } from '@/types';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  Search,
-  Shield,
-  User as UserIcon,
-  Users as UsersIcon
-} from 'lucide-react';
 
-const userSchema = z.object({
-  username: z.string().min(3, 'Username must be at least 3 characters').max(50, 'Username must be less than 50 characters'),
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['admin', 'hoa_board', 'inspector', 'super_admin', 'resident']),
-  hoa_id: z.number().optional(),
-});
-
-type UserFormData = z.infer<typeof userSchema>;
+interface User {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+  unit_number?: string;
+  is_active: boolean;
+  created_at: string;
+}
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-    setValue,
-  } = useForm<UserFormData>({
-    resolver: zodResolver(userSchema),
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [showInviteForm, setShowInviteForm] = useState(false);
+  const [inviteResults, setInviteResults] = useState<any>(null);
 
   useEffect(() => {
-    loadUsers();
+    fetchUsers();
   }, []);
 
-  const loadUsers = async () => {
+  const fetchUsers = async () => {
     try {
-      setLoading(true);
-      const usersData = await apiClient.getUsers();
-      setUsers(usersData);
+      console.log('Fetching users using API client...');
+      const backendUsers = await apiClient.getUsers();
+      console.log('Backend users received:', backendUsers);
+      
+      // Transform backend users to match frontend expectations
+      const transformedUsers = backendUsers.map((user: any) => ({
+        id: user.id,
+        email: user.email,
+        name: user.username || user.name || 'Unknown', // Use username as name
+        role: user.role,
+        unit_number: user.unit_number || null,
+        is_active: user.subscription_status === 'active' || true, // Default to active
+        created_at: user.created_at || new Date().toISOString(), // Default to current date
+      }));
+      
+      console.log('Transformed users:', transformedUsers);
+      setUsers(transformedUsers);
     } catch (error) {
-      console.error('Failed to load users:', error);
-      setError('Failed to load users');
+      console.error('Error fetching users:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const onSubmit = async (data: UserFormData) => {
+  const handleInviteResidents = async (invites: any[]) => {
     try {
-      setError(null);
-      setSuccess(null);
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/resident-portal/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ invites })
+      });
 
-      if (editingUser) {
-        // Update existing user
-        await apiClient.updateUser(editingUser.id, data);
-        setSuccess('User updated successfully');
+      const data = await response.json();
+      
+      if (response.ok) {
+        setInviteResults(data);
+        setShowInviteForm(false);
+        // Refresh users list
+        fetchUsers();
       } else {
-        // Create new user
-        await apiClient.createUser(data);
-        setSuccess('User created successfully');
+        throw new Error(data.error || 'Failed to send invitations');
       }
-
-      reset();
-      setShowCreateForm(false);
-      setEditingUser(null);
-      loadUsers();
     } catch (error) {
-      console.error('Failed to save user:', error);
-      let errorMessage = 'Failed to save user';
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'object' && error !== null) {
-        // Handle API error objects
-        if ('detail' in error) {
-          errorMessage = String(error.detail);
-        } else {
-          errorMessage = JSON.stringify(error);
-        }
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      
-      setError(errorMessage);
+      console.error('Error inviting residents:', error);
+      alert('Failed to send invitations. Please try again.');
     }
   };
 
-  const handleEdit = (user: User) => {
-    setEditingUser(user);
-    setValue('username', user.username);
-    setValue('email', user.email);
-    setValue('role', user.role);
-    setShowCreateForm(true);
-  };
-
-  const handleDelete = async (userId: number) => {
-    if (!confirm('Are you sure you want to delete this user?')) {
-      return;
-    }
-
-    try {
-      await apiClient.deleteUser(userId);
-      setSuccess('User deleted successfully');
-      loadUsers();
-    } catch (error) {
-      console.error('Failed to delete user:', error);
-      setError('Failed to delete user');
-    }
-  };
-
-  const handleCancel = () => {
-    setShowCreateForm(false);
-    setEditingUser(null);
-    reset();
-  };
-
-  const filteredUsers = users.filter(user =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getRoleIcon = (role: string) => {
+  const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'admin':
-        return <Shield className="h-4 w-4 text-red-500" />;
-      case 'hoa_board':
-        return <UsersIcon className="h-4 w-4 text-blue-500" />;
-      case 'inspector':
-        return <UserIcon className="h-4 w-4 text-green-500" />;
-      case 'resident':
-        return <UserIcon className="h-4 w-4 text-purple-500" />;
-      default:
-        return <UserIcon className="h-4 w-4 text-gray-500" />;
+      case 'admin': return 'bg-red-100 text-red-800';
+      case 'hoa_board': return 'bg-blue-100 text-blue-800';
+      case 'inspector': return 'bg-green-100 text-green-800';
+      case 'resident': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getRoleBadge = (role: string) => {
-    const roleConfig = {
-      admin: 'bg-red-100 text-red-800',
-      hoa_board: 'bg-blue-100 text-blue-800',
-      inspector: 'bg-green-100 text-green-800',
-      resident: 'bg-purple-100 text-purple-800',
-    };
-
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${roleConfig[role as keyof typeof roleConfig] || 'bg-gray-100 text-gray-800'}`}>
-        {getRoleIcon(role)}
-        <span className="ml-1 capitalize">{role}</span>
-      </span>
-    );
+  const downloadCsvTemplate = () => {
+    const csvContent = 'email,name,unit_number\njohn@example.com,John Doe,101\njane@example.com,Jane Smith,102';
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'resident_invites_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-900 font-medium">Loading users...</p>
-        </div>
+        <div className="text-gray-500">Loading users...</div>
       </div>
+    );
+  }
+
+  if (showInviteForm) {
+    return (
+      <ResidentInviteForm
+        onInvite={handleInviteResidents}
+        onCancel={() => setShowInviteForm(false)}
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">User Management</h2>
-          <p className="mt-1 text-sm text-gray-700 font-medium">
-            Manage user accounts and permissions
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+          <p className="text-gray-600">Manage HOA staff and resident accounts</p>
+          <p className="text-sm text-blue-600">Debug: {users.length} users loaded</p>
         </div>
-        <Button
-          onClick={() => setShowCreateForm(true)}
-          className="mt-4 sm:mt-0"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add User
-        </Button>
+        <div className="flex space-x-3">
+          <Button variant="outline" onClick={downloadCsvTemplate}>
+            <Download className="h-4 w-4 mr-2" />
+            CSV Template
+          </Button>
+          <Button onClick={() => setShowInviteForm(true)}>
+            <Mail className="h-4 w-4 mr-2" />
+            Invite Residents
+          </Button>
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Add User
+          </Button>
+        </div>
       </div>
 
-      {/* Error/Success Messages */}
-      {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Error</h3>
-              <div className="mt-2 text-sm text-red-700">{error}</div>
+      {inviteResults && (
+        <Card className="p-4 bg-green-50 border-green-200">
+          <h3 className="font-medium text-green-900 mb-2">Invitation Results</h3>
+          <p className="text-sm text-green-700 mb-2">{inviteResults.message}</p>
+          {inviteResults.successful_invites.length > 0 && (
+            <div className="mb-2">
+              <p className="text-sm font-medium text-green-800">Successful ({inviteResults.successful_invites.length}):</p>
+              <ul className="text-sm text-green-700">
+                {inviteResults.successful_invites.map((invite: any, index: number) => (
+                  <li key={index}>• {invite.name} ({invite.email}) - Unit {invite.unit_number}</li>
+                ))}
+              </ul>
             </div>
-          </div>
-        </div>
+          )}
+          {inviteResults.failed_invites.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-red-800">Failed ({inviteResults.failed_invites.length}):</p>
+              <ul className="text-sm text-red-700">
+                {inviteResults.failed_invites.map((invite: any, index: number) => (
+                  <li key={index}>• {invite.email} - {invite.reason}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setInviteResults(null)}
+            className="mt-2 text-green-700 hover:text-green-800"
+          >
+            Dismiss
+          </Button>
+        </Card>
       )}
 
-      {success && (
-        <div className="rounded-md bg-green-50 p-4">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-green-800">Success</h3>
-              <div className="mt-2 text-sm text-green-700">{success}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create/Edit Form */}
-      {showCreateForm && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            {editingUser ? 'Edit User' : 'Create New User'}
-          </h3>
-          
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="username" className="block text-sm font-semibold text-gray-900 mb-1">
-                  Username *
-                </label>
-                <input
-                  type="text"
-                  id="username"
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
-                    errors.username ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  {...register('username')}
-                />
-                {errors.username && (
-                  <p className="mt-1 text-sm text-red-700 font-medium">{errors.username.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-900 mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
-                    errors.email ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  {...register('email')}
-                />
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-700 font-medium">{errors.email.message}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-gray-900 mb-1">
-                  Password *
-                </label>
-                <input
-                  type="password"
-                  id="password"
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white ${
-                    errors.password ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  {...register('password')}
-                />
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-700 font-medium">{errors.password.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="role" className="block text-sm font-semibold text-gray-900 mb-1">
-                  Role *
-                </label>
-                <select
-                  id="role"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
-                  {...register('role')}
-                >
-                  <option value="">Select role...</option>
-                  <option value="admin">Admin</option>
-                  <option value="hoa_board">HOA Board</option>
-                  <option value="inspector">Inspector</option>
-                  <option value="super_admin">Super Admin</option>
-                  <option value="resident">Resident</option>
-                </select>
-                {errors.role && (
-                  <p className="mt-1 text-sm text-red-700 font-medium">{errors.role.message}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">
-                {editingUser ? 'Update User' : 'Create User'}
-              </Button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-        <input
-          type="text"
-          placeholder="Search users..."
-          className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      {/* Users Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <Card className="p-6">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -348,7 +191,13 @@ export default function UserManagement() {
                   Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Unit
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Created
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -356,73 +205,41 @@ export default function UserManagement() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
+              {users.map((user) => (
+                <tr key={user.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10">
-                        <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-700">
-                            {user.username.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {user.username}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {user.email}
-                        </div>
-                      </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                      <div className="text-sm text-gray-500">{user.email}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {getRoleBadge(user.role)}
+                    <Badge className={getRoleBadgeColor(user.role)}>
+                      {user.role.replace('_', ' ')}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {user.unit_number || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      user.subscription_status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {user.subscription_status}
-                    </span>
+                    <Badge className={user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                      {user.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(user.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(user)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(user.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button variant="outline" size="sm">
+                      Edit
+                    </Button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
-
-      {filteredUsers.length === 0 && (
-        <div className="text-center py-12">
-          <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {searchTerm ? 'Try adjusting your search terms.' : 'Get started by creating a new user.'}
-          </p>
-        </div>
-      )}
+      </Card>
     </div>
   );
 } 

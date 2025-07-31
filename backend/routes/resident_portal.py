@@ -1,15 +1,20 @@
 # backend/routes/resident_portal.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
+import secrets
+import string
+
 from database import get_db
-from models import Violation, User, Resident, Dispute
-from schemas import ViolationOut, DisputeCreate, DisputeOut
-from utils.auth_utils import get_current_user, require_active_subscription
+from models import Violation, User, Resident, Dispute, HOA
+from schemas import ViolationOut, DisputeCreate, DisputeOut, ResidentInvite, ResidentRegistration, ResidentInviteResponse
+from utils.auth_utils import get_current_user, require_active_subscription, create_access_token
 from utils.logger import get_logger
 from utils.email_alerts import send_violation_notification_email
+from utils.email_service import send_email
+from utils.plan_enforcement import check_user_limit
 
 router = APIRouter(prefix="/resident-portal", tags=["Resident Portal"])
 logger = get_logger("resident_portal")
@@ -682,3 +687,226 @@ def mark_letter_as_read(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to mark letter as read"
         ) 
+
+@router.post("/invite", response_model=ResidentInviteResponse)
+async def invite_residents(
+    invites: List[ResidentInvite],
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Invite multiple residents to register for the portal."""
+    if current_user.role not in ["admin", "hoa_board", "inspector"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only HOA staff can invite residents"
+        )
+    
+    # Check user limits (residents don't count toward limits)
+    if not check_user_limit(current_user, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User limit exceeded for current plan"
+        )
+    
+    successful_invites = []
+    failed_invites = []
+    
+    for invite in invites:
+        try:
+            # Check if user already exists
+            existing_user = db.query(User).filter(
+                User.email == invite.email,
+                User.hoa_id == current_user.hoa_id
+            ).first()
+            
+            if existing_user:
+                failed_invites.append({
+                    "email": invite.email,
+                    "reason": "User already exists"
+                })
+                continue
+            
+            # Generate invitation token
+            token = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
+            expires_at = datetime.utcnow() + timedelta(days=7)
+            
+            # Create invitation record (you might want to create an Invitation model)
+            # For now, we'll store it in a simple way
+            invitation_data = {
+                "email": invite.email,
+                "hoa_id": current_user.hoa_id,
+                "token": token,
+                "expires_at": expires_at,
+                "invited_by": current_user.id,
+                "unit_number": invite.unit_number,
+                "name": invite.name
+            }
+            
+            # Store invitation (you might want to create a proper model for this)
+            # For now, we'll use a simple approach
+            db.execute(
+                "INSERT INTO resident_invitations (email, hoa_id, token, expires_at, invited_by, unit_number, name) VALUES (:email, :hoa_id, :token, :expires_at, :invited_by, :unit_number, :name)",
+                invitation_data
+            )
+            db.commit()
+            
+            # Send invitation email
+            registration_url = f"http://localhost:3000/register-resident?token={token}"
+            email_content = f"""
+            <h2>Welcome to {current_user.hoa.name} Resident Portal</h2>
+            <p>Hello {invite.name},</p>
+            <p>You've been invited to access the resident portal for {current_user.hoa.name}.</p>
+            <p><strong>Unit Number:</strong> {invite.unit_number}</p>
+            <p>Click the link below to complete your registration:</p>
+            <p><a href="{registration_url}" style="background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Complete Registration</a></p>
+            <p>This invitation expires in 7 days.</p>
+            <p>If you have any questions, please contact your HOA management.</p>
+            """
+            
+            background_tasks.add_task(
+                send_email,
+                to_email=invite.email,
+                subject=f"Welcome to {current_user.hoa.name} Resident Portal",
+                html_content=email_content
+            )
+            
+            successful_invites.append({
+                "email": invite.email,
+                "name": invite.name,
+                "unit_number": invite.unit_number
+            })
+            
+        except Exception as e:
+            failed_invites.append({
+                "email": invite.email,
+                "reason": str(e)
+            })
+    
+    return ResidentInviteResponse(
+        successful_invites=successful_invites,
+        failed_invites=failed_invites,
+        message=f"Successfully invited {len(successful_invites)} residents"
+    )
+
+@router.post("/register")
+async def register_resident(
+    registration: ResidentRegistration,
+    db: Session = Depends(get_db)
+):
+    """Register a resident using invitation token."""
+    # Verify invitation token
+    invitation = db.execute(
+        "SELECT * FROM resident_invitations WHERE token = :token AND expires_at > :now",
+        {"token": registration.token, "now": datetime.utcnow()}
+    ).first()
+    
+    if not invitation:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired invitation token"
+        )
+    
+    # Check if user already exists
+    existing_user = db.query(User).filter(
+        User.email == invitation.email,
+        User.hoa_id == invitation.hoa_id
+    ).first()
+    
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already registered"
+        )
+    
+    # Create resident user
+    resident = User(
+        email=invitation.email,
+        name=registration.name,
+        role="resident",
+        hoa_id=invitation.hoa_id,
+        unit_number=invitation.unit_number,
+        is_active=True
+    )
+    resident.set_password(registration.password)
+    
+    db.add(resident)
+    
+    # Delete the invitation
+    db.execute(
+        "DELETE FROM resident_invitations WHERE token = :token",
+        {"token": registration.token}
+    )
+    
+    db.commit()
+    
+    # Generate access token
+    access_token = create_access_token(data={"sub": resident.email})
+    
+    return {
+        "message": "Registration successful",
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": resident.id,
+            "email": resident.email,
+            "name": resident.name,
+            "role": resident.role,
+            "unit_number": resident.unit_number
+        }
+    }
+
+@router.get("/invitations")
+async def get_pending_invitations(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get pending invitations for the HOA."""
+    if current_user.role not in ["admin", "hoa_board", "inspector"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only HOA staff can view invitations"
+        )
+    
+    invitations = db.execute(
+        "SELECT * FROM resident_invitations WHERE hoa_id = :hoa_id ORDER BY created_at DESC",
+        {"hoa_id": current_user.hoa_id}
+    ).fetchall()
+    
+    return {
+        "invitations": [
+            {
+                "email": inv.email,
+                "name": inv.name,
+                "unit_number": inv.unit_number,
+                "invited_by": inv.invited_by,
+                "expires_at": inv.expires_at,
+                "created_at": inv.created_at
+            }
+            for inv in invitations
+        ]
+    } 
+
+@router.get("/verify-token")
+async def verify_invitation_token(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    """Verify an invitation token and return invitation details."""
+    invitation = db.execute(
+        "SELECT ri.*, h.name as hoa_name FROM resident_invitations ri JOIN hoas h ON ri.hoa_id = h.id WHERE ri.token = :token AND ri.expires_at > :now",
+        {"token": token, "now": datetime.utcnow()}
+    ).first()
+    
+    if not invitation:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired invitation token"
+        )
+    
+    return {
+        "email": invitation.email,
+        "hoa_name": invitation.hoa_name,
+        "unit_number": invitation.unit_number,
+        "expires_at": invitation.expires_at
+    } 
