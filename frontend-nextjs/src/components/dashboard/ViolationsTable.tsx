@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Violation } from '@/types';
 import { apiClient } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
@@ -65,6 +65,7 @@ export default function ViolationsTable({
 }: ViolationsTableProps) {
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   const [localStatusFilter, setLocalStatusFilter] = useState(statusFilter);
+  const [filteredViolations, setFilteredViolations] = useState<Violation[]>(violations);
 
   // Add bulk selection state
   const [selectedViolations, setSelectedViolations] = useState<number[]>([]);
@@ -83,9 +84,19 @@ export default function ViolationsTable({
   const canDelete = userRole === 'admin' || userRole === 'hoa_board';
   const canGenerateLetter = userRole === 'admin' || userRole === 'hoa_board' || userRole === 'inspector';
 
+  // Update filtered violations when violations or filters change
+  useEffect(() => {
+    const filtered = applyAdvancedFilters(violations);
+    setFilteredViolations(filtered);
+  }, [violations, advancedFilters]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSearchChange?.(localSearchTerm);
+  };
+
   const handleSearchChange = (value: string) => {
     setLocalSearchTerm(value);
-    onSearchChange?.(value);
   };
 
   const handleStatusFilterChange = (value: string) => {
@@ -212,22 +223,29 @@ export default function ViolationsTable({
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex-1">
-            <div className="relative">
+            <form onSubmit={handleSearchSubmit} className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 type="text"
-                placeholder="Search violations..."
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Search violations by description, address, or offender..."
+                className="pl-10 pr-20 py-2 w-full border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 value={localSearchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
               />
-            </div>
+              <Button
+                type="submit"
+                size="sm"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 px-3 text-xs"
+              >
+                Search
+              </Button>
+            </form>
           </div>
           <div className="flex items-center gap-2">
             <select
               value={localStatusFilter}
               onChange={(e) => handleStatusFilterChange(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+              className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
               <option value="all">All Status</option>
               <option value="open">Open</option>
@@ -240,19 +258,24 @@ export default function ViolationsTable({
       </div>
 
       {/* Add advanced filters UI */}
-      <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-gray-900">Advanced Filters</h3>
+          <h3 className="text-sm font-medium text-gray-900 flex items-center">
+            <Filter className="h-4 w-4 mr-2" />
+            Advanced Filters
+          </h3>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setAdvancedFilters({
-              dateRange: '',
-              violationType: '',
-              repeatOffender: false,
-              hasPhotos: false,
-              gpsCoordinates: false
-            })}
+            onClick={() => {
+              setAdvancedFilters({
+                dateRange: '',
+                violationType: '',
+                repeatOffender: false,
+                hasPhotos: false,
+                gpsCoordinates: false
+              });
+            }}
           >
             Clear All
           </Button>
@@ -266,7 +289,7 @@ export default function ViolationsTable({
             <select
               value={advancedFilters.dateRange}
               onChange={(e) => setAdvancedFilters(prev => ({ ...prev, dateRange: e.target.value }))}
-              className="w-full text-sm border-gray-300 rounded-md"
+              className="w-full text-sm border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Time</option>
               <option value="7">Last 7 Days</option>
@@ -284,7 +307,7 @@ export default function ViolationsTable({
               placeholder="e.g., parking, noise"
               value={advancedFilters.violationType}
               onChange={(e) => setAdvancedFilters(prev => ({ ...prev, violationType: e.target.value }))}
-              className="w-full text-sm border-gray-300 rounded-md"
+              className="w-full text-sm border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           
@@ -294,7 +317,7 @@ export default function ViolationsTable({
               id="repeatOffender"
               checked={advancedFilters.repeatOffender}
               onChange={(e) => setAdvancedFilters(prev => ({ ...prev, repeatOffender: e.target.checked }))}
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
             />
             <label htmlFor="repeatOffender" className="ml-2 text-xs text-gray-700">
               Repeat Offenders Only
@@ -307,7 +330,7 @@ export default function ViolationsTable({
               id="hasPhotos"
               checked={advancedFilters.hasPhotos}
               onChange={(e) => setAdvancedFilters(prev => ({ ...prev, hasPhotos: e.target.checked }))}
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
             />
             <label htmlFor="hasPhotos" className="ml-2 text-xs text-gray-700">
               With Photos
@@ -320,12 +343,16 @@ export default function ViolationsTable({
               id="gpsCoordinates"
               checked={advancedFilters.gpsCoordinates}
               onChange={(e) => setAdvancedFilters(prev => ({ ...prev, gpsCoordinates: e.target.checked }))}
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
             />
             <label htmlFor="gpsCoordinates" className="ml-2 text-xs text-gray-700">
               With GPS
             </label>
           </div>
+        </div>
+        
+        <div className="mt-3 text-xs text-gray-500">
+          Filters applied: {filteredViolations.length} of {violations.length} violations shown
         </div>
       </div>
 
@@ -446,7 +473,7 @@ export default function ViolationsTable({
                   <TableSkeleton />
                 </td>
               </tr>
-            ) : violations.length === 0 ? (
+            ) : filteredViolations.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                   <div className="flex flex-col items-center">
@@ -457,7 +484,7 @@ export default function ViolationsTable({
                 </td>
               </tr>
             ) : (
-              violations.map((violation) => (
+              filteredViolations.map((violation) => (
                 <tr key={violation.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {violation.violation_number}

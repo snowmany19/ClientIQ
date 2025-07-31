@@ -9,7 +9,7 @@ export default function CTASection() {
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8 lg:flex lg:items-center lg:justify-between">
         <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
           <span className="block">Ready to get started?</span>
-          <span className="block text-blue-200">Start your free trial today.</span>
+          <span className="block text-blue-200">Transform your HOA management today.</span>
         </h2>
         <p className="mt-4 text-lg text-blue-100">
           Professional HOA management starting at $99/month
@@ -20,7 +20,7 @@ export default function CTASection() {
               href="/register"
               className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-blue-600 bg-white hover:bg-gray-50"
             >
-              Get started
+              Get Started
             </Link>
           </div>
           <div className="ml-3 inline-flex rounded-md shadow">
