@@ -242,4 +242,20 @@ class NotificationOut(BaseModel):
     class Config:
         orm_mode = True
 
+# Resident Invitation Schemas
+class ResidentInvite(BaseModel):
+    email: str
+    name: str
+    unit_number: str
+
+class ResidentRegistration(BaseModel):
+    token: str
+    name: str
+    password: str
+
+class ResidentInviteResponse(BaseModel):
+    successful_invites: List[dict]
+    failed_invites: List[dict]
+    message: str
+
 

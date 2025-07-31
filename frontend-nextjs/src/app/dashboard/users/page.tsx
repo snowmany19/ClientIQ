@@ -9,21 +9,28 @@ export default function UsersPage() {
   const { user } = useAuthStore();
   const router = useRouter();
 
+  console.log('UsersPage - Current user:', user);
+
   useEffect(() => {
+    console.log('UsersPage useEffect - user:', user);
+    
     // Redirect residents to resident portal
     if (user?.role === 'resident') {
+      console.log('Redirecting resident to resident portal');
       router.push('/dashboard/resident-portal');
       return;
     }
     
     // Check if user has permission to access user management
     if (user && user.role === 'inspector') {
+      console.log('Redirecting inspector to dashboard');
       router.push('/dashboard');
     }
   }, [user, router]);
 
   // Check permissions
   if (user?.role === 'resident' || user?.role === 'inspector') {
+    console.log('Access denied for role:', user?.role);
     return (
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-7xl mx-auto">
@@ -43,6 +50,7 @@ export default function UsersPage() {
     );
   }
 
+  console.log('Rendering UserManagement component');
   return (
     <>
       {/* Header */}
