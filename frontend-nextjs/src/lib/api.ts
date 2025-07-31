@@ -262,10 +262,11 @@ class ApiClient {
   // Billing
   async getSubscriptionPlans(): Promise<{ plans: SubscriptionPlan[] }> {
     try {
-      const response = await this.request<{ plans: any[] }>('/billing/plans');
+      const response = await this.request<{ plans: any }>('/billing/plans');
       
-      const plansArray = response.plans.map((plan) => ({
-        id: plan.id || plan.name?.toLowerCase(),
+      // Convert the plans object to an array
+      const plansArray = Object.entries(response.plans).map(([key, plan]: [string, any]) => ({
+        id: key,
         name: plan.name,
         price: plan.price,
         currency: plan.currency,
