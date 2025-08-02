@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   Building,
-  User
+  User,
+  FileCheck
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -34,6 +35,7 @@ export default function Sidebar() {
         { name: 'Users', href: '/dashboard/users', icon: Users },
         { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
         ...(user?.role === 'super_admin' ? [{ name: 'HOAs', href: '/dashboard/hoas', icon: Building }] : []),
+        ...(user?.role === 'admin' || user?.role === 'hoa_board' ? [{ name: 'Policies', href: '/dashboard/policies', icon: FileCheck }] : []),
         { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
         { name: 'Settings', href: '/dashboard/settings', icon: Settings },
       ];
@@ -50,7 +52,7 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile menu button */}
-      <div className="lg:hidden absolute top-4 left-4 z-40">
+      <div className="lg:hidden fixed top-4 left-4 z-40">
         <button
           type="button"
           className="text-gray-500 hover:text-gray-600 bg-white rounded-md p-2 shadow-sm"
@@ -134,7 +136,7 @@ export default function Sidebar() {
       )}
 
       {/* Sidebar for desktop */}
-      <div className="hidden lg:flex lg:flex-shrink-0">
+      <div className="hidden lg:flex lg:flex-shrink-0 lg:relative">
         <div className="flex w-64 flex-col">
           <div className="flex min-h-0 flex-1 flex-col border-r border-gray-200 bg-white">
             <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
