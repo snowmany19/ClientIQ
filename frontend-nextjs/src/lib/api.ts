@@ -27,12 +27,18 @@ class ApiClient {
     const url = `${this.baseURL}${endpoint}`;
     
     const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
       ...options,
     };
+
+    // Only set Content-Type if not FormData and not already set
+    if (!(options.body instanceof FormData) && !(options.headers as any)?.['Content-Type']) {
+      config.headers = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      };
+    } else {
+      config.headers = options.headers;
+    }
 
     // Add auth token if available
     const token = this.getToken();
@@ -629,6 +635,41 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(demoData),
     });
+  }
+
+  // Policy Management API methods
+  async uploadPolicy(formData: FormData): Promise<any> {
+    return this.request('/policies/upload', { 
+      method: 'POST', 
+      body: formData
+    });
+  }
+
+  async getPolicies(): Promise<any[]> {
+    return this.request('/policies');
+  }
+
+  async getPolicyDetails(policyId: string): Promise<any> {
+    return this.request(`/policies/${policyId}`);
+  }
+
+  async activatePolicy(policyId: string): Promise<any> {
+    return this.request(`/policies/${policyId}/activate`, { method: 'PUT' });
+  }
+
+  async deletePolicy(policyId: string): Promise<any> {
+    return this.request(`/policies/${policyId}`, { method: 'DELETE' });
+  }
+
+  async addPolicySection(policyId: string, sectionData: any): Promise<any> {
+    return this.request(`/policies/${policyId}/sections`, {
+      method: 'POST',
+      body: JSON.stringify(sectionData),
+    });
+  }
+
+  async getAITrainingStatus(): Promise<any> {
+    return this.request('/policies/ai/status');
   }
 
 }

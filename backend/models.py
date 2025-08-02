@@ -1,6 +1,6 @@
 # models.py — SQLAlchemy models for the CivicLogHOA - HOA Violation Management system
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float, Boolean, JSON, func
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -208,6 +208,41 @@ class Notification(Base):
     read_at = Column(DateTime, nullable=True)
 
     communication = relationship("Communication")
+
+class PolicyDocument(Base):
+    __tablename__ = "policy_documents"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    hoa_id = Column(Integer, ForeignKey("hoas.id"), nullable=False)
+    name = Column(String, nullable=False)
+    content = Column(Text)
+    version = Column(String, default="1.0")
+    effective_date = Column(DateTime, default=datetime.utcnow)
+    status = Column(String, default="draft")  # draft, active, archived
+    uploaded_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    hoa = relationship("HOA")
+    uploaded_by_user = relationship("User")
+    sections = relationship("PolicySection", back_populates="policy_document", cascade="all, delete-orphan")
+
+class PolicySection(Base):
+    __tablename__ = "policy_sections"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    policy_id = Column(Integer, ForeignKey("policy_documents.id"), nullable=False)
+    title = Column(String, nullable=False)
+    content = Column(Text)
+    category = Column(String)  # parking, noise, maintenance, appearance, safety, other
+    severity = Column(String, default="medium")  # low, medium, high
+    penalties = Column(JSON)  # Store penalties as JSON array
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    policy_document = relationship("PolicyDocument", back_populates="sections")
 
 
 
