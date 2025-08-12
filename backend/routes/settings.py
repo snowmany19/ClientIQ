@@ -10,10 +10,10 @@ import secrets
 import pyotp
 
 from database import get_db
-from models import User, UserSession, Violation
-from routes.auth import get_current_user
+from models import User, UserSession
+from utils.auth_utils import get_current_user
 
-router = APIRouter(prefix="/user-settings", tags=["user-settings"])
+router = APIRouter(tags=["user-settings"])
 
 @router.get("/user-settings")
 def get_user_settings(
@@ -21,22 +21,41 @@ def get_user_settings(
     db: Session = Depends(get_db)
 ):
     """Get user's current settings"""
-    return {
-        "notifications": {
-            "email": current_user.notification_email,
-            "push": current_user.notification_push,
-            "violations": current_user.notification_violations,
-            "reports": current_user.notification_reports,
-        },
-        "appearance": {
-            "theme": current_user.theme_preference,
-            "pwa_offline": current_user.pwa_offline_enabled,
-            "pwa_app_switcher": current_user.pwa_app_switcher_enabled,
-        },
-        "security": {
-            "two_factor_enabled": current_user.two_factor_enabled,
+    try:
+        return {
+            "notifications": {
+                "email": current_user.notification_email if current_user.notification_email is not None else True,
+                "push": current_user.notification_push if current_user.notification_push is not None else True,
+                "contracts": current_user.notification_contracts if current_user.notification_contracts is not None else True,
+                "reports": current_user.notification_reports if current_user.notification_reports is not None else True,
+            },
+            "appearance": {
+                "theme": current_user.theme_preference if current_user.theme_preference else "light",
+                "pwa_offline": current_user.pwa_offline_enabled if current_user.pwa_offline_enabled is not None else True,
+                "pwa_app_switcher": current_user.pwa_app_switcher_enabled if current_user.pwa_app_switcher_enabled is not None else True,
+            },
+            "security": {
+                "two_factor_enabled": current_user.two_factor_enabled if current_user.two_factor_enabled is not None else False,
+            }
         }
-    }
+    except Exception as e:
+        # Return default settings if there's an error
+        return {
+            "notifications": {
+                "email": True,
+                "push": True,
+                "contracts": True,
+                "reports": True,
+            },
+            "appearance": {
+                "theme": "light",
+                "pwa_offline": True,
+                "pwa_app_switcher": True,
+            },
+            "security": {
+                "two_factor_enabled": False,
+            }
+        }
 
 @router.put("/notifications")
 def update_notification_preferences(
@@ -48,7 +67,7 @@ def update_notification_preferences(
     # Update user notification settings
     current_user.notification_email = preferences.get("email", True)
     current_user.notification_push = preferences.get("push", True)
-    current_user.notification_violations = preferences.get("violations", True)
+    current_user.notification_contracts = preferences.get("contracts", True)
     current_user.notification_reports = preferences.get("reports", True)
     
     db.commit()
@@ -77,8 +96,9 @@ def export_user_data(
     """Export user data as JSON"""
     from fastapi.responses import Response
     
-    # Get user's violations
-    violations = db.query(Violation).filter(Violation.user_id == current_user.id).all()
+    # Get user's contracts instead of violations
+    from models import ContractRecord
+    contracts = db.query(ContractRecord).filter(ContractRecord.owner_user_id == current_user.id).all()
     
     # Create comprehensive user data export
     user_data = {
@@ -93,26 +113,24 @@ def export_user_data(
                 "theme_preference": current_user.theme_preference,
                 "notification_email": current_user.notification_email,
                 "notification_push": current_user.notification_push,
-                "notification_violations": current_user.notification_violations,
+                "notification_contracts": current_user.notification_contracts,
                 "notification_reports": current_user.notification_reports,
                 "pwa_offline_enabled": current_user.pwa_offline_enabled,
                 "pwa_app_switcher_enabled": current_user.pwa_app_switcher_enabled,
             }
         },
-        "violations": [
+        "contracts": [
             {
-                "id": v.id,
-                "violation_number": v.violation_number,
-                "description": v.description,
-                "status": v.status,
-                "timestamp": v.timestamp.isoformat() if v.timestamp else None,
-                "address": v.address,
-                "offender": v.offender,
+                "id": c.id,
+                "title": c.title,
+                "counterparty": c.counterparty,
+                "category": c.category,
+                "status": c.status,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "effective_date": c.effective_date.isoformat() if c.effective_date else None,
             }
-            for v in violations
-        ],
-        "exported_at": datetime.now(timezone.utc).isoformat(),
-        "version": "1.0"
+            for c in contracts
+        ]
     }
     
     # Convert to JSON
@@ -196,7 +214,7 @@ def enable_2fa(
     
     # Generate QR code
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data(f"otpauth://totp/CivicLogHOA:{current_user.username}?secret={secret}&issuer=CivicLogHOA")
+    qr.add_data(f"otpauth://totp/ContractGuard:{current_user.username}?secret={secret}&issuer=ContractGuard")
     qr.make(fit=True)
     
     img = qr.make_image(fill_color="black", back_color="white")

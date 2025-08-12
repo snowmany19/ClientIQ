@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 FROM python:3.11-slim
 
 # System dependencies for psycopg2 and Pillow
@@ -35,6 +34,9 @@ RUN useradd -m appuser
 
 # Create logs directory and set permissions
 RUN mkdir -p logs && chown appuser:appuser logs && chmod 755 logs
+
+# Change ownership of .env files to appuser
+RUN chown appuser:appuser .env* 2>/dev/null || true
 
 USER appuser
 

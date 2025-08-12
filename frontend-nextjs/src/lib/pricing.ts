@@ -3,41 +3,46 @@ import { PricingTier } from '@/types';
 export const PRICING_TIERS: PricingTier[] = [
   {
     name: "Starter",
-    price: 99,
-    hoaLimit: 1,
-    unitLimit: 25,
+    price: 199,
+    contractLimit: 25,
+    workspaceLimit: 1,
+    clientLimit: 5,
     userLimit: 2,
-    description: "For small HOAs with limited units"
+    description: "For small law firms and solo practitioners"
   },
   {
     name: "Business",
-    price: 299,
-    hoaLimit: 1,
-    unitLimit: 100,
+    price: 499,
+    contractLimit: 100,
+    workspaceLimit: 1,
+    clientLimit: 15,
     userLimit: 5,
-    description: "Perfect for midsize HOAs looking to scale"
+    description: "Perfect for growing law firms and legal departments"
   },
   {
     name: "Pro",
-    price: 499,
-    hoaLimit: 2,
-    unitLimit: 250,
+    price: 999,
+    contractLimit: 250,
+    workspaceLimit: 2,
+    clientLimit: 50,
     userLimit: 10,
-    description: "Great for self-managed large HOAs or small firms"
+    description: "Great for established law firms and corporate legal teams"
   },
   {
     name: "Enterprise",
-    price: 999,
-    hoaLimit: 5,
-    unitLimit: 500,
+    price: 1999,
+    contractLimit: 500,
+    workspaceLimit: 5,
+    clientLimit: 100,
     userLimit: 20,
-    description: "Supports multi-HOA management and larger teams"
+    description: "Supports large law firms and enterprise legal departments"
   },
   {
     name: "White Label",
     price: "Contact Us",
-    hoaLimit: "Unlimited",
-    unitLimit: "Unlimited",
+    contractLimit: "Unlimited",
+    workspaceLimit: "Unlimited",
+    clientLimit: "Unlimited",
     userLimit: "Unlimited",
     description: "Custom setup with white-label branding, API access, and more"
   }
@@ -45,18 +50,18 @@ export const PRICING_TIERS: PricingTier[] = [
 
 export const getPlanFeatures = (planName: string): string[] => {
   const baseFeatures = [
-    "Mobile violation capture",
-    "AI-powered analysis", 
-    "Professional reporting",
-    "Automated communication"
+    "Contract upload & analysis",
+    "AI-powered risk assessment", 
+    "Professional review reports",
+    "Collaborative review"
   ];
 
   switch (planName.toLowerCase()) {
     case "starter":
       return [
         ...baseFeatures,
-        "Basic violation tracking",
-        "Standard letter generation",
+        "Basic contract analysis",
+        "Standard risk assessment",
         "Email support",
         "Standard reports"
       ];
@@ -64,7 +69,7 @@ export const getPlanFeatures = (planName: string): string[] => {
       return [
         ...baseFeatures,
         "Advanced analytics & reporting",
-        "AI-powered letter generation",
+        "AI-powered risk assessment",
         "Priority support",
         "Custom integrations"
       ];
@@ -72,19 +77,19 @@ export const getPlanFeatures = (planName: string): string[] => {
       return [
         ...baseFeatures,
         "Advanced analytics & reporting",
-        "AI-powered letter generation",
+        "AI-powered risk assessment",
         "Priority support",
         "Custom integrations",
-        "Multi-HOA management"
+        "Multi-client management"
       ];
     case "enterprise":
       return [
         ...baseFeatures,
         "Advanced analytics & reporting",
-        "AI-powered letter generation",
+        "AI-powered risk assessment",
         "Priority support",
         "Custom integrations",
-        "Multi-HOA management",
+        "Multi-client management",
         "Dedicated account manager",
         "Advanced compliance tools"
       ];
@@ -92,10 +97,10 @@ export const getPlanFeatures = (planName: string): string[] => {
       return [
         ...baseFeatures,
         "Advanced analytics & reporting",
-        "AI-powered letter generation",
+        "AI-powered risk assessment",
         "Priority support",
         "Custom integrations",
-        "Multi-HOA management",
+        "Multi-client management",
         "Dedicated account manager",
         "Advanced compliance tools",
         "White-label branding",
@@ -112,51 +117,45 @@ export const getPlanLimits = (planName: string) => {
   switch (planName.toLowerCase()) {
     case "starter":
       return {
-        hoas: 1,
-        units: 25,
+        workspaces: 1,
+        contracts_per_month: 25,
         users: 2,
-        violations_per_month: 50,
-        storage_gb: 5
+        storage_gb: 10
       };
     case "business":
       return {
-        hoas: 1,
-        units: 100,
+        workspaces: 1,
+        contracts_per_month: 100,
         users: 5,
-        violations_per_month: 200,
-        storage_gb: 20
+        storage_gb: 25
       };
     case "pro":
       return {
-        hoas: 2,
-        units: 250,
+        workspaces: 2,
+        contracts_per_month: 250,
         users: 10,
-        violations_per_month: 500,
         storage_gb: 50
       };
     case "enterprise":
       return {
-        hoas: 5,
-        units: 500,
+        workspaces: 5,
+        contracts_per_month: 500,
         users: 20,
-        violations_per_month: 1000,
         storage_gb: 100
       };
     case "white label":
       return {
-        hoas: -1, // unlimited
-        units: -1, // unlimited
+        workspaces: -1, // unlimited
+        contracts_per_month: -1, // unlimited
         users: -1, // unlimited
-        violations_per_month: -1, // unlimited
         storage_gb: -1 // unlimited
       };
     default:
       return {
-        hoas: 1,
-        units: 25,
+        workspaces: 1,
+        contracts_per_month: 25,
         users: 2,
-        violations_per_month: 50,
-        storage_gb: 5
+        storage_gb: 10
       };
   }
 }; 

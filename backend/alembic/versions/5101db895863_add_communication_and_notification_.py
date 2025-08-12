@@ -1,7 +1,7 @@
 """add communication and notification models
 
 Revision ID: 5101db895863
-Revises: bde1bc73822b
+Revises: 001_initial_schema
 Create Date: 2025-07-11 09:14:59.557194
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '5101db895863'
-down_revision: Union[str, None] = 'bde1bc73822b'
+down_revision: Union[str, None] = '001_initial_schema'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

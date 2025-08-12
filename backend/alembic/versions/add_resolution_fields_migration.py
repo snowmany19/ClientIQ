@@ -1,6 +1,6 @@
 """add resolution tracking fields
 
-Revision ID: add_resolution_fields_001
+Revision ID: add_resolution_fields_002
 Revises: bde1bc73822b
 Create Date: 2025-07-11 18:00:00.000000
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'add_resolution_fields_002'
-down_revision: Union[str, None] = '5101db895863'
+down_revision: Union[str, None] = 'bde1bc73822b'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

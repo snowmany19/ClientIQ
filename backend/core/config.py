@@ -5,12 +5,14 @@ import os
 import secrets
 from functools import lru_cache
 from typing import List
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # Allow unknown env vars to avoid failing on extras and load from .env by default
+    model_config = SettingsConfigDict(env_file=".env", extra="allow")
     # Database
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./civicloghoa.db")
+    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./contractguard.db")
     
     # Security (backwards compatible)
     secret_key: str = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "your-secret-key-change-in-production"))
@@ -21,6 +23,26 @@ class Settings(BaseSettings):
     password_require_lowercase: bool = os.getenv("PASSWORD_REQUIRE_LOWERCASE", "true").lower() == "true"
     password_require_digits: bool = os.getenv("PASSWORD_REQUIRE_DIGITS", "true").lower() == "true"
     password_require_special: bool = os.getenv("PASSWORD_REQUIRE_SPECIAL", "true").lower() == "true"
+    
+    # Validate critical security settings
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._validate_security_settings()
+    
+    def _validate_security_settings(self):
+        """Validate critical security settings."""
+        if self.environment == "production":
+            if self.secret_key in ["your-secret-key-change-in-production", "your-secret-key"]:
+                raise ValueError("SECRET_KEY must be set to a secure value in production")
+            
+            if self.jwt_secret_key in ["your-secret-key"]:
+                raise ValueError("JWT_SECRET_KEY must be set to a secure value in production")
+            
+            if not self.stripe_secret_key:
+                raise ValueError("STRIPE_SECRET_KEY must be set in production")
+            
+            if not self.smtp_password:
+                raise ValueError("SMTP_PASSWORD must be set in production")
     
     # OpenAI
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
@@ -42,13 +64,14 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: List[str] = [
         "http://localhost:8501",  # Streamlit default
-        "http://localhost:3000",  # React default
+        "http://localhost:3001",  # React default
+        "http://localhost:3001",  # Next.js frontend
         "http://localhost:8000",  # FastAPI default
     ]
     
     # Logging
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
-    log_file: str = os.getenv("LOG_FILE", "logs/civicloghoa.log")
+    log_file: str = os.getenv("LOG_FILE", "logs/contractguard.log")
     
     # Rate limiting
     rate_limit_requests: int = int(os.getenv("RATE_LIMIT_REQUESTS", "100"))
@@ -60,8 +83,7 @@ class Settings(BaseSettings):
     jwt_expiration_minutes: int = int(os.getenv("JWT_EXPIRATION_MINUTES", "60"))
     frontend_url: str = os.getenv("FRONTEND_URL", "http://localhost:8501")
     
-    class Config:
-        env_file = ".env"
+    # Pydantic v2 uses model_config above; keeping compatibility field names intact
 
 
 @lru_cache()

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# CivicLogHOA Production Deployment with Optimizations
+# ContractGuard Production Deployment with Optimizations
 # This script deploys the application with all performance optimizations
 
 set -e  # Exit on any error
 
-echo "🚀 Deploying CivicLogHOA with Performance Optimizations..."
+echo "🚀 Deploying ContractGuard with Performance Optimizations..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -59,7 +59,7 @@ sleep 30
 print_status "Step 5: Checking service health..."
 
 # Check database
-if docker-compose exec -T db pg_isready -U civicloghoa_user -d civicloghoa_db > /dev/null 2>&1; then
+if docker-compose exec -T db pg_isready -U contractguard_user -d contractguard_db > /dev/null 2>&1; then
     print_success "Database is healthy"
 else
     print_error "Database is not healthy"
@@ -150,4 +150,4 @@ echo "3. Configure production environment variables"
 echo "4. Set up automated backups"
 echo "5. Configure SSL certificates for production"
 
-print_success "🚀 Your optimized CivicLogHOA application is ready for production!" 
+print_success "🚀 Your optimized ContractGuard application is ready for production!" 

@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import MetricsCard from '@/components/dashboard/MetricsCard';
-import ViolationsChart from '@/components/dashboard/ViolationsChart';
+import ContractTrendsChart from '@/components/dashboard/ContractTrendsChart';
+import ContractCategoriesChart from '@/components/dashboard/ContractCategoriesChart';
+
 import { DashboardMetrics } from '@/types';
 import { 
   TrendingUp, 
@@ -52,7 +54,7 @@ export default function AnalyticsPage() {
   }
 
   // Transform data for charts
-  const monthlyTrendsData = metrics?.monthly_trends
+  const monthlyTrendsData = metrics?.monthly_contract_trends
     ?.map(trend => ({
       date: new Date(trend.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
       count: trend.count,
@@ -60,11 +62,6 @@ export default function AnalyticsPage() {
     }))
     ?.sort((a, b) => a.originalDate.getTime() - b.originalDate.getTime())
     ?.map(({ date, count }) => ({ date, count })) || [];
-
-  const violationTypesData = metrics?.top_violation_types?.map(type => ({
-    date: type.type,
-    count: type.count
-  })) || [];
 
   return (
     <>
@@ -93,26 +90,26 @@ export default function AnalyticsPage() {
           {metrics && (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
               <MetricsCard
-                title="Total Violations"
-                value={metrics.total_violations}
+                title="Total Contracts"
+                value={metrics.total_contracts || 0}
                 icon={BarChart3}
                 color="blue"
               />
               <MetricsCard
-                title="Open Violations"
-                value={metrics.open_violations}
+                title="Pending Analysis"
+                value={metrics.pending_contracts || 0}
                 icon={AlertCircle}
                 color="yellow"
               />
               <MetricsCard
-                title="Resolved"
-                value={metrics.resolved_violations}
+                title="Analyzed"
+                value={metrics.analyzed_contracts || 0}
                 icon={CheckCircle}
                 color="green"
               />
               <MetricsCard
-                title="Resolution Rate"
-                value={`${metrics.resolution_rate}%`}
+                title="High Risk Rate"
+                value={`${metrics.total_contracts ? Math.round((metrics.high_risk_contracts || 0) / metrics.total_contracts * 100) : 0}%`}
                 icon={TrendingUp}
                 color="purple"
               />
@@ -121,17 +118,13 @@ export default function AnalyticsPage() {
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <ViolationsChart
+            <ContractTrendsChart
               data={monthlyTrendsData}
-              type="line"
-              title="Monthly Violation Trends"
-              height={300}
+              title="Monthly Contract Trends"
             />
-            <ViolationsChart
-              data={violationTypesData}
-              type="bar"
-              title="Violation Types"
-              height={300}
+            <ContractCategoriesChart
+              data={metrics?.top_contract_categories || []}
+              title="Top Contract Categories"
             />
           </div>
 
@@ -146,10 +139,10 @@ export default function AnalyticsPage() {
                   <div className="ml-5 w-0 flex-1">
                     <dl>
                       <dt className="text-sm font-medium text-gray-500 truncate">
-                        Repeat Offenders
+                        Average Analysis Time
                       </dt>
                       <dd className="text-lg font-medium text-gray-900">
-                        {metrics?.repeat_offenders || 0}
+                        {metrics?.average_analysis_time || 0} min
                       </dd>
                     </dl>
                   </div>
@@ -166,10 +159,10 @@ export default function AnalyticsPage() {
                   <div className="ml-5 w-0 flex-1">
                     <dl>
                       <dt className="text-sm font-medium text-gray-500 truncate">
-                        Average Resolution Time
+                        Top Category
                       </dt>
                       <dd className="text-lg font-medium text-gray-900">
-                        {metrics?.average_resolution_time || 0} days
+                        {metrics?.top_contract_categories?.[0]?.category || 'N/A'}
                       </dd>
                     </dl>
                   </div>
@@ -186,10 +179,10 @@ export default function AnalyticsPage() {
                   <div className="ml-5 w-0 flex-1">
                     <dl>
                       <dt className="text-sm font-medium text-gray-500 truncate">
-                        Disputed Violations
+                        Storage Used
                       </dt>
                       <dd className="text-lg font-medium text-gray-900">
-                        {metrics?.disputed_violations || 0}
+                        {metrics?.total_contracts ? Math.round((metrics.total_contracts * 2.5)) : 0} MB
                       </dd>
                     </dl>
                   </div>
@@ -213,9 +206,9 @@ export default function AnalyticsPage() {
                       Performance Summary
                     </h4>
                     <ul className="text-sm text-gray-600 space-y-1">
-                      <li>• Resolution rate: {metrics.resolution_rate}%</li>
-                      <li>• Average resolution time: {metrics.average_resolution_time} days</li>
-                      <li>• Repeat offenders: {metrics.repeat_offenders}</li>
+                      <li>• Analysis completion rate: {metrics.analyzed_contracts && metrics.total_contracts ? Math.round((metrics.analyzed_contracts / metrics.total_contracts) * 100) : 0}%</li>
+                      <li>• Average analysis time: {metrics.average_analysis_time || 0} minutes</li>
+                      <li>• High risk contracts: {metrics.high_risk_contracts || 0}</li>
                     </ul>
                   </div>
                   <div>
@@ -223,9 +216,9 @@ export default function AnalyticsPage() {
                       Recommendations
                     </h4>
                     <ul className="text-sm text-gray-600 space-y-1">
-                      <li>• Focus on reducing resolution time</li>
-                      <li>• Address repeat offender patterns</li>
-                      <li>• Improve communication with residents</li>
+                      <li>• Focus on reducing analysis time</li>
+                      <li>• Address high-risk contract patterns</li>
+                      <li>• Improve contract review workflow</li>
                     </ul>
                   </div>
                 </div>

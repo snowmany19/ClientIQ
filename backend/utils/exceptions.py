@@ -1,5 +1,5 @@
 # utils/exceptions.py
-# Custom exception handling for the CivicLogHOA application
+# Custom exception handling for the ContractGuard.ai application
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -10,39 +10,39 @@ from utils.logger import get_logger
 
 logger = get_logger("exceptions")
 
-class CivicLogHOAException(Exception):
-    """Base exception for CivicLogHOA application."""
+class ContractGuardAIException(Exception):
+    """Base exception for ContractGuard.ai application."""
     def __init__(self, message: str, status_code: int = 500):
         self.message = message
         self.status_code = status_code
         super().__init__(self.message)
 
-class ValidationException(CivicLogHOAException):
+class ValidationException(ContractGuardAIException):
     """Raised when input validation fails."""
     def __init__(self, message: str):
         super().__init__(message, status_code=400)
 
-class AuthenticationException(CivicLogHOAException):
+class AuthenticationException(ContractGuardAIException):
     """Raised when authentication fails."""
     def __init__(self, message: str = "Authentication failed"):
         super().__init__(message, status_code=401)
 
-class AuthorizationException(CivicLogHOAException):
+class AuthorizationException(ContractGuardAIException):
     """Raised when authorization fails."""
     def __init__(self, message: str = "Access denied"):
         super().__init__(message, status_code=403)
 
-class ResourceNotFoundException(CivicLogHOAException):
+class ResourceNotFoundException(ContractGuardAIException):
     """Raised when a requested resource is not found."""
     def __init__(self, message: str = "Resource not found"):
         super().__init__(message, status_code=404)
 
-class SubscriptionRequiredException(CivicLogHOAException):
+class SubscriptionRequiredException(ContractGuardAIException):
     """Raised when an active subscription is required."""
     def __init__(self, message: str = "Active subscription required"):
         super().__init__(message, status_code=402)
 
-class FileOperationException(CivicLogHOAException):
+class FileOperationException(ContractGuardAIException):
     """Raised when file operations fail."""
     def __init__(self, message: str = "File operation failed"):
         super().__init__(message, status_code=500)
@@ -51,7 +51,7 @@ async def custom_exception_handler(request: Request, exc: Exception) -> JSONResp
     """Global exception handler for the FastAPI application."""
     
     # Handle our custom exceptions
-    if isinstance(exc, CivicLogHOAException):
+    if isinstance(exc, ContractGuardAIException):
         logger.warning(f"Custom exception: {exc.message}")
         return JSONResponse(
             status_code=exc.status_code,
@@ -100,9 +100,8 @@ async def custom_exception_handler(request: Request, exc: Exception) -> JSONResp
             }
         )
     
-    # Handle all other unexpected exceptions
-    logger.error(f"Unexpected error: {str(exc)}")
-    
+    # Handle generic exceptions
+    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
     return JSONResponse(
         status_code=500,
         content={
@@ -116,13 +115,10 @@ def handle_database_operation(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except IntegrityError as e:
-            logger.error(f"Database integrity error in {func.__name__}: {str(e)}")
-            raise ResourceNotFoundException("Resource already exists or constraint violated")
         except SQLAlchemyError as e:
-            logger.error(f"Database error in {func.__name__}: {str(e)}")
-            raise CivicLogHOAException("Database operation failed")
+            logger.error(f"Database operation failed in {func.__name__}: {str(e)}")
+            raise ContractGuardAIException(f"Database operation failed: {str(e)}")
         except Exception as e:
             logger.error(f"Unexpected error in {func.__name__}: {str(e)}")
-            raise CivicLogHOAException("Operation failed")
+            raise ContractGuardAIException(f"Operation failed: {str(e)}")
     return wrapper 

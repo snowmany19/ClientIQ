@@ -111,7 +111,7 @@ export default function RegisterForm() {
             Create your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Start your free trial and transform your HOA management
+            Start your free trial and transform your contract management
           </p>
         </div>
         
@@ -181,14 +181,14 @@ export default function RegisterForm() {
             </div>
             <div>
               <label htmlFor="companyName" className="sr-only">
-                Company/HOA Name
+                Company Name
               </label>
               <input
                 id="companyName"
                 name="companyName"
                 type="text"
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Company/HOA Name (optional)"
+                                  placeholder="Company Name (optional)"
                 value={formData.companyName}
                 onChange={handleChange}
               />

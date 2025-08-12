@@ -10,15 +10,15 @@ export default function Footer() {
         <div className="xl:grid xl:grid-cols-3 xl:gap-8">
           <div className="space-y-8 xl:col-span-1">
             <div className="flex items-center">
-              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <span className="ml-2 text-xl font-bold text-white">CivicLogHOA</span>
+              <img 
+                src="/ai_logo.png" 
+                alt="AI Logo" 
+                className="h-8 w-8 object-contain"
+              />
+                              <span className="ml-2 text-xl font-bold text-white">ContractGuard.ai</span>
             </div>
             <p className="text-gray-300 text-base">
-              Professional HOA violation management platform. Streamline your community compliance with AI-powered insights.
+              Professional AI-powered contract review platform. Streamline your legal review process with AI-powered insights.
             </p>
             <div className="flex space-x-6">
               <a href="#" className="text-gray-400 hover:text-gray-300">
@@ -144,7 +144,7 @@ export default function Footer() {
         </div>
         <div className="mt-12 border-t border-gray-700 pt-8">
           <p className="text-base text-gray-400 xl:text-center">
-            &copy; 2025 CivicLogHOA. All rights reserved.
+            &copy; 2025 ContractGuard.ai. All rights reserved.
           </p>
         </div>
       </div>

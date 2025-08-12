@@ -1,233 +1,317 @@
 # backend/utils/ai_policy_analyzer.py
+# AI-powered contract analysis for ContractGuard.ai
 
-import openai
-import PyPDF2
-import io
+import os
 import json
-from typing import Dict, List, Any, Optional
-from core.config import get_settings
+import logging
+from typing import Dict, Any, List, Optional
+from openai import OpenAI
+from utils.logger import get_logger
 
-settings = get_settings()
-openai.api_key = settings.openai_api_key
+logger = get_logger("ai_policy_analyzer")
 
-async def analyze_policy_document(pdf_content: bytes) -> Dict[str, Any]:
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+async def analyze_contract_policy(contract_content: str, contract_type: str = "general") -> Dict[str, Any]:
     """
-    Analyze a policy document and extract structured information.
+    Analyze contract content using AI to extract key information.
     
     Args:
-        pdf_content: Raw PDF content as bytes
+        contract_content: The contract text content
+        contract_type: Type of contract (NDA, MSA, SOW, Employment, Vendor, Lease, Other)
         
     Returns:
-        Dictionary containing extracted policy information
+        Structured analysis of the contract
     """
     try:
-        # Extract text from PDF
-        pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_content))
-        full_text = ""
-        for page in pdf_reader.pages:
-            full_text += page.extract_text() + "\n"
-        
-        # Use OpenAI to analyze the policy document
+        # Create analysis prompt based on contract type
         prompt = f"""
-        Analyze this HOA policy document and extract the following information:
+        Analyze this {contract_type} contract document and extract the following information:
         
-        DOCUMENT TEXT:
-        {full_text[:4000]}  # Limit to first 4000 chars for API efficiency
+        CONTRACT CONTENT:
+        {contract_content[:4000]}
         
-        Please provide a JSON response with the following structure:
-        {{
-            "policy_name": "Name of the policy document",
-            "effective_date": "When this policy takes effect",
-            "categories": [
-                {{
-                    "name": "Category name (e.g., Parking, Landscaping, Noise)",
-                    "rules": [
-                        {{
-                            "rule": "Specific rule description",
-                            "severity": "low/medium/high",
-                            "penalties": ["First warning", "Second warning", "Fine amount"]
-                        }}
-                    ]
-                }}
-            ],
-            "violation_types": [
-                "List of specific violation types found in the policy"
-            ],
-            "tags": [
-                "List of relevant tags for categorizing violations"
-            ],
-            "summary": "Brief summary of the policy's main focus areas"
-        }}
+        Please provide a structured analysis including:
+        1. Key Terms and Conditions
+        2. Obligations and Responsibilities
+        3. Payment Terms and Schedules
+        4. Termination Clauses
+        5. Liability and Indemnification
+        6. Governing Law and Jurisdiction
+        7. Risk Assessment (High/Medium/Low)
+        8. Compliance Requirements
+        9. Critical Dates and Deadlines
+        10. Recommendations for Review
         
-        Focus on extracting specific rules, violation types, and enforcement procedures.
+        Format the response as JSON with clear sections.
         """
         
-        response = openai.ChatCompletion.create(
+        # Get AI analysis
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are an expert at analyzing HOA policy documents and extracting structured information."},
+                {"role": "system", "content": "You are an expert at analyzing contract documents and extracting structured information."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.3
+            temperature=0.1,
+            max_tokens=2000
         )
         
-        # Parse the JSON response
-        analysis_result = json.loads(response.choices[0].message.content)
+        # Parse response
+        analysis_text = response.choices[0].message.content
         
-        return {
-            "full_text": full_text,
-            "ai_analysis": analysis_result,
-            "extracted_categories": analysis_result.get("categories", []),
-            "violation_types": analysis_result.get("violation_types", []),
-            "tags": analysis_result.get("tags", []),
-            "summary": analysis_result.get("summary", "")
-        }
+        # Try to extract JSON if present
+        try:
+            # Look for JSON in the response
+            start_idx = analysis_text.find('{')
+            end_idx = analysis_text.rfind('}') + 1
+            if start_idx != -1 and end_idx != 0:
+                json_str = analysis_text[start_idx:end_idx]
+                analysis_data = json.loads(json_str)
+            else:
+                # If no JSON found, create structured response
+                analysis_data = {
+                    "analysis": analysis_text,
+                    "contract_type": contract_type,
+                    "extracted_terms": [],
+                    "risk_level": "medium",
+                    "compliance_status": "pending_review"
+                }
+        except json.JSONDecodeError:
+            # Fallback to structured text response
+            analysis_data = {
+                "analysis": analysis_text,
+                "contract_type": contract_type,
+                "extracted_terms": [],
+                "risk_level": "medium",
+                "compliance_status": "pending_review"
+            }
+        
+        logger.info(f"Contract analysis completed for {contract_type} contract")
+        return analysis_data
         
     except Exception as e:
-        raise Exception(f"Error analyzing policy document: {str(e)}")
+        logger.error(f"Contract analysis failed: {e}")
+        return {
+            "error": str(e),
+            "contract_type": contract_type,
+            "analysis": "Analysis failed due to technical error"
+        }
 
-async def extract_policy_sections(analysis_result: Dict[str, Any]) -> List[Dict[str, Any]]:
+async def generate_contract_specific_prompt(workspace_id: int, contract_content: str) -> str:
     """
-    Extract structured policy sections from the AI analysis.
+    Generate a workspace-specific prompt for contract analysis.
     
     Args:
-        analysis_result: Result from analyze_policy_document
+        workspace_id: The workspace ID
+        contract_content: The contract content to base the prompt on
         
     Returns:
-        List of policy sections
-    """
-    sections = []
-    
-    for category in analysis_result.get("categories", []):
-        for rule in category.get("rules", []):
-            section = {
-                "title": f"{category['name']} - {rule['rule'][:50]}...",
-                "content": rule["rule"],
-                "category": category["name"].lower(),
-                "severity": rule.get("severity", "medium"),
-                "penalties": rule.get("penalties", [])
-            }
-            sections.append(section)
-    
-    return sections
-
-async def generate_hoa_specific_prompt(hoa_id: int, policy_content: str) -> str:
-    """
-    Generate a HOA-specific prompt for violation analysis.
-    
-    Args:
-        hoa_id: The HOA ID
-        policy_content: The policy content to base the prompt on
-        
-    Returns:
-        Customized prompt for this HOA
+        Customized prompt for this workspace
     """
     prompt = f"""
-    You are an AI assistant for HOA {hoa_id} violation management.
+    You are an AI assistant for workspace {workspace_id} contract management.
     
-    HOA POLICY CONTEXT:
-    {policy_content[:2000]}
+    CONTRACT CONTEXT:
+    {contract_content[:2000]}
     
-    When analyzing violations for this HOA, please:
-    1. Reference the specific rules and regulations from their policy
-    2. Use the violation types and categories defined in their policy
-    3. Apply the severity levels and penalties as specified
-    4. Maintain consistency with their enforcement procedures
-    5. Use language and terminology that matches their policy
+    When analyzing contracts for this workspace, please:
+    1. Reference the specific industry standards and regulations
+    2. Use the contract types and categories defined in their system
+    3. Apply the risk levels and assessment criteria as specified
+    4. Maintain consistency with their review procedures
+    5. Use language and terminology that matches their business context
     
-    Always prioritize the HOA's specific rules over general guidelines.
+    Always prioritize the workspace's specific requirements over general guidelines.
     """
     
     return prompt
 
-async def generate_policy_aware_violation_analysis(
-    violation_data: Dict[str, Any], 
-    hoa_policies: List[Dict[str, Any]]
-) -> Dict[str, Any]:
+async def analyze_contracts_batch(contracts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
-    Generate violation analysis using HOA-specific policies.
+    Analyze multiple contracts in batch for efficiency.
     
     Args:
-        violation_data: The violation information
-        hoa_policies: List of HOA policy documents
+        contracts: List of contract data dictionaries
         
     Returns:
-        Policy-aware violation analysis
+        List of analysis results
     """
-    # Combine all policy content
-    policy_content = "\n\n".join([p.get("content", "") for p in hoa_policies])
-    
-    prompt = f"""
-    Analyze this violation using the HOA's specific policies:
-    
-    HOA POLICIES:
-    {policy_content[:3000]}
-    
-    VIOLATION DETAILS:
-    Description: {violation_data.get('description', '')}
-    Address: {violation_data.get('address', '')}
-    Severity: {violation_data.get('severity', 'medium')}
-    
-    Please provide:
-    1. Policy violation assessment
-    2. Applicable rules from their policy
-    3. Recommended enforcement action
-    4. Suggested letter content
-    5. Appropriate tags and categories
-    
-    Format as JSON:
-    {{
-        "violation_assessment": "Assessment of the violation",
-        "applicable_rules": ["List of applicable rules"],
-        "enforcement_action": "Recommended action",
-        "letter_content": "Draft letter content",
-        "tags": ["relevant", "tags"],
-        "category": "violation category"
-    }}
-    """
-    
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You are an expert HOA violation analyst."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.3
-    )
-    
-    return json.loads(response.choices[0].message.content)
+    try:
+        results = []
+        
+        for contract in contracts:
+            # Analyze each contract
+            analysis = await analyze_contract_policy(
+                contract.get("content", ""),
+                contract.get("type", "general")
+            )
+            
+            # Add contract metadata
+            analysis["contract_id"] = contract.get("id")
+            analysis["contract_title"] = contract.get("title")
+            analysis["analysis_timestamp"] = contract.get("timestamp")
+            
+            results.append(analysis)
+        
+        logger.info(f"Batch analysis completed for {len(contracts)} contracts")
+        return results
+        
+    except Exception as e:
+        logger.error(f"Batch contract analysis failed: {e}")
+        return []
 
-async def train_ai_on_policy_corrections(
-    hoa_id: int, 
-    violation_id: int, 
-    original_analysis: Dict[str, Any],
-    user_corrections: Dict[str, Any]
-) -> Dict[str, Any]:
+async def generate_contract_summary(contract_content: str, max_length: int = 500) -> str:
     """
-    Train the AI system on user corrections for future improvements.
+    Generate a concise summary of contract content.
     
     Args:
-        hoa_id: The HOA ID
-        violation_id: The violation ID
-        original_analysis: Original AI analysis
-        user_corrections: User's corrections
+        contract_content: The contract text content
+        max_length: Maximum length of summary
         
     Returns:
-        Training feedback for future improvements
+        Concise contract summary
     """
-    # This would integrate with a vector database for storing corrections
-    # For now, we'll return a simple feedback structure
+    try:
+        prompt = f"""
+        Please provide a concise summary of the following contract document in {max_length} characters or less:
+        
+        {contract_content[:3000]}
+        
+        Focus on:
+        - Main purpose and scope
+        - Key parties involved
+        - Primary obligations
+        - Critical terms
+        - Risk factors
+        
+        Provide a clear, business-friendly summary.
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are an expert at summarizing legal documents in clear, concise language."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,
+            max_tokens=300
+        )
+        
+        summary = response.choices[0].message.content.strip()
+        
+        # Ensure summary meets length requirement
+        if len(summary) > max_length:
+            summary = summary[:max_length-3] + "..."
+        
+        logger.info("Contract summary generated successfully")
+        return summary
+        
+    except Exception as e:
+        logger.error(f"Contract summary generation failed: {e}")
+        return "Summary generation failed due to technical error."
+
+async def extract_contract_risks(contract_content: str) -> List[Dict[str, Any]]:
+    """
+    Extract and categorize risks from contract content.
     
-    feedback = {
-        "hoa_id": hoa_id,
-        "violation_id": violation_id,
-        "original_analysis": original_analysis,
-        "user_corrections": user_corrections,
-        "learning_points": [
-            "Key learning points from the correction",
-            "Patterns to apply in future analyses"
-        ],
-        "timestamp": "2024-01-01T00:00:00Z"
-    }
+    Args:
+        contract_content: The contract text content
+        
+    Returns:
+        List of identified risks with details
+    """
+    try:
+        prompt = """
+        Analyze the following contract and identify potential risks:
+        
+        {contract_content}
+        
+        For each risk, provide:
+        1. Risk Category (Legal, Financial, Operational, Compliance, etc.)
+        2. Risk Level (High/Medium/Low)
+        3. Risk Description
+        4. Potential Impact
+        5. Mitigation Suggestions
+        
+        Format as a structured list of risks.
+        """
+        
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are an expert at identifying and analyzing contract risks."},
+                {"role": "user", "content": prompt.format(contract_content=contract_content[:3000])}
+            ],
+            temperature=0.1,
+            max_tokens=1500
+        )
+        
+        risks_text = response.choices[0].message.content
+        
+        # Parse risks into structured format
+        risks = []
+        current_risk = {}
+        
+        for line in risks_text.split('\n'):
+            line = line.strip()
+            if line.startswith('Risk'):
+                if current_risk:
+                    risks.append(current_risk)
+                current_risk = {}
+            elif ':' in line:
+                key, value = line.split(':', 1)
+                current_risk[key.strip().lower().replace(' ', '_')] = value.strip()
+        
+        if current_risk:
+            risks.append(current_risk)
+        
+        logger.info(f"Extracted {len(risks)} risks from contract")
+        return risks
+        
+    except Exception as e:
+        logger.error(f"Risk extraction failed: {e}")
+        return []
+
+async def generate_contract_recommendations(contract_analysis: Dict[str, Any]) -> List[str]:
+    """
+    Generate actionable recommendations based on contract analysis.
     
-    return feedback 
+    Args:
+        contract_analysis: The contract analysis results
+        
+    Returns:
+        List of actionable recommendations
+    """
+    try:
+        # Create recommendations based on analysis
+        recommendations = []
+        
+        # Check for high-risk items
+        if contract_analysis.get("risk_level") == "high":
+            recommendations.append("Immediate legal review required due to high-risk factors")
+            recommendations.append("Consider negotiating key terms before proceeding")
+        
+        # Check for missing critical elements
+        if not contract_analysis.get("termination_clauses"):
+            recommendations.append("Add clear termination clauses and notice periods")
+        
+        if not contract_analysis.get("liability_limits"):
+            recommendations.append("Define liability limits and indemnification terms")
+        
+        # Check for compliance issues
+        if contract_analysis.get("compliance_status") == "issues_found":
+            recommendations.append("Address compliance issues before contract execution")
+        
+        # Add general recommendations
+        recommendations.append("Ensure all parties have reviewed and approved the contract")
+        recommendations.append("Set up monitoring for key dates and obligations")
+        recommendations.append("Establish regular contract review schedule")
+        
+        logger.info(f"Generated {len(recommendations)} contract recommendations")
+        return recommendations
+        
+    except Exception as e:
+        logger.error(f"Recommendation generation failed: {e}")
+        return ["Review contract with legal counsel", "Ensure compliance with company policies"] 

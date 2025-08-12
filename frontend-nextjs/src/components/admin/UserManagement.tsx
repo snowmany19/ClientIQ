@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Mail, Download } from 'lucide-react';
-import ResidentInviteForm from '@/components/forms/ResidentInviteForm';
+import UserInviteForm from '@/components/forms/UserInviteForm';
 import UserCreationForm from '@/components/forms/UserCreationForm';
 import { apiClient } from '@/lib/api';
 
@@ -92,9 +92,9 @@ export default function UserManagement() {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin': return 'bg-red-100 text-red-800';
-      case 'hoa_board': return 'bg-blue-100 text-blue-800';
-      case 'inspector': return 'bg-green-100 text-green-800';
-      case 'resident': return 'bg-gray-100 text-gray-800';
+      case 'analyst': return 'bg-blue-100 text-blue-800';
+      case 'viewer': return 'bg-green-100 text-green-800';
+      case 'super_admin': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -120,7 +120,7 @@ export default function UserManagement() {
 
   if (showInviteForm) {
     return (
-      <ResidentInviteForm
+      <UserInviteForm
         onInvite={handleInviteResidents}
         onCancel={() => setShowInviteForm(false)}
       />
@@ -130,7 +130,17 @@ export default function UserManagement() {
   if (showUserForm) {
     return (
       <UserCreationForm
-        onUserCreated={handleUserCreated}
+        onSubmit={async (userData) => {
+          try {
+            // Create the user using the API
+            await apiClient.createUser(userData);
+            // Close the form and refresh users
+            handleUserCreated();
+          } catch (error) {
+            console.error('Failed to create user:', error);
+            // You might want to show an error message here
+          }
+        }}
         onCancel={() => setShowUserForm(false)}
       />
     );
@@ -141,7 +151,7 @@ export default function UserManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600">Manage HOA staff and resident accounts</p>
+          <p className="text-gray-600">Manage staff and user accounts</p>
           <p className="text-sm text-blue-600">Debug: {users.length} users loaded</p>
         </div>
         <div className="flex space-x-3">
@@ -151,7 +161,7 @@ export default function UserManagement() {
           </Button>
           <Button onClick={() => setShowInviteForm(true)}>
             <Mail className="h-4 w-4 mr-2" />
-            Invite Residents
+            Invite Users
           </Button>
           <Button onClick={() => setShowUserForm(true)}>
             <Plus className="h-4 w-4 mr-2" />

@@ -18,12 +18,12 @@ export default function LandingPage() {
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <div className="flex items-center">
-                  <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <span className="ml-2 text-xl font-bold text-gray-900">CivicLogHOA</span>
+                  <img 
+                    src="/ai_logo.png" 
+                    alt="AI Logo" 
+                    className="h-8 w-8 object-contain"
+                  />
+                  <span className="ml-2 text-xl font-bold text-gray-900">ContractGuard.ai</span>
                 </div>
               </div>
             </div>
@@ -36,7 +36,7 @@ export default function LandingPage() {
               </a>
               <a
                 href="#pricing"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium"
               >
                 Get Started
               </a>

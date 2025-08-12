@@ -81,97 +81,61 @@ def invalidate_user_cache(user_id: int):
     except Exception as e:
         logger.warning(f"Failed to invalidate user cache: {e}")
 
-def cache_hoa_data(hoa_id: int, data: dict, expire_time: int = 1800):
-    """Cache HOA-specific data."""
-    cache_key = f"hoa:{hoa_id}:data"
+def cache_workspace_data(workspace_id: int, data: dict, expire_time: int = 1800):
+    """Cache workspace-specific data."""
+    cache_key = f"workspace:{workspace_id}:data"
     try:
         redis_client.setex(cache_key, expire_time, json.dumps(data))
-        logger.debug(f"Cached HOA data for HOA {hoa_id}")
+        logger.debug(f"Cached workspace data for workspace {workspace_id}")
     except Exception as e:
-        logger.warning(f"Failed to cache HOA data: {e}")
+        logger.warning(f"Failed to cache workspace data: {e}")
 
-def get_cached_hoa_data(hoa_id: int) -> Optional[dict]:
-    """Get cached HOA data."""
-    cache_key = f"hoa:{hoa_id}:data"
+def get_cached_workspace_data(workspace_id: int) -> Optional[dict]:
+    """Get cached workspace data."""
+    cache_key = f"workspace:{workspace_id}:data"
     try:
         cached = redis_client.get(cache_key)
         if cached:
-            logger.debug(f"Retrieved cached HOA data for HOA {hoa_id}")
+            logger.debug(f"Retrieved cached workspace data for workspace {workspace_id}")
             return json.loads(cached)
         return None
     except Exception as e:
-        logger.warning(f"Failed to get cached HOA data: {e}")
+        logger.warning(f"Failed to get cached workspace data: {e}")
         return None
 
-def invalidate_hoa_cache(hoa_id: int):
-    """Invalidate all cache entries related to a HOA."""
+def invalidate_workspace_cache(workspace_id: int):
+    """Invalidate all cache entries related to a workspace."""
     try:
-        pattern = f"*hoa:{hoa_id}*"
+        pattern = f"*workspace:{workspace_id}*"
         keys = redis_client.keys(pattern)
         if keys:
             redis_client.delete(*keys)
-            logger.info(f"Invalidated {len(keys)} cache entries for HOA {hoa_id}")
+            logger.info(f"Invalidated {len(keys)} cache entries for workspace {workspace_id}")
     except Exception as e:
-        logger.warning(f"Failed to invalidate HOA cache: {e}")
+        logger.warning(f"Failed to invalidate workspace cache: {e}")
 
-def cache_violations_dashboard(user_id: int, hoa_id: Optional[int] = None, data: dict = None, expire_time: int = 300):
-    """Cache dashboard violations data."""
-    cache_key = f"dashboard:user:{user_id}:hoa:{hoa_id or 'all'}"
-    try:
-        if data is not None:
-            redis_client.setex(cache_key, expire_time, json.dumps(data))
-            logger.debug(f"Cached dashboard data for user {user_id}")
-        else:
-            cached = redis_client.get(cache_key)
-            if cached:
-                logger.debug(f"Retrieved cached dashboard data for user {user_id}")
-                return json.loads(cached)
-        return None
-    except Exception as e:
-        logger.warning(f"Dashboard cache operation failed: {e}")
-        return None
 
-def cache_analytics_data(hoa_id: int, data: dict, expire_time: int = 1800):
-    """Cache analytics data."""
-    cache_key = f"analytics:hoa:{hoa_id}"
-    try:
-        redis_client.setex(cache_key, expire_time, json.dumps(data))
-        logger.debug(f"Cached analytics data for HOA {hoa_id}")
-    except Exception as e:
-        logger.warning(f"Failed to cache analytics data: {e}")
-
-def get_cached_analytics_data(hoa_id: int) -> Optional[dict]:
-    """Get cached analytics data."""
-    cache_key = f"analytics:hoa:{hoa_id}"
-    try:
-        cached = redis_client.get(cache_key)
-        if cached:
-            logger.debug(f"Retrieved cached analytics data for HOA {hoa_id}")
-            return json.loads(cached)
-        return None
-    except Exception as e:
-        logger.warning(f"Failed to get cached analytics data: {e}")
-        return None
 
 def warm_cache():
     """Pre-load frequently accessed data into cache."""
     try:
         from database import SessionLocal
-        from models import HOA, User
+        from models import Workspace, User
         
         db = SessionLocal()
         
-        # Warm up HOA data
-        hoas = db.query(HOA).all()
-        for hoa in hoas:
-            hoa_data = {
-                "id": hoa.id,
-                "name": hoa.name,
-                "location": hoa.location,
-                "contact_email": hoa.contact_email,
-                "contact_phone": hoa.contact_phone,
+        # Warm up workspace data
+        workspaces = db.query(Workspace).all()
+        for workspace in workspaces:
+            workspace_data = {
+                "id": workspace.id,
+                "name": workspace.name,
+                "company_name": workspace.company_name,
+                "industry": workspace.industry,
+                "created_at": workspace.created_at.isoformat() if workspace.created_at else None,
+                "updated_at": workspace.updated_at.isoformat() if workspace.updated_at else None,
             }
-            cache_hoa_data(hoa.id, hoa_data, expire_time=3600)
+            cache_workspace_data(workspace.id, workspace_data, expire_time=3600)
         
         # Warm up user data for active users
         active_users = db.query(User).filter(User.last_activity_at.isnot(None)).limit(100).all()
@@ -181,12 +145,12 @@ def warm_cache():
                 "username": user.username,
                 "email": user.email,
                 "role": user.role,
-                "hoa_id": user.hoa_id,
+                "workspace_id": user.workspace_id,
             }
             cache_user_data(user.id, user_data, expire_time=1800)
         
         db.close()
-        logger.info(f"Cache warming completed: {len(hoas)} HOAs, {len(active_users)} users")
+        logger.info(f"Cache warming completed: {len(workspaces)} workspaces, {len(active_users)} users")
         
     except ImportError as e:
         logger.warning(f"Cache warming skipped due to import error: {e}")

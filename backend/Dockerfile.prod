@@ -1,4 +1,4 @@
-# Production Dockerfile for CivicLogHOA Backend
+# Production Dockerfile for ContractGuard Backend
 # syntax=docker/dockerfile:1
 
 # Build stage

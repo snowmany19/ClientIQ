@@ -19,7 +19,7 @@ export default function DashboardLayout({
   useEffect(() => {
     // Initialize auth state on component mount
     initializeAuth();
-  }, [initializeAuth]);
+  }, []); // initializeAuth is stable from Zustand store
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -36,11 +36,7 @@ export default function DashboardLayout({
 
     // Redirect to appropriate page if on login page but authenticated
     if (isAuthenticated && pathname === '/') {
-      if (user?.role === 'resident') {
-        router.push('/dashboard/resident-portal');
-      } else {
-        router.push('/dashboard');
-      }
+      router.push('/dashboard');
       return;
     }
   }, [isAuthenticated, isLoading, pathname, router]);

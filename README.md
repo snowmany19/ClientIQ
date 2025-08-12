@@ -1,9 +1,9 @@
 📋 **Legal Notice**  
 This project, including all code and content, is the property of Security Flaw Solutions LLC. Unauthorized use or distribution is prohibited.
 
-# HOA-Log — HOA Violation Management Platform
+# ContractGuard.ai — AI Contract Review Platform
 
-A production-ready, modular SaaS platform for HOA violation management, built with FastAPI (backend), Next.js (frontend), PostgreSQL, and Stripe. Includes robust RBAC, PDF reporting, file uploads, and subscription billing.
+A production-ready, modular SaaS platform for AI-powered contract review and analysis, built with FastAPI (backend), Next.js (frontend), PostgreSQL, and Stripe. Includes robust RBAC, PDF reporting, file uploads, and subscription billing.
 
 ---
 
@@ -12,10 +12,10 @@ A production-ready, modular SaaS platform for HOA violation management, built wi
 - **Next.js Frontend** — Modern, interactive dashboard
 - **PostgreSQL Database** — Production-grade relational DB
 - **Stripe Billing** — Subscription management & webhooks
-- **Role-Based Access** — Admin, HOA Board, Inspector
-- **PDF Generation** — Automated violation notices
-- **File Uploads** — Secure image/document handling
-- **AI-Powered Summaries** — GPT-generated violation reports
+- **Role-Based Access** — Admin, Analyst, Viewer
+- **PDF Generation** — Automated contract analysis reports
+- **File Uploads** — Secure document handling (PDF, DOCX, TXT)
+- **AI-Powered Analysis** — GPT-generated contract summaries and risk assessments
 - **Comprehensive Validation & Error Handling**
 - **Production-Ready Config & Logging**
 
@@ -26,7 +26,7 @@ A production-ready, modular SaaS platform for HOA violation management, built wi
 ### 1. **Clone the Repository**
 ```bash
 git clone <your-repo-url>
-cd hoa-log
+cd contractguard
 ```
 
 ### 2. **Set Up PostgreSQL Locally**
@@ -43,9 +43,9 @@ cd hoa-log
 # Create database and user
 psql postgres
 # In psql shell:
-CREATE DATABASE hoa_log_db;
-CREATE USER hoa_log_user WITH PASSWORD 'yourpassword';
-GRANT ALL PRIVILEGES ON DATABASE hoa_log_db TO hoa_log_user;
+CREATE DATABASE contractguard_db;
+CREATE USER contractguard_user WITH PASSWORD 'yourpassword';
+GRANT ALL PRIVILEGES ON DATABASE contractguard_db TO contractguard_user;
 \q
 ```
 
@@ -54,7 +54,7 @@ GRANT ALL PRIVILEGES ON DATABASE hoa_log_db TO hoa_log_user;
 cd backend
 cp env_example.txt .env
 # Edit .env and set:
-# DATABASE_URL=postgresql://hoa_log_user:yourpassword@localhost:5432/hoa_log_db
+# DATABASE_URL=postgresql://contractguard_user:yourpassword@localhost:5432/contractguard_db
 # (Fill in all other required secrets: Stripe, OpenAI, etc.)
 ```
 
@@ -101,6 +101,13 @@ npm run dev
 - Use HTTPS in production
 - See `PRODUCTION_DEPLOYMENT.md` for advanced deployment
 
+## 💰 Pricing Plans
+- **Solo**: $39/month - 10 contracts/month, 1 user
+- **Team**: $99/month - 50 contracts/month, 5 users
+- **Business**: $299/month - 250 contracts/month, 20 users
+- **Enterprise**: $999/month - 1000 contracts/month, unlimited users
+- **White Label**: Contact us for custom solutions
+
 ---
 
 ## 🧑‍💻 Handoff & Ownership
@@ -142,7 +149,8 @@ docker-compose down
 - **DB Connection Errors:** Check `DATABASE_URL` and that PostgreSQL is running
 - **Migrations Fail:** Ensure Alembic is configured for PostgreSQL and DB is empty/clean
 - **Stripe/OpenAI Issues:** Double-check API keys in `.env`
-- **Frontend Not Loading:** Ensure Streamlit is running and CORS is configured
+- **Frontend Not Loading:** Ensure Next.js is running and CORS is configured
+- **Contract Analysis Issues:** Verify OpenAI API key and model access
 
 ---
 

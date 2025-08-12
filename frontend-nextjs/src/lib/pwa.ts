@@ -61,9 +61,9 @@ export function showInstallPrompt() {
     // Check if the app is installable
     if (isPWAInstallable()) {
       // Show a custom install guide
-      alert('To install CivicLogHOA:\n\n1. Look for the install icon in your browser address bar\n2. Or use the browser menu (⋮) and select "Install app"\n3. Or add to home screen from your browser menu');
+      alert('To install ContractGuard:\n\n1. Look for the install icon in your browser address bar\n2. Or use the browser menu (⋮) and select "Install app"\n3. Or add to home screen from your browser menu');
     } else {
-      alert('CivicLogHOA is not currently installable. Please try again later or use the browser menu to install.');
+      alert('ContractGuard is not currently installable. Please try again later or use the browser menu to install.');
     }
   }
 }

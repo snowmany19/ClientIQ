@@ -1,5 +1,5 @@
 # utils/validation.py
-# Input validation utilities for the CivicLogHOA application
+# Input validation utilities for the ContractGuard application
 
 import re
 import os
@@ -21,39 +21,10 @@ class InputValidator:
     # Text validation patterns
     USERNAME_PATTERN = re.compile(r'^[a-zA-Z0-9_]{3,20}$')
     EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-    HOA_NAME_PATTERN = re.compile(r'^HOA #\d{3}$')
     ADDRESS_PATTERN = re.compile(r'^[a-zA-Z0-9\s\-\#\.]+$')
     GPS_PATTERN = re.compile(r'^\-?\d+\.\d+,\s*\-?\d+\.\d+$')
     
-    @classmethod
-    def validate_violation_description(cls, description: str) -> str:
-        """Validate violation description."""
-        if not description or not description.strip():
-            raise ValidationException("Description is required")
-        
-        description = description.strip()
-        
-        if len(description) < 10:
-            raise ValidationException("Description must be at least 10 characters long")
-        
-        if len(description) > 2000:
-            raise ValidationException("Description must be less than 2000 characters")
-        
-        return description
-    
-    @classmethod
-    def validate_hoa_name(cls, hoa_name: str) -> str:
-        """Validate HOA name format."""
-        if not hoa_name or not hoa_name.strip():
-            raise ValidationException("HOA name is required")
-        
-        hoa_name = hoa_name.strip()
-        
-        # Check if it matches the expected format (HOA #XXX)
-        if not cls.HOA_NAME_PATTERN.match(hoa_name):
-            raise ValidationException("HOA name must be in format 'HOA #XXX' (e.g., 'HOA #001')")
-        
-        return hoa_name
+
     
     @classmethod
     def validate_address(cls, address: str) -> str:
@@ -91,21 +62,7 @@ class InputValidator:
         
         return location
     
-    @classmethod
-    def validate_offender(cls, offender: str) -> str:
-        """Validate resident/offender field."""
-        if not offender or not offender.strip():
-            raise ValidationException("Resident information is required")
-        
-        offender = offender.strip()
-        
-        if len(offender) < 2:
-            raise ValidationException("Resident information must be at least 2 characters long")
-        
-        if len(offender) > 100:
-            raise ValidationException("Resident information must be less than 100 characters")
-        
-        return offender
+
     
     @classmethod
     def validate_gps_coordinates(cls, gps_coordinates: Optional[str]) -> Optional[str]:
@@ -120,21 +77,7 @@ class InputValidator:
         
         return gps_coordinates
     
-    @classmethod
-    def validate_violation_type(cls, violation_type: Optional[str]) -> Optional[str]:
-        """Validate violation type."""
-        if not violation_type:
-            return None
-        
-        violation_type = violation_type.strip()
-        
-        if len(violation_type) < 2:
-            raise ValidationException("Violation type must be at least 2 characters long")
-        
-        if len(violation_type) > 50:
-            raise ValidationException("Violation type must be less than 50 characters")
-        
-        return violation_type
+
     
     @classmethod
     def validate_file_upload(cls, file: Optional[UploadFile], required: bool = False) -> Optional[str]:
@@ -252,33 +195,7 @@ class InputValidator:
         
         return file_path
 
-# Legacy method names for backward compatibility
-def validate_incident_description(description: str) -> str:
-    """Legacy method - use validate_violation_description instead."""
-    return InputValidator.validate_violation_description(description)
 
-def validate_store_name(store_name: str) -> str:
-    """Legacy method - use validate_hoa_name instead."""
-    return InputValidator.validate_hoa_name(store_name)
-
-def validate_violation_data(description: str, hoa: str, address: str, location: str, offender: str, 
-                          gps_coordinates: Optional[str] = None, violation_type: Optional[str] = None,
-                          file: Optional[UploadFile] = None) -> dict:
-    """Validate all violation data fields."""
-    validated_data = {
-        "description": InputValidator.validate_violation_description(description),
-        "hoa": InputValidator.validate_hoa_name(hoa),
-        "address": InputValidator.validate_address(address),
-        "location": InputValidator.validate_location(location),
-        "offender": InputValidator.validate_offender(offender),
-        "gps_coordinates": InputValidator.validate_gps_coordinates(gps_coordinates),
-        "violation_type": InputValidator.validate_violation_type(violation_type),
-    }
-    
-    if file:
-        validated_data["file"] = InputValidator.validate_file_upload(file)
-    
-    return validated_data
 
 def validate_user_data(username: str, email: str, password: str) -> dict:
     """Validate all user data fields."""

@@ -6,47 +6,9 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 
 from database import get_db
-from models import User, Violation
+from models import User, ContractRecord
 from utils.auth_utils import get_current_user
-from utils.stripe_utils import enforce_plan_limits, get_plan_upgrade_suggestion, get_usage_limits
-
-def check_violation_limit(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-) -> bool:
-    """Check if user can create more violations based on their plan."""
-    if not current_user.plan_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No active subscription plan"
-        )
-    
-    # Get current month's violation count
-    start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    violation_count = db.query(Violation).filter(
-        Violation.user_id == current_user.id,
-        Violation.timestamp >= start_of_month
-    ).count()
-    
-    current_usage = {"violations_per_month": violation_count}
-    
-    if not enforce_plan_limits(current_user.plan_id, current_usage, "violations_per_month"):
-        upgrade_suggestion = get_plan_upgrade_suggestion(
-            current_user.plan_id, 
-            current_usage, 
-            "violations_per_month"
-        )
-        
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail={
-                "message": "Violation limit exceeded for your current plan",
-                "current_usage": violation_count,
-                "upgrade_suggestion": upgrade_suggestion
-            }
-        )
-    
-    return True
+from utils.stripe_utils import get_plan_limits
 
 def check_user_limit(
     current_user: User = Depends(get_current_user),
@@ -59,27 +21,58 @@ def check_user_limit(
             detail="No active subscription plan"
         )
     
-    # Get current user count for this HOA (excluding residents)
+    # Get current user count for this workspace
     user_count = db.query(User).filter(
-        User.hoa_id == current_user.hoa_id,
-        User.role != "resident"  # Exclude residents from user limit
+        User.workspace_id == current_user.workspace_id
     ).count()
     
-    current_usage = {"users": user_count}
+    # Get plan limits
+    plan_limits = get_plan_limits(current_user.plan_id)
+    user_limit = plan_limits.get("users", 1)
     
-    if not enforce_plan_limits(current_user.plan_id, current_usage, "users"):
-        upgrade_suggestion = get_plan_upgrade_suggestion(
-            current_user.plan_id, 
-            current_usage, 
-            "users"
-        )
-        
+    if user_count >= user_limit:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={
                 "message": "User limit exceeded for your current plan",
                 "current_usage": user_count,
-                "upgrade_suggestion": upgrade_suggestion
+                "limit": user_limit,
+                "upgrade_suggestion": "Consider upgrading to a plan with more users"
+            }
+        )
+    
+    return True
+
+async def check_contract_limit(
+    current_user: User,
+    db: Session
+) -> bool:
+    """Check if user can create more contracts based on their plan."""
+    if not current_user.plan_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No active subscription plan"
+        )
+    
+    # Get current month's contract count
+    start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    contract_count = db.query(ContractRecord).filter(
+        ContractRecord.owner_user_id == current_user.id,
+        ContractRecord.created_at >= start_of_month
+    ).count()
+    
+    # Get plan limits
+    plan_limits = get_plan_limits(current_user.plan_id)
+    contract_limit = plan_limits.get("contracts_per_month", 10)
+    
+    if contract_count >= contract_limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "message": "Contract limit exceeded for your current plan",
+                "current_usage": contract_count,
+                "limit": contract_limit,
+                "upgrade_suggestion": "Consider upgrading to a plan with more contracts per month"
             }
         )
     
@@ -109,14 +102,10 @@ def require_plan_feature(
     
     # Define feature requirements for each plan
     plan_features = {
-        "starter": ["basic_violations", "standard_letters", "email_support", "mobile_capture", "ai_analysis", "professional_reports", "automated_communication"],
-        "business": ["basic_violations", "standard_letters", "email_support", "mobile_capture", "ai_analysis", "professional_reports", "automated_communication", 
-                    "advanced_analytics", "ai_letters", "priority_support", "custom_integrations"],
-        "pro": ["basic_violations", "standard_letters", "email_support", "mobile_capture", "ai_analysis", "professional_reports", "automated_communication", 
-                "advanced_analytics", "ai_letters", "priority_support", "custom_integrations", "multi_hoa_management"],
-        "enterprise": ["basic_violations", "standard_letters", "email_support", "mobile_capture", "ai_analysis", "professional_reports", "automated_communication", 
-                      "advanced_analytics", "ai_letters", "priority_support", "custom_integrations", "multi_hoa_management",
-                      "dedicated_support", "compliance_tools"]
+        "solo": ["ai_contract_analysis", "risk_assessment", "professional_reports", "contract_tracking", "email_support", "standard_templates"],
+        "team": ["ai_contract_analysis", "risk_assessment", "professional_reports", "contract_tracking", "advanced_analytics", "ai_rewrite_suggestions", "priority_support", "team_collaboration"],
+        "business": ["ai_contract_analysis", "risk_assessment", "professional_reports", "contract_tracking", "advanced_analytics", "ai_rewrite_suggestions", "priority_support", "custom_integrations", "legal_team_collaboration"],
+        "enterprise": ["ai_contract_analysis", "risk_assessment", "professional_reports", "contract_tracking", "advanced_analytics", "ai_rewrite_suggestions", "priority_support", "custom_integrations", "multi_workspace_management", "dedicated_support", "compliance_tools"]
     }
     
     user_features = plan_features.get(current_user.plan_id, [])
@@ -137,17 +126,16 @@ def get_usage_stats(
     if not current_user.plan_id:
         return {"error": "No active subscription"}
     
-    # Get current month's violation count
+    # Get current month's contract count
     start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    violation_count = db.query(Violation).filter(
-        Violation.user_id == current_user.id,
-        Violation.timestamp >= start_of_month
+    contract_count = db.query(ContractRecord).filter(
+        ContractRecord.owner_user_id == current_user.id,
+        ContractRecord.created_at >= start_of_month
     ).count()
     
-    # Get user count for this HOA (excluding residents)
+    # Get user count for this workspace
     user_count = db.query(User).filter(
-        User.hoa_id == current_user.hoa_id,
-        User.role != "resident"  # Exclude residents from user limit
+        User.workspace_id == current_user.workspace_id
     ).count()
     
     limits = get_usage_limits(current_user.plan_id)
@@ -155,10 +143,10 @@ def get_usage_stats(
     return {
         "plan": current_user.plan_id,
         "usage": {
-            "violations_per_month": violation_count,
+            "contracts_per_month": contract_count,
             "users": user_count
         },
         "limits": limits,
-        "violations_remaining": limits.get("violations_per_month", -1) - violation_count if limits.get("violations_per_month", -1) != -1 else -1,
+        "contracts_remaining": limits.get("contracts_per_month", -1) - contract_count if limits.get("contracts_per_month", -1) != -1 else -1,
         "users_remaining": limits.get("users", -1) - user_count if limits.get("users", -1) != -1 else -1
     } 

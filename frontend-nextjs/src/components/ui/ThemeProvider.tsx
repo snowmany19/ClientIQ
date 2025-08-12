@@ -67,7 +67,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [theme]);
+  }, [theme, setResolvedTheme]); // Add setResolvedTheme to dependencies
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);

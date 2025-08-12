@@ -16,13 +16,13 @@ import pathlib
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 from database import get_db
-from models import User, HOA, UserSession
+from models import User, Workspace, UserSession
 from schemas import Token, UserInfo, UserCreate, UserUpdate
 from utils.auth_utils import (
     verify_password, create_access_token, get_password_hash, get_current_user, 
     require_role, validate_password
 )
-from utils.email_alerts import send_violation_notification_email
+
 from utils.logger import get_logger, log_security_event
 from core.config import get_settings
 from utils.validation import InputValidator, ValidationException
@@ -48,7 +48,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 def authenticate_user(db: Session, username: str, password: str):
     user = db.query(User).filter(User.username == username).first()
@@ -72,7 +72,7 @@ def login(
             client_ip = request.client.host if request.client else "unknown"
             log_security_event(
                 logger,
-                event="failed_login",
+                event_type="failed_login",
                 user_id=str(None),
                 ip_address=client_ip,
                 details={"username": form_data.username}
@@ -133,7 +133,7 @@ def login(
 @router.get("/me", response_model=UserInfo)
 def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
         username = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token payload")
@@ -384,12 +384,12 @@ def list_users(
         users_query = db.query(User)
     elif current_user.role == "staff":
         # Staff can only see users from their store
-        if current_user.hoa_id is None:
+        if current_user.workspace_id is None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Staff must be assigned to a store to view users."
+                detail="Staff must be assigned to a workspace to view users."
             )
-        users_query = db.query(User).filter(User.hoa_id == current_user.hoa_id)
+        users_query = db.query(User).filter(User.workspace_id == current_user.workspace_id)
     else:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -416,29 +416,33 @@ def list_users(
 # 🛠️ One-time default user creator (run manually if needed)
 @router.get("/seed-users")
 def seed_default_users(db: Session = Depends(get_db)):
-    # First, create some sample HOAs
-    hoas = [
-        {"name": "Downtown HOA", "location": "123 Main St, Downtown"},
-        {"name": "Mall HOA", "location": "456 Shopping Ave, Mall"},
-        {"name": "Suburban HOA", "location": "789 Oak Rd, Suburbs"},
+    # First, create some sample workspaces
+    workspaces = [
+        {"name": "Downtown Legal", "company_name": "Downtown Legal Services", "industry": "Legal"},
+        {"name": "Mall Corp", "company_name": "Mall Corporation", "industry": "Retail"},
+        {"name": "Suburban Tech", "company_name": "Suburban Tech Solutions", "industry": "Technology"},
     ]
 
-    created_hoas = []
-    for hoa_data in hoas:
-        existing_hoa = db.query(HOA).filter(HOA.name == hoa_data["name"]).first()
-        if not existing_hoa:
-            hoa = HOA(name=hoa_data["name"], location=hoa_data["location"])
-            db.add(hoa)
+    created_workspaces = []
+    for workspace_data in workspaces:
+        existing_workspace = db.query(Workspace).filter(Workspace.name == workspace_data["name"]).first()
+        if not existing_workspace:
+            workspace = Workspace(
+                name=workspace_data["name"], 
+                company_name=workspace_data["company_name"],
+                industry=workspace_data["industry"]
+            )
+            db.add(workspace)
             db.commit()
-            created_hoas.append(hoa_data["name"])
+            created_workspaces.append(workspace_data["name"])
 
-    # Now create users with HOA assignments
+    # Now create users with workspace assignments
     defaults = [
-        {"username": "admin", "password": "Admin123!", "role": "admin", "hoa_id": None},  # Admin has no HOA restriction
-        {"username": "manager1", "password": "Manager123!", "role": "staff", "hoa_id": 1},   # Staff at Downtown HOA
-        {"username": "manager2", "password": "Manager123!", "role": "staff", "hoa_id": 2},   # Staff at Mall HOA
-        {"username": "employee1", "password": "Employee123!", "role": "employee", "hoa_id": 1}, # Employee at Downtown HOA
-        {"username": "employee2", "password": "Employee123!", "role": "employee", "hoa_id": 2}, # Employee at Mall HOA
+        {"username": "admin", "password": "Admin123!", "role": "admin", "workspace_id": None},  # Admin has no workspace restriction
+        {"username": "manager1", "password": "Manager123!", "role": "staff", "workspace_id": 1},   # Staff at Downtown Legal
+        {"username": "manager2", "password": "Manager123!", "role": "staff", "workspace_id": 2},   # Staff at Mall Corp
+        {"username": "employee1", "password": "Employee123!", "role": "employee", "workspace_id": 1}, # Employee at Downtown Legal
+        {"username": "employee2", "password": "Employee123!", "role": "employee", "workspace_id": 2}, # Employee at Mall Corp
     ]
     created = []
 
@@ -448,14 +452,14 @@ def seed_default_users(db: Session = Depends(get_db)):
                 username=user["username"],
                 hashed_password=get_password_hash(user["password"]),
                 role=user["role"],
-                hoa_id=user["hoa_id"]
+                workspace_id=user["workspace_id"]
             )
             db.add(db_user)
             created.append(user["username"])
     db.commit()
 
     return {
-        "created_hoas": created_hoas if created_hoas else "All HOAs already exist",
+        "created_workspaces": created_workspaces if created_workspaces else "All workspaces already exist",
         "created_users": created if created else "All default users already exist."
     }
 
@@ -641,7 +645,7 @@ def get_users(
             "email": user.email,
             "role": user.role,
             "subscription_status": user.subscription_status,
-            "hoa_id": user.hoa_id
+            "workspace_id": user.workspace_id
         }
         for user in users
     ]
@@ -660,7 +664,7 @@ def create_user(
     email = user_data.get("email")
     password = user_data.get("password")
     role = user_data.get("role")
-    hoa_id = user_data.get("hoa_id")
+    workspace_id = user_data.get("workspace_id")
     
     if not all([username, email, password, role]):
         raise HTTPException(status_code=400, detail="All fields are required")
@@ -680,7 +684,7 @@ def create_user(
         email=email,
         hashed_password=hashed_password,
         role=role,
-        hoa_id=hoa_id,
+        workspace_id=workspace_id,
         subscription_status="active"
     )
     
@@ -694,7 +698,7 @@ def create_user(
         "email": new_user.email,
         "role": new_user.role,
         "subscription_status": new_user.subscription_status,
-        "hoa_id": new_user.hoa_id
+        "workspace_id": new_user.workspace_id
     }
 
 @router.put("/admin/users/{user_id}")
@@ -719,8 +723,8 @@ def update_user(
         user.email = user_data["email"]
     if "role" in user_data:
         user.role = user_data["role"]
-    if "hoa_id" in user_data:
-        user.hoa_id = user_data["hoa_id"]
+    if "workspace_id" in user_data:
+        user.workspace_id = user_data["workspace_id"]
     
     db.commit()
     db.refresh(user)
@@ -731,7 +735,7 @@ def update_user(
         "email": user.email,
         "role": user.role,
         "subscription_status": user.subscription_status,
-        "hoa_id": user.hoa_id
+        "workspace_id": user.workspace_id
     }
 
 @router.delete("/admin/users/{user_id}")
