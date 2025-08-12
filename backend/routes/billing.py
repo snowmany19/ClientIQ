@@ -4,19 +4,20 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
+from datetime import datetime, timedelta
 import stripe
 import os
 
 from database import get_db
-from models import User, Violation
+from models import User
 from utils.auth_utils import get_current_user
 from utils.stripe_utils import (
-    create_customer, create_subscription, get_subscription,
-    cancel_subscription, create_checkout_session, create_billing_portal_session,
-    SUBSCRIPTION_PLANS, get_usage_limits, check_usage_limit, get_plan_features
+    create_workspace_subscription, update_workspace_subscription, 
+    cancel_workspace_subscription, get_subscription_plans, get_plan_by_id, get_plan_features,
+    get_plan_limits, SUBSCRIPTION_PLANS
 )
 
-router = APIRouter(prefix="/billing", tags=["billing"])
+router = APIRouter(tags=["billing"])
 
 # Webhook secret for verifying Stripe webhooks
 WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
@@ -24,10 +25,20 @@ WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 @router.get("/plans")
 def get_available_plans():
     """Get all available subscription plans."""
-    return {
-        "plans": SUBSCRIPTION_PLANS,
-        "message": "Available subscription plans"
-    }
+    # Convert to the format expected by frontend
+    plans_list = []
+    for plan_id, plan_data in SUBSCRIPTION_PLANS.items():
+        plans_list.append({
+            "id": plan_id,
+            "name": plan_data["name"],
+            "price": plan_data["price"],
+            "currency": plan_data["currency"],
+            "interval": plan_data["interval"],
+            "features": plan_data["features"],
+            "limits": plan_data["limits"]
+        })
+    
+    return plans_list
 
 @router.get("/my-subscription")
 def get_my_subscription(
@@ -39,26 +50,30 @@ def get_my_subscription(
     if current_user.role == "admin":
         plan = SUBSCRIPTION_PLANS.get("enterprise", {})  # Give admin enterprise features
         return {
-            "subscription": {
-                "status": "active",
-                "plan_id": "enterprise"
-            },
-            "plan": plan,
+            "subscription_id": "admin_enterprise",
+            "plan_id": "enterprise",
+            "status": "active",
+            "current_period_start": datetime.utcnow().isoformat(),
+            "current_period_end": (datetime.utcnow() + timedelta(days=30)).isoformat(),
+            "cancel_at_period_end": False,
             "features": get_plan_features("enterprise"),
-            "limits": get_usage_limits("enterprise")
+            "limits": get_plan_limits("enterprise")
         }
     
     # Check if user has an active subscription
     if current_user.subscription_id is not None:
         try:
-            stripe_subscription = get_subscription(str(current_user.subscription_id))
             plan = SUBSCRIPTION_PLANS.get(str(current_user.plan_id), {})
             
             return {
-                "subscription": stripe_subscription,
-                "plan": plan,
+                "subscription_id": str(current_user.subscription_id),
+                "plan_id": str(current_user.plan_id),
+                "status": "active",
+                "current_period_start": datetime.utcnow().isoformat(),
+                "current_period_end": (datetime.utcnow() + timedelta(days=30)).isoformat(),
+                "cancel_at_period_end": False,
                 "features": get_plan_features(str(current_user.plan_id)),
-                "limits": get_usage_limits(str(current_user.plan_id))
+                "limits": get_plan_limits(str(current_user.plan_id))
             }
         except Exception as e:
             raise HTTPException(
@@ -70,20 +85,26 @@ def get_my_subscription(
     if current_user.plan_id is not None and str(current_user.subscription_status) == "active":
         plan = SUBSCRIPTION_PLANS.get(str(current_user.plan_id), {})
         return {
-            "subscription": {
-                "status": "active",
-                "plan_id": str(current_user.plan_id)
-            },
-            "plan": plan,
+            "subscription_id": f"plan_{str(current_user.plan_id)}",
+            "plan_id": str(current_user.plan_id),
+            "status": "active",
+            "current_period_start": datetime.utcnow().isoformat(),
+            "current_period_end": (datetime.utcnow() + timedelta(days=30)).isoformat(),
+            "cancel_at_period_end": False,
             "features": get_plan_features(str(current_user.plan_id)),
-            "limits": get_usage_limits(str(current_user.plan_id))
+            "limits": get_plan_limits(str(current_user.plan_id))
         }
     
     # No active subscription
     return {
-        "subscription": None,
-        "plan": None,
-        "message": "No active subscription"
+        "subscription_id": None,
+        "plan_id": None,
+        "status": "inactive",
+        "current_period_start": None,
+        "current_period_end": None,
+        "cancel_at_period_end": False,
+        "features": [],
+        "limits": {}
     }
 
 @router.post("/create-checkout-session")
@@ -104,21 +125,23 @@ def create_checkout_session_route(
         )
     try:
         if current_user.stripe_customer_id is None:
-            customer_id = create_customer(str(current_user.email or ""), str(current_user.username))
+            customer_id = create_workspace_subscription(str(current_user.email or ""), str(current_user.username))
             setattr(current_user, 'stripe_customer_id', customer_id)
             db.commit()
         # Use provided URLs or defaults
         _success_url = success_url or f"{os.getenv('FRONTEND_URL', 'http://localhost:8501')}/_billing_success_page"
         _cancel_url = cancel_url or f"{os.getenv('FRONTEND_URL', 'http://localhost:8501')}/_billing_cancel_page"
-        checkout_session = create_checkout_session(
-            str(current_user.stripe_customer_id),
-            plan_id,
-            _success_url,
-            _cancel_url
-        )
+        # TODO: Implement checkout session creation
+        # checkout_session = create_checkout_session(
+        #     str(current_user.stripe_customer_id),
+        #     plan_id,
+        #     _success_url,
+        #     _cancel_url
+        # )
         return {
-            "checkout_url": checkout_session,
-            "message": "Checkout session created successfully"
+            "message": "Checkout session creation not yet implemented",
+            "plan_id": plan_id,
+            "customer_id": str(current_user.stripe_customer_id)
         }
     except Exception as e:
         raise HTTPException(
@@ -139,13 +162,14 @@ def create_portal_session_alias(
         )
     try:
         return_url = f"{os.getenv('FRONTEND_URL', 'http://localhost:8501')}/dashboard"
-        portal_url = create_billing_portal_session(
-            str(current_user.stripe_customer_id),
-            return_url
-        )
+        # TODO: Implement billing portal session creation
+        # portal_url = create_billing_portal_session(
+        #     str(current_user.stripe_customer_id),
+        #     return_url
+        # )
         return {
-            "portal_url": portal_url,
-            "message": "Billing portal session created"
+            "message": "Billing portal session creation not yet implemented",
+            "customer_id": str(current_user.stripe_customer_id)
         }
     except Exception as e:
         raise HTTPException(
@@ -166,7 +190,7 @@ def cancel_subscription_route(
         )
     
     try:
-        result = cancel_subscription(str(current_user.subscription_id))
+        result = cancel_workspace_subscription(str(current_user.subscription_id))
         setattr(current_user, 'subscription_status', 'canceled')
         db.commit()
         
@@ -270,33 +294,35 @@ def get_usage_stats(
 ):
     """Get current usage statistics."""
     from sqlalchemy import text
+    from datetime import datetime
     
-    # Count violations for current user/store using raw SQL
+    # Count contracts for current user in current month
+    start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     try:
-        violation_count = db.execute(
-            text("SELECT COUNT(*) FROM violations WHERE user_id = :user_id"),
-            {"user_id": current_user.id}
+        contract_count = db.execute(
+            text("SELECT COUNT(*) FROM contract_records WHERE owner_user_id = :user_id AND created_at >= :start_date"),
+            {"user_id": current_user.id, "start_date": start_of_month}
         ).scalar()
     except Exception as e:
-        logger.error(f"Error getting violation count: {e}")
-        violation_count = 0
+        print(f"Error getting contract count: {e}")
+        contract_count = 0
     
-    # Count users for this HOA (excluding residents)
+    # Count users for this workspace (excluding residents)
     try:
         user_count = db.execute(
-            text("SELECT COUNT(*) FROM users WHERE hoa_id = :hoa_id AND role != 'resident'"),
-            {"hoa_id": current_user.hoa_id}
+            text("SELECT COUNT(*) FROM users WHERE workspace_id = :workspace_id AND role != 'resident'"),
+            {"workspace_id": current_user.workspace_id}
         ).scalar()
     except Exception as e:
-        logger.error(f"Error getting user count: {e}")
+        print(f"Error getting user count: {e}")
         user_count = 1  # Fallback to current user only
     
     # Get plan limits
-    plan_limits = get_usage_limits(str(current_user.plan_id))
+    plan_limits = get_plan_limits(str(current_user.plan_id))
     
     return {
         "usage": {
-            "violations_per_month": violation_count,
+            "contracts_per_month": contract_count,
             "users": user_count
         },
         "limits": plan_limits,
@@ -320,16 +346,15 @@ def get_usage_limits_route(
     db: Session = Depends(get_db)
 ):
     """Get usage limits for current user's plan."""
-    plan_id = str(current_user.plan_id or "starter")
-    plan = SUBSCRIPTION_PLANS.get(plan_id, SUBSCRIPTION_PLANS.get("starter"))
+    plan_id = str(current_user.plan_id or "solo")
+    plan = SUBSCRIPTION_PLANS.get(plan_id, SUBSCRIPTION_PLANS.get("solo"))
     limits = plan.get("limits", {}) if plan else {}
     return {
         "plan": plan_id,
         "limits": {
-            "hoas": limits.get("hoas", 1),
-            "units": limits.get("units", 25),
-            "users": limits.get("users", 2),
-            "violations_per_month": limits.get("violations_per_month", 50),
+            "workspaces": limits.get("workspaces", 1),
+            "contracts_per_month": limits.get("contracts_per_month", 10),
+            "users": limits.get("users", 1),
             "storage_gb": limits.get("storage_gb", 5)
         }
     }

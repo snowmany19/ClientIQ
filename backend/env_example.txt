@@ -1,4 +1,4 @@
-# CivicLogHOA Environment Configuration
+# ContractGuard.ai Environment Configuration
 # Copy this file to .env and fill in your values
 
 # ===========================
@@ -14,7 +14,7 @@ JWT_EXPIRATION_MINUTES=60
 # ===========================
 # 🗄️ DATABASE CONFIGURATION
 # ===========================
-DATABASE_URL=postgresql://civicloghoa_user:your_password@localhost:5432/civicloghoa_db
+DATABASE_URL=postgresql://contractguard_user:your_password@localhost:5432/contractguard_db
 
 # ===========================
 # 🔐 SECURITY CONFIGURATION
@@ -35,9 +35,9 @@ STRIPE_PUBLISHABLE_KEY=pk_live_your_stripe_publishable_key_here
 STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
 
 # Stripe Price IDs for subscription plans
-STRIPE_STARTER_PRICE_ID=price_your_starter_price_id_here
+STRIPE_SOLO_PRICE_ID=price_your_solo_price_id_here
+STRIPE_TEAM_PRICE_ID=price_your_team_price_id_here
 STRIPE_BUSINESS_PRICE_ID=price_your_business_price_id_here
-STRIPE_PRO_PRICE_ID=price_your_pro_price_id_here
 STRIPE_ENTERPRISE_PRICE_ID=price_your_enterprise_price_id_here
 
 # ===========================
@@ -64,7 +64,7 @@ CORS_ORIGINS=["https://yourdomain.com", "https://www.yourdomain.com"]
 # 📊 LOGGING CONFIGURATION
 # ===========================
 LOG_LEVEL=INFO
-LOG_FILE=logs/civicloghoa.log
+LOG_FILE=logs/contractguard.log
 
 # ===========================
 # 🔄 REDIS CONFIGURATION (Optional)
@@ -76,9 +76,9 @@ CELERY_RESULT_BACKEND=redis://redis:6379/2
 # ===========================
 # 📁 FILE STORAGE CONFIGURATION
 # ===========================
-UPLOAD_DIR=static/images
+UPLOAD_DIR=static/documents
 REPORTS_DIR=static/reports
-MAX_FILE_SIZE=5242880
+MAX_FILE_SIZE=10485760  # 10MB for contract documents
 
 # ===========================
 # 🎯 FRONTEND CONFIGURATION

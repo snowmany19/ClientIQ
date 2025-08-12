@@ -1,8 +1,8 @@
-# 📧 SMTP Configuration Guide for CivicLogHOA
+# 📧 SMTP Configuration Guide for ContractGuard
 
 ## 🎯 **Overview**
 
-This guide will help you configure SMTP (Simple Mail Transfer Protocol) for CivicLogHOA's email notification system. Once configured, users will receive professional HTML emails for:
+This guide will help you configure SMTP (Simple Mail Transfer Protocol) for ContractGuard's email notification system. Once configured, users will receive professional HTML emails for:
 
 - 🚨 New violation notifications
 - ✅ Violation resolved notifications  
@@ -22,7 +22,7 @@ This guide will help you configure SMTP (Simple Mail Transfer Protocol) for Civi
 1. Go to Google Account settings
 2. Navigate to Security → App passwords
 3. Select "Mail" and "Other (Custom name)"
-4. Enter "CivicLogHOA" as the name
+4. Enter "ContractGuard" as the name
 5. Click "Generate"
 6. **Copy the 16-character password** (you'll only see it once!)
 
@@ -35,7 +35,7 @@ SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=your-email@gmail.com
 SMTP_PASSWORD=your-16-character-app-password
-FROM_EMAIL=noreply@civicloghoa.com
+FROM_EMAIL=noreply@contractguard.ai
 APP_URL=https://yourdomain.com
 ```
 
@@ -54,7 +54,7 @@ SMTP_SERVER=smtp-mail.outlook.com
 SMTP_PORT=587
 SMTP_USERNAME=your-email@outlook.com
 SMTP_PASSWORD=your-app-password
-FROM_EMAIL=noreply@civicloghoa.com
+FROM_EMAIL=noreply@contractguard.ai
 APP_URL=https://yourdomain.com
 ```
 
@@ -72,7 +72,7 @@ SMTP_SERVER=smtp.mail.yahoo.com
 SMTP_PORT=587
 SMTP_USERNAME=your-email@yahoo.com
 SMTP_PASSWORD=your-app-password
-FROM_EMAIL=noreply@civicloghoa.com
+FROM_EMAIL=noreply@contractguard.ai
 APP_URL=https://yourdomain.com
 ```
 

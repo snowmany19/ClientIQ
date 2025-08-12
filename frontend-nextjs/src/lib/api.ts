@@ -1,132 +1,148 @@
+// frontend-nextjs/src/lib/api.ts
+// API client for ContractGuard.ai - AI Contract Review Platform
+
 import { 
   User, 
-  Violation, 
-  ViolationCreate, 
+  ContractRecord, 
+  ContractCreate, 
+  Workspace,
   LoginCredentials, 
   AuthResponse, 
   SubscriptionPlan, 
-  UserSubscription,
-  DashboardMetrics,
-  PaginatedResponse,
+  UserSubscription, 
+  DashboardMetrics, 
+  PaginatedResponse, 
   ApiError 
 } from '@/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = (typeof window !== 'undefined' && (window as any).ENV?.NEXT_PUBLIC_API_URL) || 'http://localhost:8000';
 
 class ApiClient {
   private baseURL: string;
+  private token: string | null = null;
 
   constructor(baseURL: string = API_BASE_URL) {
     this.baseURL = baseURL;
+    // Try to get token from localStorage on initialization
+    if (typeof window !== 'undefined') {
+      this.token = localStorage.getItem('access_token');
+    }
   }
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retries: number = 3
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
     
     const config: RequestInit = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
       ...options,
     };
 
-    // Only set Content-Type if not FormData and not already set
-    if (!(options.body instanceof FormData) && !(options.headers as any)?.['Content-Type']) {
-      config.headers = {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      };
-    } else {
-      config.headers = options.headers;
-    }
-
-    // Add auth token if available
-    const token = this.getToken();
-    if (token) {
+    // Add authorization header if token exists
+    if (this.token) {
       config.headers = {
         ...config.headers,
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${this.token}`,
       };
     }
 
     try {
       const response = await fetch(url, config);
       
+      if (response.status === 401) {
+        // Token expired or invalid
+        this.removeToken();
+        window.location.href = '/login';
+        throw new Error('Authentication required');
+      }
+
       if (!response.ok) {
         const errorData: ApiError = await response.json();
         throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
       }
 
-      return await response.json();
-    } catch (error) {
-      console.error('API request failed:', error);
+      // Handle empty responses
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json();
+      }
+      
+      return {} as T;
+    } catch (error: any) {
+      if (retries > 0 && error.name === 'TypeError') {
+        // Network error, retry
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return this.request<T>(endpoint, options, retries - 1);
+      }
       throw error;
     }
   }
 
   private getToken(): string | null {
-    if (typeof window !== 'undefined') {
-      // Try to get token from Zustand store first, then localStorage as fallback
-      try {
-        const authStore = JSON.parse(localStorage.getItem('auth-storage') || '{}');
-        return authStore.state?.token || localStorage.getItem('auth_token');
-      } catch {
-        return localStorage.getItem('auth_token');
-      }
-    }
-    return null;
+    return this.token || localStorage.getItem('access_token');
   }
 
   private setToken(token: string): void {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token);
-    }
+    this.token = token;
+    localStorage.setItem('access_token', token);
   }
 
   private removeToken(): void {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
-    }
+    this.token = null;
+    localStorage.removeItem('access_token');
   }
 
-  // Authentication
+  // ===========================
+  // 🔐 Authentication Methods
+  // ===========================
+
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const formData = new FormData();
+    // Convert credentials to form data since backend expects OAuth2PasswordRequestForm
+    const formData = new URLSearchParams();
     formData.append('username', credentials.username);
     formData.append('password', credentials.password);
-
-    const response = await fetch(`${this.baseURL}/login`, {
+    
+    const response = await this.request<AuthResponse>('/api/login', {
       method: 'POST',
-      body: formData,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
     });
-
-    if (!response.ok) {
-      const errorData: ApiError = await response.json();
-      throw new Error(errorData.detail || 'Login failed');
+    
+    if (response.access_token) {
+      this.setToken(response.access_token);
     }
-
-    const data: AuthResponse = await response.json();
-    this.setToken(data.access_token);
-    return data;
+    
+    return response;
   }
 
-  logout(): void {
+  async logout(): Promise<void> {
+    // Backend doesn't have a logout endpoint, just clear local state
     this.removeToken();
   }
 
   async getCurrentUser(): Promise<User> {
-    return this.request<User>('/me');
+    return this.request<User>('/api/me');
   }
 
-  // Violations
-  async getViolations(params?: {
+  // ===========================
+  // 📄 Contract Management
+  // ===========================
+
+  async getContracts(params?: {
     skip?: number;
     limit?: number;
-    hoa_id?: number;
-    tag?: string;
+    category?: string;
     status?: string;
-    search?: string;  // Add search parameter
-  }): Promise<PaginatedResponse<Violation>> {
+    search?: string;
+  }): Promise<PaginatedResponse<ContractRecord>> {
     const searchParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -136,105 +152,152 @@ class ApiClient {
       });
     }
 
-    return this.request<PaginatedResponse<Violation>>(`/violations/?${searchParams}`);
+    return this.request<PaginatedResponse<ContractRecord>>(`/contracts/?${searchParams}`);
   }
 
-  async getViolation(id: number): Promise<Violation> {
-    return this.request<Violation>(`/violations/${id}`);
+  async getContract(id: number): Promise<ContractRecord> {
+    return this.request<ContractRecord>(`/contracts/${id}`);
   }
 
-  async updateViolation(violationId: number, updates: Partial<Violation>): Promise<Violation> {
-    return this.request<Violation>(`/violations/${violationId}`, {
+  async createContract(contract: ContractCreate): Promise<ContractRecord> {
+    return this.request<ContractRecord>('/contracts/', {
+      method: 'POST',
+      body: JSON.stringify(contract),
+    });
+  }
+
+  async updateContract(id: number, updates: Partial<ContractCreate>): Promise<ContractRecord> {
+    return this.request<ContractRecord>(`/contracts/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
   }
 
-  async createViolation(violation: ViolationCreate): Promise<Violation> {
-    const formData = new FormData();
-    
-    // Add text fields
-    formData.append('description', violation.description);
-    formData.append('hoa', violation.hoa);
-    formData.append('address', violation.address);
-    formData.append('location', violation.location);
-    formData.append('offender', violation.offender);
-    
-    // Add optional fields
-    if (violation.gps_coordinates) {
-      formData.append('gps_coordinates', violation.gps_coordinates);
-    }
-    if (violation.violation_type) {
-      formData.append('violation_type', violation.violation_type);
-    }
-    if (violation.file) {
-      formData.append('file', violation.file);
-    }
-    if (violation.mobile_capture !== undefined) {
-      formData.append('mobile_capture', violation.mobile_capture.toString());
-    }
-    if (violation.auto_gps !== undefined) {
-      formData.append('auto_gps', violation.auto_gps.toString());
-    }
-
-    const response = await fetch(`${this.baseURL}/violations/`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.getToken()}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData: ApiError = await response.json();
-      throw new Error(errorData.detail || 'Failed to create violation');
-    }
-
-    return response.json();
-  }
-
-  async updateViolationStatus(
-    id: number,
-    status: string,
-    resolution_notes?: string,
-    resolved_by?: string
-  ): Promise<Violation> {
-    const searchParams = new URLSearchParams();
-    searchParams.append('new_status', status);
-    if (resolution_notes) {
-      searchParams.append('resolution_notes', resolution_notes);
-    }
-    if (resolved_by) {
-      searchParams.append('resolved_by', resolved_by);
-    }
-
-    return this.request<Violation>(`/violations/${id}/status?${searchParams}`, {
-      method: 'PUT',
-    });
-  }
-
-  async deleteViolation(id: number): Promise<void> {
-    return this.request<void>(`/violations/${id}`, {
+  async deleteContract(id: number): Promise<void> {
+    return this.request<void>(`/contracts/${id}`, {
       method: 'DELETE',
     });
   }
 
-  // Dashboard Data
+  async analyzeContract(id: number): Promise<any> {
+    return this.request<any>(`/contracts/${id}/analyze`, {
+      method: 'POST',
+    });
+  }
+
+  async askContractQuestion(id: number, question: string): Promise<any> {
+    const formData = new FormData();
+    formData.append('question', question);
+    
+    return this.request<any>(`/contracts/${id}/ask`, {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async uploadContractFile(contractId: number, file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    return this.request<any>(`/contracts/${contractId}/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async downloadContractReport(id: number): Promise<Blob> {
+    const response = await fetch(`${this.baseURL}/contracts/${id}/report`, {
+      headers: {
+        Authorization: `Bearer ${this.getToken()}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to download report');
+    }
+    
+    return response.blob();
+  }
+
+  // ===========================
+  // 🏢 Workspace Management
+  // ===========================
+
+  async getWorkspaces(): Promise<Workspace[]> {
+    return this.request<Workspace[]>('/workspaces/');
+  }
+
+  async getWorkspace(id: number): Promise<Workspace> {
+    return this.request<Workspace>(`/workspaces/${id}`);
+  }
+
+  async createWorkspace(workspace: Partial<Workspace>): Promise<Workspace> {
+    return this.request<Workspace>('/workspaces/', {
+      method: 'POST',
+      body: JSON.stringify(workspace),
+    });
+  }
+
+  async updateWorkspace(id: number, updates: Partial<Workspace>): Promise<Workspace> {
+    return this.request<Workspace>(`/workspaces/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteWorkspace(id: number): Promise<void> {
+    return this.request<void>(`/workspaces/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ===========================
+  // 👥 User Management
+  // ===========================
+
+  async getUsers(): Promise<User[]> {
+    return this.request<User[]>('/api/users');
+  }
+
+  async createUser(userData: any): Promise<User> {
+    return this.request<User>('/api/users/create', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async updateUser(userId: number, updates: any): Promise<User> {
+    return this.request<User>(`/api/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteUser(userId: number): Promise<void> {
+    return this.request<void>(`/api/users/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ===========================
+  // 📊 Analytics & Dashboard
+  // ===========================
+
   async getDashboardData(params?: {
     skip?: number;
     limit?: number;
-    hoa_id?: number;
-    tag?: string;
-    status?: string;
+    workspace_id?: number;
+    start_date?: string;
+    end_date?: string;
   }): Promise<{
-    violations: Violation[];
+    contracts: ContractRecord[];
     pagination: {
       total: number;
       pages: number;
       current_page: number;
       items_per_page: number;
     };
-    accessible_hoas: any[];
+    workspaces: Workspace[];
   }> {
     const searchParams = new URLSearchParams();
     if (params) {
@@ -245,384 +308,134 @@ class ApiClient {
       });
     }
 
-    return this.request(`/violations/dashboard-data?${searchParams}`);
+    return this.request<{
+      contracts: ContractRecord[];
+      pagination: {
+        total: number;
+        pages: number;
+        current_page: number;
+        items_per_page: number;
+      };
+      workspaces: Workspace[];
+    }>(`/dashboard/?${searchParams}`);
   }
 
-  // Analytics
-  async getDashboardMetrics(params?: {
-    hoa_id?: number;
-    start_date?: string;
-    end_date?: string;
-  }): Promise<DashboardMetrics> {
+  async getDashboardMetrics(params?: any): Promise<DashboardMetrics> {
     const searchParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
+        if (value !== undefined && value !== null) {
           searchParams.append(key, value.toString());
         }
       });
     }
-
-    return this.request<DashboardMetrics>(`/analytics/dashboard-metrics?${searchParams}`);
+    return this.request<DashboardMetrics>(`/api/dashboard-metrics?${searchParams}`);
   }
 
-  // Billing
-  async getSubscriptionPlans(): Promise<{ plans: SubscriptionPlan[] }> {
-    try {
-      const response = await this.request<{ plans: any }>('/billing/plans');
-      
-      // Convert the plans object to an array
-      const plansArray = Object.entries(response.plans).map(([key, plan]: [string, any]) => ({
-        id: key,
-        name: plan.name,
-        price: plan.price,
-        currency: plan.currency,
-        interval: plan.interval,
-        features: plan.features || [],
-        limits: {
-          hoas: plan.limits?.hoas || 1,
-          units: plan.limits?.units || 25,
-          users: plan.limits?.users || 2,
-          violations_per_month: plan.limits?.violations_per_month || plan.limits?.incidents_per_month || 50,
-          storage_gb: plan.limits?.storage_gb || 5
-        }
-      }));
-      
-      return { plans: plansArray };
-    } catch (error) {
-      console.error('Error in getSubscriptionPlans:', error);
-      // Return empty array as fallback
-      return { plans: [] };
-    }
+  // ===========================
+  // 💳 Billing & Subscriptions
+  // ===========================
+
+  async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    return this.request<SubscriptionPlan[]>('/api/plans');
   }
 
   async getUserSubscription(): Promise<UserSubscription> {
-    const response = await this.request<{
-      subscription: { status: string; plan_id: string };
-      plan: any;
-      features: string[];
-      limits: any;
-    }>('/billing/my-subscription');
-    
-    // Transform the backend response to match frontend expectations
-    return {
-      subscription_id: 'current',
-      plan_id: response.subscription.plan_id,
-      status: response.subscription.status,
-      current_period_start: new Date().toISOString(),
-      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      cancel_at_period_end: false,
-      features: response.features,
-      limits: {
-        hoas: response.limits?.hoas || 1,
-        units: response.limits?.units || 25,
-        users: response.limits?.users || 2,
-        violations_per_month: response.limits?.violations_per_month || response.limits?.incidents_per_month || 50,
-        storage_gb: response.limits?.storage_gb || 5
-      }
-    };
+    return this.request<UserSubscription>('/api/my-subscription');
   }
 
-  async createCheckoutSession(planId: string, successUrl: string, cancelUrl: string): Promise<{ checkout_url: string }> {
-    return this.request<{ checkout_url: string }>('/billing/create-checkout-session', {
+  async createCheckoutSession(planId: string, successUrl: string, cancelUrl: string): Promise<any> {
+    return this.request<any>('/api/create-checkout-session', {
       method: 'POST',
-      body: JSON.stringify({
-        plan_id: planId,
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-      }),
+      body: JSON.stringify({ plan_id: planId, success_url: successUrl, cancel_url: cancelUrl }),
     });
   }
 
-  async cancelSubscription(): Promise<{ message: string; cancel_at_period_end: boolean }> {
-    return this.request<{ message: string; cancel_at_period_end: boolean }>('/billing/cancel-subscription', {
+  async cancelSubscription(): Promise<any> {
+    return this.request<any>('/api/cancel-subscription', {
       method: 'POST',
     });
   }
 
-  // User Management
-  async getUsers(): Promise<User[]> {
-    return this.request<User[]>('/admin/users');
+  // ===========================
+  // ⚙️ User Settings & Preferences
+  // ===========================
+
+  async getUserSettings(): Promise<any> {
+    return this.request<any>('/api/user-settings');
   }
 
-  async createUser(userData: {
-    username: string;
-    email: string;
-    password: string;
-    role: string;
-    hoa_id?: number;
-  }): Promise<User> {
-    return this.request<User>('/admin/users', {
+  async changePassword(currentPassword: string, newPassword: string): Promise<any> {
+    return this.request<any>('/api/users/change-password', {
       method: 'POST',
-      body: JSON.stringify(userData),
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
     });
   }
 
-  async updateUser(userId: number, userData: {
-    username?: string;
-    email?: string;
-    password?: string;
-    role?: string;
-    hoa_id?: number;
-  }): Promise<User> {
-    return this.request<User>(`/users/${userId}`, {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
-  }
-
-  async deleteUser(userId: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/admin/users/${userId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Export
-  async exportViolationsCSV(params?: {
-    hoa_id?: number;
-    tag?: string;
-    status?: string;
-  }): Promise<Blob> {
-    const searchParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
-          searchParams.append(key, value.toString());
-        }
-      });
-    }
-
-    const response = await fetch(`${this.baseURL}/violations/export-csv?${searchParams}`, {
-      headers: {
-        Authorization: `Bearer ${this.getToken()}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to export violations');
-    }
-
-    return response.blob();
-  }
-
-  // Settings
-  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/auth/change-password', {
-      method: 'POST',
-      body: JSON.stringify({
-        current_password: currentPassword,
-        new_password: newPassword,
-      }),
-    });
-  }
-
-  async updateNotificationPreferences(preferences: {
-    email: boolean;
-    push: boolean;
-    violations: boolean;
-    reports: boolean;
-  }): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/user-settings/notifications', {
+  async updateNotificationPreferences(preferences: any): Promise<any> {
+    return this.request<any>('/api/user-settings/notifications', {
       method: 'PUT',
       body: JSON.stringify(preferences),
     });
   }
 
-  async updateAppearanceSettings(settings: {
-    theme: string;
-    pwa_offline: boolean;
-    pwa_app_switcher: boolean;
-  }): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/user-settings/appearance', {
+  async updateAppearanceSettings(settings: any): Promise<any> {
+    return this.request<any>('/api/user-settings/appearance', {
       method: 'PUT',
       body: JSON.stringify(settings),
     });
   }
 
   async exportUserData(): Promise<Blob> {
-    const response = await fetch(`${this.baseURL}/user-settings/export-data`, {
+    const response = await fetch(`${this.baseURL}/api/user-settings/export-data`, {
       headers: {
         Authorization: `Bearer ${this.getToken()}`,
       },
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to export user data');
-    }
-
+    if (!response.ok) throw new Error('Failed to export user data');
     return response.blob();
   }
 
-  async getActiveSessions(): Promise<any[]> {
-    return this.request<any[]>('/user-settings/active-sessions');
+  // ===========================
+  // 🔐 Security & 2FA
+  // ===========================
+
+  async getActiveSessions(): Promise<any> {
+    return this.request<any>('/api/user-settings/active-sessions');
   }
 
-  async revokeSession(sessionId: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/user-settings/revoke-session/${sessionId}`, {
+  async revokeSession(sessionId: string): Promise<any> {
+    return this.request<any>(`/api/user-settings/revoke-session/${sessionId}`, {
       method: 'DELETE',
     });
   }
 
-  async getUserSettings(): Promise<{
-    notifications: {
-      email: boolean;
-      push: boolean;
-      violations: boolean;
-      reports: boolean;
-    };
-    appearance: {
-      theme: string;
-      pwa_offline: boolean;
-      pwa_app_switcher: boolean;
-    };
-    security: {
-      two_factor_enabled: boolean;
-    };
-  }> {
-    return this.request<{
-      notifications: {
-        email: boolean;
-        push: boolean;
-        violations: boolean;
-        reports: boolean;
-      };
-      appearance: {
-        theme: string;
-        pwa_offline: boolean;
-        pwa_app_switcher: boolean;
-      };
-      security: {
-        two_factor_enabled: boolean;
-      };
-    }>('/user-settings/user-settings');
+  async get2FAStatus(): Promise<any> {
+    return this.request<any>('/api/user-settings/2fa-status');
   }
 
-  async get2FAStatus(): Promise<{ enabled: boolean }> {
-    return this.request<{ enabled: boolean }>('/user-settings/2fa-status');
-  }
-
-  async enable2FA(): Promise<{ qr_code: string; secret: string }> {
-    return this.request<{ qr_code: string; secret: string }>('/user-settings/enable-2fa', {
+  async enable2FA(): Promise<any> {
+    return this.request<any>('/api/user-settings/enable-2fa', {
       method: 'POST',
     });
   }
 
-  async verify2FA(code: string): Promise<{ message: string; enabled: boolean }> {
-    return this.request<{ message: string; enabled: boolean }>('/user-settings/verify-2fa', {
+  async verify2FA(code: string): Promise<any> {
+    return this.request<any>('/api/user-settings/verify-2fa', {
       method: 'POST',
       body: JSON.stringify({ code }),
     });
   }
 
-  async disable2FA(): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/user-settings/disable-2fa', {
+  async disable2FA(): Promise<any> {
+    return this.request<any>('/api/user-settings/disable-2fa', {
       method: 'DELETE',
     });
   }
 
-  // Letter Generation
-  async generateViolationLetter(violationId: number): Promise<{
-    letter_content: string;
-    violation_id: number;
-    generated_by: string;
-    generated_at: string;
-  }> {
-    return this.request<{
-      letter_content: string;
-      violation_id: number;
-      generated_by: string;
-      generated_at: string;
-    }>(`/violations/${violationId}/generate-letter`, {
-      method: 'POST',
-    });
-  }
-
-  // HOA Management
-  async getHOAs(): Promise<any[]> {
-    return this.request<any[]>('/hoas');
-  }
-
-  async createHOA(data: any): Promise<any> {
-    return this.request<any>('/hoas', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateHOA(hoaId: number, data: any): Promise<any> {
-    return this.request<any>(`/hoas/${hoaId}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteHOA(hoaId: number): Promise<void> {
-    return this.request<void>(`/hoas/${hoaId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async generateLetterPDF(letterContent: string): Promise<Blob> {
-    const response = await fetch(`${this.baseURL}/violations/generate-letter/pdf`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.getToken()}`,
-      },
-      body: JSON.stringify({ letter_content: letterContent }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to generate PDF');
-    }
-
-    return response.blob();
-  }
-
-  // Violation Letter Management
-  async sendViolationLetter(violationId: number, recipientEmail: string): Promise<any> {
-    const response = await this.request(`/violations/${violationId}/send-letter`, {
-      method: 'POST',
-      body: JSON.stringify({ recipient_email: recipientEmail }),
-    });
-    return response;
-  }
-
-  async getLetterStatus(violationId: number): Promise<any> {
-    const response = await this.request(`/violations/${violationId}/letter-status`);
-    return response;
-  }
-
-  async resendViolationLetter(violationId: number, recipientEmail: string): Promise<any> {
-    const response = await this.request(`/violations/${violationId}/resend-letter`, {
-      method: 'POST',
-      body: JSON.stringify({ recipient_email: recipientEmail }),
-    });
-    return response;
-  }
-
-  // Resident Portal - Letters
-  async getMyViolations(): Promise<any> {
-    const response = await this.request('/resident-portal/my-violations');
-    return response;
-  }
-
-  async getMyLetters(): Promise<any> {
-    const response = await this.request('/resident-portal/my-letters');
-    return response;
-  }
-
-  async getViolationLetter(violationId: number): Promise<any> {
-    const response = await this.request(`/resident-portal/violation/${violationId}/letter`);
-    return response;
-  }
-
-  async markLetterAsRead(violationId: number): Promise<any> {
-    const response = await this.request(`/resident-portal/violation/${violationId}/mark-letter-read`, {
-      method: 'POST',
-    });
-    return response;
-  }
+  // ===========================
+  // 📧 Demo & Contact
+  // ===========================
 
   async submitDemoRequest(demoData: {
     name: string;
@@ -631,47 +444,49 @@ class ApiClient {
     phone?: string;
     message?: string;
   }): Promise<{ message: string; status: string }> {
-    return this.request<{ message: string; status: string }>('/communications/demo-request', {
+    return this.request<{ message: string; status: string }>('/demo/request', {
       method: 'POST',
       body: JSON.stringify(demoData),
     });
   }
 
-  // Policy Management API methods
-  async uploadPolicy(formData: FormData): Promise<any> {
-    return this.request('/policies/upload', { 
-      method: 'POST', 
-      body: formData
-    });
-  }
+  // ===========================
+  // 📁 File Management
+  // ===========================
 
-  async getPolicies(): Promise<any[]> {
-    return this.request('/policies');
-  }
-
-  async getPolicyDetails(policyId: string): Promise<any> {
-    return this.request(`/policies/${policyId}`);
-  }
-
-  async activatePolicy(policyId: string): Promise<any> {
-    return this.request(`/policies/${policyId}/activate`, { method: 'PUT' });
-  }
-
-  async deletePolicy(policyId: string): Promise<any> {
-    return this.request(`/policies/${policyId}`, { method: 'DELETE' });
-  }
-
-  async addPolicySection(policyId: string, sectionData: any): Promise<any> {
-    return this.request(`/policies/${policyId}/sections`, {
+  async uploadFile(file: File, workspaceId?: number): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (workspaceId) {
+      formData.append('workspace_id', workspaceId.toString());
+    }
+    
+    return this.request<any>('/files/upload', {
       method: 'POST',
-      body: JSON.stringify(sectionData),
+      body: formData,
     });
   }
 
-  async getAITrainingStatus(): Promise<any> {
-    return this.request('/policies/ai/status');
+  async downloadFile(fileId: string): Promise<Blob> {
+    const response = await fetch(`${this.baseURL}/files/${fileId}`, {
+      headers: {
+        Authorization: `Bearer ${this.getToken()}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to download file');
+    }
+    
+    return response.blob();
   }
 
+  async deleteFile(fileId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/files/${fileId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
+// Export singleton instance
 export const apiClient = new ApiClient(); 

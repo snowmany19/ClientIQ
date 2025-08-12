@@ -44,7 +44,7 @@ export default function SettingsPage() {
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
-    violations: true,
+            contracts: true,
     reports: true,
   });
 
@@ -75,7 +75,7 @@ export default function SettingsPage() {
       setNotifications({
         email: settings.notifications.email,
         push: settings.notifications.push,
-        violations: settings.notifications.violations,
+        contracts: settings.notifications.contracts,
         reports: settings.notifications.reports,
       });
       
@@ -390,14 +390,14 @@ export default function SettingsPage() {
 
         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
           <div>
-            <h4 className="text-sm font-semibold text-gray-900">Violation Alerts</h4>
-            <p className="text-sm text-gray-700 font-medium">Get notified about new violations</p>
+            <h4 className="text-sm font-semibold text-gray-900">Contract Alerts</h4>
+            <p className="text-sm text-gray-700 font-medium">Get notified about new contracts and analysis completion</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
-              checked={notifications.violations}
-              onChange={(e) => setNotifications(prev => ({ ...prev, violations: e.target.checked }))}
+              checked={notifications.contracts}
+              onChange={(e) => setNotifications(prev => ({ ...prev, contracts: e.target.checked }))}
               className="sr-only peer"
             />
             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -554,7 +554,7 @@ export default function SettingsPage() {
             
             <div className="pt-3 border-t border-gray-200">
               <h5 className="text-sm font-semibold text-gray-900 mb-2">Install App</h5>
-              <p className="text-sm text-gray-700 font-medium mb-3">Install CivicLogHOA as a mobile app for better experience</p>
+                              <p className="text-sm text-gray-700 font-medium mb-3">Install ContractGuard.ai as a mobile app for better experience</p>
               
               <div className="space-y-3">
                 <Button 
@@ -564,7 +564,7 @@ export default function SettingsPage() {
                   disabled={!isPWAInstallable()}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Install CivicLogHOA App
+                  Install ContractGuard.ai App
                 </Button>
                 
                 <div className="text-xs text-gray-500 space-y-1">

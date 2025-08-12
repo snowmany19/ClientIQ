@@ -6,11 +6,11 @@ import { PRICING_TIERS } from '@/lib/pricing';
 
 const getPlanFeatures = (planName: string) => {
   const baseFeatures = [
-    'Mobile violation capture',
-    'AI-powered analysis',
+    'Contract upload & analysis',
+    'AI-powered risk assessment',
     'Professional PDF reports',
     'Automated notifications',
-    'Resident portal',
+    'Collaborative review',
     'Analytics dashboard',
     'User management',
     'Email support'
@@ -41,7 +41,7 @@ export default function PricingSection() {
             Simple, transparent pricing
           </h2>
           <p className="mt-4 text-lg text-gray-600">
-            Choose the plan that fits your HOA's needs. All plans include our core features.
+            Choose the plan that fits your contract management needs. All plans include our core features.
           </p>
         </div>
 
@@ -81,10 +81,10 @@ export default function PricingSection() {
                   {/* Limits Display */}
                   <div className="mt-6 space-y-2">
                     <div className="text-sm text-gray-600">
-                      <span className="font-medium">HOAs:</span> {tier.hoaLimit}
+                      <span className="font-medium">Workspaces:</span> {tier.workspaceLimit}
                     </div>
                     <div className="text-sm text-gray-600">
-                      <span className="font-medium">Units:</span> {tier.unitLimit}
+                      <span className="font-medium">Clients:</span> {tier.clientLimit}
                     </div>
                     <div className="text-sm text-gray-600">
                       <span className="font-medium">Users:</span> {tier.userLimit}

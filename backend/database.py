@@ -42,5 +42,36 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except Exception as e:
+        db.rollback()
+        raise e
     finally:
         db.close()
+
+# 🔄 Database health check
+def check_database_health():
+    """Check if database is accessible and healthy."""
+    try:
+        with engine.connect() as conn:
+            conn.execute("SELECT 1")
+        return True
+    except Exception as e:
+        print(f"Database health check failed: {e}")
+        return False
+
+# 🚨 Database connection retry logic
+def get_db_with_retry(max_retries: int = 3, retry_delay: float = 1.0):
+    """Get database session with retry logic for transient failures."""
+    for attempt in range(max_retries):
+        try:
+            db = SessionLocal()
+            # Test connection
+            db.execute("SELECT 1")
+            return db
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise e
+            print(f"Database connection attempt {attempt + 1} failed: {e}")
+            import time
+            time.sleep(retry_delay)
+            retry_delay *= 2  # Exponential backoff

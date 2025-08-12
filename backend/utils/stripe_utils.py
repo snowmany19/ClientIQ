@@ -1,311 +1,461 @@
 # backend/utils/stripe_utils.py
+# Stripe integration utilities for ContractGuard.ai - AI Contract Review Platform
 
 import os
 import stripe
-from typing import Optional, Dict, Any, List
-from datetime import datetime
-from fastapi import HTTPException, status
+from typing import Dict, Any, Optional, List
+from utils.logger import get_logger
+
+logger = get_logger("stripe_utils")
 
 # Initialize Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-# Subscription plans configuration
+# ===========================
+# 💳 Subscription Plans
+# ===========================
+
 SUBSCRIPTION_PLANS = {
-    "starter": {
-        "name": "Starter",
-        "price_id": os.getenv("STRIPE_STARTER_PRICE_ID"),
+    "solo": {
+        "name": "Solo",
+        "price": 39,
+        "currency": "usd",
+        "interval": "month",
+        "features": [
+            "AI-powered contract analysis",
+            "Risk assessment and scoring",
+            "Contract summary generation",
+            "Basic reporting",
+            "Email support"
+        ],
+        "limits": {
+            "contracts_per_month": 10,
+            "users": 1,
+            "storage_gb": 5,
+            "workspaces": 1
+        }
+    },
+    "team": {
+        "name": "Team",
         "price": 99,
         "currency": "usd",
         "interval": "month",
         "features": [
-            "Mobile violation capture",
-            "AI-powered analysis",
-            "Professional reporting",
-            "Automated communication",
-            "Basic violation tracking",
-            "Standard letter generation",
-            "Email support",
-            "Standard reports"
+            "Everything in Solo",
+            "Team collaboration",
+            "Advanced risk analytics",
+            "Custom risk scoring",
+            "Priority support",
+            "API access"
         ],
         "limits": {
-            "hoas": 1,
-            "units": 25,
-            "users": 2,
-            "violations_per_month": 50,
-            "storage_gb": 5
+            "contracts_per_month": 50,
+            "users": 5,
+            "storage_gb": 25,
+            "workspaces": 3
         }
     },
     "business": {
         "name": "Business",
-        "price_id": os.getenv("STRIPE_BUSINESS_PRICE_ID"),
         "price": 299,
         "currency": "usd",
         "interval": "month",
         "features": [
-            "Mobile violation capture",
-            "AI-powered analysis",
-            "Professional reporting",
-            "Automated communication",
-            "Advanced analytics & reporting",
-            "AI-powered letter generation",
-            "Priority support",
-            "Custom integrations"
-        ],
-        "limits": {
-            "hoas": 1,
-            "units": 100,
-            "users": 5,
-            "violations_per_month": 200,
-            "storage_gb": 20
-        }
-    },
-    "pro": {
-        "name": "Pro",
-        "price_id": os.getenv("STRIPE_PRO_PRICE_ID"),
-        "price": 499,
-        "currency": "usd",
-        "interval": "month",
-        "features": [
-            "Mobile violation capture",
-            "AI-powered analysis",
-            "Professional reporting",
-            "Automated communication",
-            "Advanced analytics & reporting",
-            "AI-powered letter generation",
-            "Priority support",
+            "Everything in Team",
+            "Multi-workspace management",
+            "Advanced compliance tracking",
             "Custom integrations",
-            "Multi-HOA management"
+            "Dedicated account manager",
+            "Training and onboarding"
         ],
         "limits": {
-            "hoas": 2,
-            "units": 250,
-            "users": 10,
-            "violations_per_month": 500,
-            "storage_gb": 50
+            "contracts_per_month": 250,
+            "users": 20,
+            "storage_gb": 100,
+            "workspaces": 10
         }
     },
     "enterprise": {
         "name": "Enterprise",
-        "price_id": os.getenv("STRIPE_ENTERPRISE_PRICE_ID"),
         "price": 999,
         "currency": "usd",
         "interval": "month",
         "features": [
-            "Mobile violation capture",
-            "AI-powered analysis",
-            "Professional reporting",
-            "Automated communication",
-            "Advanced analytics & reporting",
-            "AI-powered letter generation",
-            "Priority support",
-            "Custom integrations",
-            "Multi-HOA management",
-            "Dedicated account manager",
-            "Advanced compliance tools"
+            "Everything in Business",
+            "Unlimited contracts",
+            "Custom AI model training",
+            "Advanced security features",
+            "24/7 phone support",
+            "Custom SLA agreements"
         ],
         "limits": {
-            "hoas": 5,
-            "units": 500,
-            "users": 20,
-            "violations_per_month": 1000,
-            "storage_gb": 100
+            "contracts_per_month": 1000,
+            "users": 100,
+            "storage_gb": 500,
+            "workspaces": 50
         }
     }
 }
 
-def create_customer(email: str, name: str) -> str:
-    """Create a Stripe customer."""
-    try:
-        customer = stripe.Customer.create(
-            email=email,
-            name=name,
-            metadata={"created_at": datetime.utcnow().isoformat()}
-        )
-        return customer.id
-    except stripe.error.StripeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create customer: {str(e)}"
-        )
+def get_subscription_plans() -> Dict[str, Any]:
+    """Get all available subscription plans."""
+    return SUBSCRIPTION_PLANS
 
-def create_subscription(customer_id: str, plan_id: str) -> Dict[str, Any]:
-    """Create a subscription for a customer."""
-    try:
-        plan = SUBSCRIPTION_PLANS.get(plan_id)
-        if not plan:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid plan ID"
-            )
+def get_plan_by_id(plan_id: str) -> Optional[Dict[str, Any]]:
+    """Get a specific subscription plan by ID."""
+    return SUBSCRIPTION_PLANS.get(plan_id)
+
+def get_plan_features(plan_id: str) -> List[str]:
+    """Get features for a specific plan."""
+    plan = get_plan_by_id(plan_id)
+    return plan.get("features", []) if plan else []
+
+def get_plan_limits(plan_id: str) -> Dict[str, Any]:
+    """Get limits for a specific plan."""
+    plan = get_plan_by_id(plan_id)
+    return plan.get("limits", {}) if plan else {}
+
+# ===========================
+# 🏢 Workspace Management
+# ===========================
+
+def create_workspace_subscription(
+    workspace_id: str,
+    plan_id: str,
+    customer_email: str,
+    customer_name: str
+) -> Dict[str, Any]:
+    """
+    Create a new Stripe subscription for a workspace.
+    
+    Args:
+        workspace_id: Unique workspace identifier
+        plan_id: Subscription plan ID
+        customer_email: Customer email address
+        customer_name: Customer name
         
-        subscription = stripe.Subscription.create(
-            customer=customer_id,
-            items=[{"price": plan["price_id"]}],
-            payment_behavior="default_incomplete",
-            expand=["latest_invoice.payment_intent"],
+    Returns:
+        Dictionary with subscription details
+    """
+    try:
+        # Get plan details
+        plan = get_plan_by_id(plan_id)
+        if not plan:
+            raise ValueError(f"Invalid plan ID: {plan_id}")
+        
+        # Create or get customer
+        customer = stripe.Customer.create(
+            email=customer_email,
+            name=customer_name,
             metadata={
-                "plan_id": plan_id,
-                "created_at": datetime.utcnow().isoformat()
+                "workspace_id": workspace_id,
+                "plan_id": plan_id
             }
         )
+        
+        # Create subscription
+        subscription = stripe.Subscription.create(
+            customer=customer.id,
+            items=[{"price": plan_id}],
+            metadata={
+                "workspace_id": workspace_id,
+                "plan_id": plan_id
+            },
+            payment_behavior="default_incomplete",
+            payment_settings={"save_default_payment_method": "on_subscription"},
+            expand=["latest_invoice.payment_intent"]
+        )
+        
+        logger.info(f"Created subscription {subscription.id} for workspace {workspace_id}")
         
         return {
             "subscription_id": subscription.id,
-            "client_secret": subscription.latest_invoice.payment_intent.client_secret,
-            "status": subscription.status
-        }
-    except stripe.error.StripeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create subscription: {str(e)}"
-        )
-
-def get_subscription(subscription_id: str) -> Dict[str, Any]:
-    """Get subscription details."""
-    try:
-        subscription = stripe.Subscription.retrieve(subscription_id)
-        return {
-            "id": subscription.id,
+            "customer_id": customer.id,
+            "plan_id": plan_id,
             "status": subscription.status,
             "current_period_start": subscription.current_period_start,
             "current_period_end": subscription.current_period_end,
-            "plan_id": subscription.metadata.get("plan_id"),
-            "customer_id": subscription.customer
+            "client_secret": subscription.latest_invoice.payment_intent.client_secret if subscription.latest_invoice.payment_intent else None
         }
-    except stripe.error.StripeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to retrieve subscription: {str(e)}"
-        )
+        
+    except Exception as e:
+        logger.error(f"Failed to create workspace subscription: {e}")
+        raise
 
-def cancel_subscription(subscription_id: str) -> Dict[str, Any]:
-    """Cancel a subscription."""
+def update_workspace_subscription(
+    subscription_id: str,
+    new_plan_id: str
+) -> Dict[str, Any]:
+    """
+    Update an existing workspace subscription.
+    
+    Args:
+        subscription_id: Stripe subscription ID
+        new_plan_id: New plan ID
+        
+    Returns:
+        Updated subscription details
+    """
     try:
-        subscription = stripe.Subscription.modify(
+        # Get current subscription
+        subscription = stripe.Subscription.retrieve(subscription_id)
+        
+        # Update subscription items
+        updated_subscription = stripe.Subscription.modify(
             subscription_id,
-            cancel_at_period_end=True
-        )
-        return {
-            "id": subscription.id,
-            "status": subscription.status,
-            "cancel_at": subscription.cancel_at
-        }
-    except stripe.error.StripeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to cancel subscription: {str(e)}"
-        )
-
-def create_checkout_session(customer_id: str, plan_id: str, success_url: str, cancel_url: str) -> str:
-    """Create a checkout session for subscription."""
-    try:
-        plan = SUBSCRIPTION_PLANS.get(plan_id)
-        if not plan:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid plan ID"
-            )
-        
-        session = stripe.checkout.Session.create(
-            customer=customer_id,
-            payment_method_types=["card"],
-            line_items=[{
-                "price": plan["price_id"],
-                "quantity": 1,
+            items=[{
+                "id": subscription.items.data[0].id,
+                "price": new_plan_id
             }],
-            mode="subscription",
-            success_url=success_url,
-            cancel_url=cancel_url,
-            metadata={
-                "plan_id": plan_id,
-                "customer_id": customer_id
-            }
+            metadata={"plan_id": new_plan_id}
         )
         
-        return session.url
-    except stripe.error.StripeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create checkout session: {str(e)}"
-        )
+        logger.info(f"Updated subscription {subscription_id} to plan {new_plan_id}")
+        
+        return {
+            "subscription_id": updated_subscription.id,
+            "plan_id": new_plan_id,
+            "status": updated_subscription.status,
+            "current_period_start": updated_subscription.current_period_start,
+            "current_period_end": updated_subscription.current_period_end
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to update workspace subscription: {e}")
+        raise
 
-def create_billing_portal_session(customer_id: str, return_url: str) -> str:
-    """Create a billing portal session for customer management."""
+def cancel_workspace_subscription(
+    subscription_id: str,
+    cancel_at_period_end: bool = True
+) -> Dict[str, Any]:
+    """
+    Cancel a workspace subscription.
+    
+    Args:
+        subscription_id: Stripe subscription ID
+        cancel_at_period_end: Whether to cancel at period end
+        
+    Returns:
+        Cancellation details
+    """
     try:
-        session = stripe.billing_portal.Session.create(
+        if cancel_at_period_end:
+            # Cancel at period end
+            subscription = stripe.Subscription.modify(
+                subscription_id,
+                cancel_at_period_end=True
+            )
+            message = "Subscription will be cancelled at the end of the current period"
+        else:
+            # Cancel immediately
+            subscription = stripe.Subscription.cancel(subscription_id)
+            message = "Subscription cancelled immediately"
+        
+        logger.info(f"Cancelled subscription {subscription_id}")
+        
+        return {
+            "subscription_id": subscription.id,
+            "status": subscription.status,
+            "cancel_at_period_end": subscription.cancel_at_period_end,
+            "cancelled_at": subscription.cancelled_at,
+            "message": message
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to cancel workspace subscription: {e}")
+        raise
+
+# ===========================
+# 💰 Billing & Invoicing
+# ===========================
+
+def create_invoice(
+    customer_id: str,
+    amount: int,
+    currency: str = "usd",
+    description: str = "ContractGuard.ai subscription"
+) -> Dict[str, Any]:
+    """
+    Create a Stripe invoice.
+    
+    Args:
+        customer_id: Stripe customer ID
+        amount: Amount in cents
+        currency: Currency code
+        description: Invoice description
+        
+    Returns:
+        Invoice details
+    """
+    try:
+        invoice = stripe.Invoice.create(
             customer=customer_id,
-            return_url=return_url
+            amount=amount,
+            currency=currency,
+            description=description,
+            auto_advance=True
         )
-        return session.url
-    except stripe.error.StripeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create billing portal session: {str(e)}"
-        )
+        
+        logger.info(f"Created invoice {invoice.id} for customer {customer_id}")
+        
+        return {
+            "invoice_id": invoice.id,
+            "amount": invoice.amount,
+            "currency": invoice.currency,
+            "status": invoice.status,
+            "hosted_invoice_url": invoice.hosted_invoice_url
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to create invoice: {e}")
+        raise
 
-def get_usage_limits(plan_id: str) -> Dict[str, Any]:
-    """Get usage limits for a plan."""
-    plan = SUBSCRIPTION_PLANS.get(plan_id)
-    if not plan:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid plan ID"
-        )
-    return plan["limits"]
-
-def check_usage_limit(plan_id: str, current_usage: Dict[str, int], resource: str) -> bool:
-    """Check if usage is within plan limits."""
-    limits = get_usage_limits(plan_id)
-    limit = limits.get(resource, -1)
+def get_customer_invoices(
+    customer_id: str,
+    limit: int = 10
+) -> List[Dict[str, Any]]:
+    """
+    Get invoices for a customer.
     
-    if limit == -1:  # Unlimited
-        return True
-    
-    current = current_usage.get(resource, 0)
-    return current < limit
-
-def get_plan_features(plan_id: str) -> List[str]:
-    """Get features for a plan."""
-    plan = SUBSCRIPTION_PLANS.get(plan_id)
-    if not plan:
+    Args:
+        customer_id: Stripe customer ID
+        limit: Maximum number of invoices to return
+        
+    Returns:
+        List of invoice details
+    """
+    try:
+        invoices = stripe.Invoice.list(
+            customer=customer_id,
+            limit=limit
+        )
+        
+        return [{
+            "invoice_id": invoice.id,
+            "amount": invoice.amount,
+            "currency": invoice.currency,
+            "status": invoice.status,
+            "created": invoice.created,
+            "hosted_invoice_url": invoice.hosted_invoice_url
+        } for invoice in invoices.data]
+        
+    except Exception as e:
+        logger.error(f"Failed to get customer invoices: {e}")
         return []
-    return plan["features"]
 
-def enforce_plan_limits(user_plan: str, current_usage: Dict[str, int], resource: str) -> bool:
-    """Enforce plan limits and return True if within limits, False if exceeded."""
-    limits = get_usage_limits(user_plan)
-    if not limits:
-        return True  # No limits defined, allow access
-    
-    limit = limits.get(resource, -1)
-    if limit == -1:  # Unlimited
-        return True
-    
-    current = current_usage.get(resource, 0)
-    return current < limit
+# ===========================
+# 🔐 Webhook Handling
+# ===========================
 
-def get_plan_upgrade_suggestion(user_plan: str, current_usage: Dict[str, int], resource: str) -> Dict[str, Any]:
-    """Get upgrade suggestion when limits are exceeded."""
-    current_plan = SUBSCRIPTION_PLANS.get(user_plan, {})
-    current_limit = current_plan.get("limits", {}).get(resource, 0)
-    current_usage_count = current_usage.get(resource, 0)
+def handle_webhook_event(
+    event_type: str,
+    event_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Handle Stripe webhook events.
     
-    # Find next plan with higher limits
-    plan_order = ["starter", "business", "pro", "enterprise"]
-    current_index = plan_order.index(user_plan) if user_plan in plan_order else -1
-    
-    for plan_id in plan_order[current_index + 1:]:
-        plan = SUBSCRIPTION_PLANS.get(plan_id, {})
-        plan_limit = plan.get("limits", {}).get(resource, 0)
-        if plan_limit > current_limit:
-            return {
-                "current_plan": user_plan,
-                "current_limit": current_limit,
-                "current_usage": current_usage_count,
-                "suggested_plan": plan_id,
-                "suggested_limit": plan_limit,
-                "suggested_price": plan.get("price", 0),
-                "resource": resource
-            }
-    
-    return None 
+    Args:
+        event_type: Type of webhook event
+        event_data: Event data from Stripe
+        
+    Returns:
+        Processing result
+    """
+    try:
+        if event_type == "invoice.payment_succeeded":
+            return handle_payment_succeeded(event_data)
+        elif event_type == "invoice.payment_failed":
+            return handle_payment_failed(event_data)
+        elif event_type == "customer.subscription.deleted":
+            return handle_subscription_deleted(event_data)
+        elif event_type == "customer.subscription.updated":
+            return handle_subscription_updated(event_data)
+        else:
+            logger.info(f"Unhandled webhook event: {event_type}")
+            return {"status": "ignored", "event_type": event_type}
+            
+    except Exception as e:
+        logger.error(f"Failed to handle webhook event {event_type}: {e}")
+        return {"status": "error", "error": str(e)}
+
+def handle_payment_succeeded(event_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle successful payment webhook."""
+    try:
+        invoice = event_data.get("data", {}).get("object", {})
+        customer_id = invoice.get("customer")
+        subscription_id = invoice.get("subscription")
+        
+        logger.info(f"Payment succeeded for customer {customer_id}, subscription {subscription_id}")
+        
+        return {
+            "status": "success",
+            "event_type": "payment_succeeded",
+            "customer_id": customer_id,
+            "subscription_id": subscription_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to handle payment succeeded: {e}")
+        return {"status": "error", "error": str(e)}
+
+def handle_payment_failed(event_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle failed payment webhook."""
+    try:
+        invoice = event_data.get("data", {}).get("object", {})
+        customer_id = invoice.get("customer")
+        subscription_id = invoice.get("subscription")
+        
+        logger.warning(f"Payment failed for customer {customer_id}, subscription {subscription_id}")
+        
+        return {
+            "status": "success",
+            "event_type": "payment_failed",
+            "customer_id": customer_id,
+            "subscription_id": subscription_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to handle payment failed: {e}")
+        return {"status": "error", "error": str(e)}
+
+def handle_subscription_deleted(event_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle subscription deletion webhook."""
+    try:
+        subscription = event_data.get("data", {}).get("object", {})
+        customer_id = subscription.get("customer")
+        subscription_id = subscription.get("id")
+        
+        logger.info(f"Subscription deleted: {subscription_id} for customer {customer_id}")
+        
+        return {
+            "status": "success",
+            "event_type": "subscription_deleted",
+            "customer_id": customer_id,
+            "subscription_id": subscription_id
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to handle subscription deleted: {e}")
+        return {"status": "error", "error": str(e)}
+
+def handle_subscription_updated(event_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle subscription update webhook."""
+    try:
+        subscription = event_data.get("data", {}).get("object", {})
+        customer_id = subscription.get("customer")
+        subscription_id = subscription.get("id")
+        status = subscription.get("status")
+        
+        logger.info(f"Subscription updated: {subscription_id} for customer {customer_id}, status: {status}")
+        
+        return {
+            "status": "success",
+            "event_type": "subscription_updated",
+            "customer_id": customer_id,
+            "subscription_id": subscription_id,
+            "new_status": status
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to handle subscription updated: {e}")
+        return {"status": "error", "error": str(e)} 

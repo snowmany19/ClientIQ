@@ -1,4 +1,4 @@
-# models.py — SQLAlchemy models for the CivicLogHOA - HOA Violation Management system
+# models.py — SQLAlchemy models for ContractGuard.ai - AI Contract Review Platform
 
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float, Boolean, JSON, func
 from sqlalchemy.orm import relationship
@@ -10,50 +10,6 @@ try:
 except ImportError:
     from backend.database import Base
 
-# 📝 Violation table
-class Violation(Base):
-    __tablename__ = "violations"
-
-    id = Column(Integer, primary_key=True, index=True)
-    violation_number = Column(Integer, unique=True, index=True, nullable=True)  # Unique violation number, set after creation
-    description = Column(Text)                   # Raw violation report
-    summary = Column(Text)                       # GPT summary
-    tags = Column(String)                        # Comma-separated tags
-    timestamp = Column(DateTime, default=datetime.utcnow)
-
-    hoa_name = Column(String)                    # HOA name (text)
-    address = Column(String)                     # Property address/unit number
-    location = Column(String)                    # Specific location within property
-    offender = Column(String)                    # Resident name/description
-
-    # New HOA-specific fields
-    gps_coordinates = Column(String, nullable=True)  # GPS coordinates for mobile capture
-    status = Column(String, default="open")      # open, under_review, resolved, disputed
-    repeat_offender_score = Column(Integer, default=1)  # Renamed from severity
-
-    # Resolution tracking fields
-    resolved_at = Column(DateTime, nullable=True)      # When violation was resolved
-    resolved_by = Column(String, nullable=True)        # Who resolved the violation
-    resolution_notes = Column(Text, nullable=True)     # Notes about resolution
-    reviewed_at = Column(DateTime, nullable=True)      # When violation was reviewed
-    reviewed_by = Column(String, nullable=True)        # Who reviewed the violation
-
-    image_url = Column(String, nullable=True)    # Optional image path
-    pdf_path = Column(String, nullable=True)
-
-    # Letter tracking fields
-    letter_generated_at = Column(DateTime, nullable=True)
-    letter_sent_at = Column(DateTime, nullable=True)
-    letter_content = Column(Text, nullable=True)
-    letter_recipient_email = Column(String, nullable=True)
-    letter_status = Column(String, default="not_sent")  # not_sent, sent, delivered, opened
-    letter_sent_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-
-    # 🔗 FK to inspector
-    user_id = Column(Integer, ForeignKey("users.id"))
-    user = relationship("User", back_populates="violations", foreign_keys=[user_id])
-    letter_sender = relationship("User", foreign_keys=[letter_sent_by])
-
 # 🧑 User table with role-based access
 class User(Base):
     __tablename__ = "users"
@@ -64,16 +20,16 @@ class User(Base):
     email = Column(String, unique=True, nullable=True)
     first_name = Column(String, nullable=True)  # User's first name
     last_name = Column(String, nullable=True)   # User's last name
-    company_name = Column(String, nullable=True)  # Company or HOA name
+    company_name = Column(String, nullable=True)  # Company name
     phone = Column(String, nullable=True)       # User's phone number
-    role = Column(String, default="inspector")  # inspector | hoa_board | admin | resident
-    hoa_id = Column(Integer, ForeignKey("hoas.id"), nullable=True)  # HOA assignment (renamed from store_id)
+    role = Column(String, default="analyst")  # admin | analyst | viewer | super_admin | resident | inspector
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True)  # Workspace assignment
     
     # 💳 Billing fields
     stripe_customer_id = Column(String, nullable=True)  # Stripe customer ID
     subscription_id = Column(String, nullable=True)     # Stripe subscription ID
     plan_id = Column(String, default="basic")           # Current plan (basic, pro, enterprise)
-    subscription_status = Column(String, default="inactive")  # active, past_due, canceled, etc.
+    subscription_status = Column(String, default="inactive")  # active, inactive, cancelled, etc.
     trial_ends_at = Column(DateTime, nullable=True)     # Trial expiration
     billing_cycle_start = Column(DateTime, nullable=True)  # Current billing period start
     billing_cycle_end = Column(DateTime, nullable=True)    # Current billing period end
@@ -85,7 +41,7 @@ class User(Base):
     # ⚙️ User settings fields
     notification_email = Column(Boolean, default=True)
     notification_push = Column(Boolean, default=True)
-    notification_violations = Column(Boolean, default=True)
+    notification_contracts = Column(Boolean, default=True)
     notification_reports = Column(Boolean, default=True)
     theme_preference = Column(String, default="light")  # light, dark, auto
     pwa_offline_enabled = Column(Boolean, default=True)
@@ -96,10 +52,10 @@ class User(Base):
     last_login_at = Column(DateTime, nullable=True)
     last_activity_at = Column(DateTime, nullable=True)
 
-    violations = relationship("Violation", back_populates="user", cascade="all, delete-orphan", foreign_keys="[Violation.user_id]")
-    hoa = relationship("HOA")  # Relationship to assigned HOA
+    # Relationships
+    contracts = relationship("ContractRecord", back_populates="owner", cascade="all, delete-orphan", foreign_keys="[ContractRecord.owner_user_id]")
+    workspace = relationship("Workspace")  # Relationship to assigned workspace
 
-# 📱 User Session table for session management
 class UserSession(Base):
     __tablename__ = "user_sessions"
 
@@ -117,132 +73,177 @@ class UserSession(Base):
 
     user = relationship("User")
 
-# 🏘️ HOA table (renamed from Store)
-class HOA(Base):
-    __tablename__ = "hoas"
+# 🏢 Workspace table for multi-tenant support
+class Workspace(Base):
+    __tablename__ = "workspaces"
 
     id = Column(Integer, primary_key=True, index=True)
+    workspace_number = Column(String, unique=True, index=True)  # Auto-generated workspace number
     name = Column(String, index=True)
-    location = Column(String)
+    company_name = Column(String, index=True)
     contact_email = Column(String, nullable=True)
     contact_phone = Column(String, nullable=True)
-    logo_url = Column(String, nullable=True)  # HOA logo for PDF generation
+    logo_url = Column(String, nullable=True)  # Company logo for PDF generation
+    industry = Column(String, nullable=True)  # Legal, Tech, Finance, etc.
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-# 🧑‍🚨 Resident table (renamed from Offender)
-class Resident(Base):
-    __tablename__ = "residents"
+    # Relationships
+    users = relationship("User", back_populates="workspace")
+    # contracts = relationship("ContractRecord", back_populates="workspace")  # Commented out since ContractRecord no longer has workspace relationship
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    address = Column(String, index=True)
-    email = Column(String, nullable=True)
-    phone = Column(String, nullable=True)
-    hoa_id = Column(Integer, ForeignKey("hoas.id"))
-    notes = Column(Text)
-    violation_count = Column(Integer, default=0)  # Track repeat violations
-
-    hoa = relationship("HOA")
-
-# 📝 Dispute table (for resident violation disputes)
-class Dispute(Base):
-    __tablename__ = "disputes"
+# 📄 Contract Record table for AI contract analysis
+class ContractRecord(Base):
+    __tablename__ = "contract_records"
 
     id = Column(Integer, primary_key=True, index=True)
-    violation_id = Column(Integer, ForeignKey("violations.id"), nullable=False)
-    resident_id = Column(Integer, ForeignKey("residents.id"), nullable=False)
-    reason = Column(Text, nullable=False)
-    evidence = Column(Text, nullable=True)
-    evidence_file_path = Column(String, nullable=True)
-    contact_preference = Column(String, nullable=True)
-    status = Column(String, default="pending")
-    submitted_at = Column(DateTime, default=datetime.utcnow)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    # workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True)  # Removed since column doesn't exist in DB
+    title = Column(String, nullable=False, index=True)
+    counterparty = Column(String, nullable=False, index=True)
+    category = Column(String, nullable=False, index=True)  # NDA, MSA, SOW, Employment, Vendor, Lease, Other
+    effective_date = Column(DateTime, nullable=True)
+    term_end = Column(DateTime, nullable=True)
+    renewal_terms = Column(Text, nullable=True)
+    governing_law = Column(String, nullable=True)
+    uploaded_files = Column(JSON, default=list)  # Array of file paths
+    analysis_json = Column(JSON, nullable=True)  # AI analysis results
+    summary_text = Column(Text, nullable=True)
+    risk_items = Column(JSON, default=list)  # Array of risk assessments
+    rewrite_suggestions = Column(JSON, default=list)  # Array of suggestions
+    status = Column(String, default="pending")  # pending, analyzed, reviewed, approved, rejected
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    violation = relationship("Violation")
-    resident = relationship("Resident")
+    # Relationships
+    owner = relationship("User", back_populates="contracts", foreign_keys=[owner_user_id])
+    # workspace = relationship("Workspace", back_populates="contracts")  # Commented out since workspace_id column doesn't exist
 
-# 📧 Violation Letter table for tracking letter delivery
-class ViolationLetter(Base):
-    __tablename__ = "violation_letters"
+# 📊 Analytics Event table for tracking user actions
+class AnalyticsEvent(Base):
+    __tablename__ = "analytics_events"
 
     id = Column(Integer, primary_key=True, index=True)
-    violation_id = Column(Integer, ForeignKey("violations.id"), nullable=False)
-    letter_content = Column(Text, nullable=False)
-    recipient_email = Column(String, nullable=False)
-    sent_at = Column(DateTime, default=datetime.utcnow)
-    sent_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    status = Column(String, default="sent")  # sent, delivered, opened, clicked, failed
-    email_message_id = Column(String, nullable=True)
-    opened_at = Column(DateTime, nullable=True)
-    clicked_at = Column(DateTime, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True)
+    event_type = Column(String, nullable=False)  # contract_upload, contract_analysis, user_login, etc.
+    event_data = Column(JSON, nullable=True)  # Additional event data
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+
+    # Relationships
+    user = relationship("User")
+    workspace = relationship("Workspace")
+
+# 🔐 Two-Factor Authentication table
+class TwoFactorCode(Base):
+    __tablename__ = "two_factor_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    code = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    violation = relationship("Violation")
-    sender = relationship("User")
+    # Relationships
+    user = relationship("User")
 
-# 📞 Communication table for tracking all communications
-class Communication(Base):
-    __tablename__ = "communications"
+# 📧 Email Template table for customizable email communications
+class EmailTemplate(Base):
+    __tablename__ = "email_templates"
 
     id = Column(Integer, primary_key=True, index=True)
-    violation_id = Column(Integer, ForeignKey("violations.id"), nullable=False)
-    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    notification_type = Column(String, nullable=False)  # initial, warning, escalation, resolution
-    message = Column(Text, nullable=False)
-    recipients = Column(String, nullable=False)  # Comma-separated emails
+    name = Column(String, nullable=False, unique=True)
+    subject = Column(String, nullable=False)
+    body = Column(Text, nullable=False)
+    variables = Column(JSON, default=list)  # Available template variables
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+# 💾 File Storage table for managing uploaded documents
+class FileStorage(Base):
+    __tablename__ = "file_storage"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String, nullable=False)
+    original_filename = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    file_size = Column(Integer, nullable=False)
+    mime_type = Column(String, nullable=False)
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=False)
+    contract_id = Column(Integer, ForeignKey("contract_records.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
+    workspace = relationship("Workspace")
+    contract = relationship("ContractRecord")
+
+# 📋 Communication Log table for tracking all communications
+class CommunicationLog(Base):
+    __tablename__ = "communication_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    contract_id = Column(Integer, ForeignKey("contract_records.id"), nullable=True)
+    communication_type = Column(String, nullable=False)  # email, notification, report, etc.
+    subject = Column(String, nullable=True)
+    content = Column(Text, nullable=False)
+    recipient_email = Column(String, nullable=True)
+    status = Column(String, default="sent")  # sent, delivered, failed, read
     sent_at = Column(DateTime, default=datetime.utcnow)
-    status = Column(String, default="sent")
+    delivered_at = Column(DateTime, nullable=True)
+    read_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
 
-    violation = relationship("Violation")
-    sender = relationship("User")
+    # Relationships
+    workspace = relationship("Workspace")
+    user = relationship("User")
+    contract = relationship("ContractRecord")
 
-# 🔔 Notification table for tracking individual notifications
+# 🔔 Notification table for user notifications
 class Notification(Base):
     __tablename__ = "notifications"
 
     id = Column(Integer, primary_key=True, index=True)
-    communication_id = Column(Integer, ForeignKey("communications.id"), nullable=False)
-    recipient_email = Column(String, nullable=False)
-    notification_type = Column(String, nullable=False)
-    status = Column(String, default="sent")  # sent, delivered, read, failed
-    sent_at = Column(DateTime, default=datetime.utcnow)
-    read_at = Column(DateTime, nullable=True)
-
-    communication = relationship("Communication")
-
-class PolicyDocument(Base):
-    __tablename__ = "policy_documents"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    hoa_id = Column(Integer, ForeignKey("hoas.id"), nullable=False)
-    name = Column(String, nullable=False)
-    content = Column(Text)
-    version = Column(String, default="1.0")
-    effective_date = Column(DateTime, default=datetime.utcnow)
-    status = Column(String, default="draft")  # draft, active, archived
-    uploaded_by = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    hoa = relationship("HOA")
-    uploaded_by_user = relationship("User")
-    sections = relationship("PolicySection", back_populates="policy_document", cascade="all, delete-orphan")
-
-class PolicySection(Base):
-    __tablename__ = "policy_sections"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    policy_id = Column(Integer, ForeignKey("policy_documents.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True)
+    contract_id = Column(Integer, ForeignKey("contract_records.id"), nullable=True)
+    notification_type = Column(String, nullable=False)  # contract_analysis, risk_alert, system, etc.
     title = Column(String, nullable=False)
-    content = Column(Text)
-    category = Column(String)  # parking, noise, maintenance, appearance, safety, other
-    severity = Column(String, default="medium")  # low, medium, high
-    penalties = Column(JSON)  # Store penalties as JSON array
+    message = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False)
+    priority = Column(String, default="normal")  # low, normal, high, urgent
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow)
-    
+    read_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+
     # Relationships
-    policy_document = relationship("PolicyDocument", back_populates="sections")
+    user = relationship("User")
+    workspace = relationship("Workspace")
+    contract = relationship("ContractRecord")
+
+# 📊 Performance Metrics table for system monitoring
+class PerformanceMetrics(Base):
+    __tablename__ = "performance_metrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    metric_name = Column(String, nullable=False, index=True)
+    metric_value = Column(Float, nullable=False)
+    metric_unit = Column(String, nullable=True)  # ms, MB, count, etc.
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    metric_context = Column(JSON, nullable=True)  # Additional context
+
+    # Relationships
+    workspace = relationship("Workspace")
+    user = relationship("User")
 
 
 

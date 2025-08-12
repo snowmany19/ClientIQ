@@ -23,73 +23,73 @@ import {
 const testimonials = [
   {
     name: "Sarah Johnson",
-    role: "HOA Board President",
-    company: "Sunset Gardens HOA",
-    content: "CivicLogHOA has transformed how we manage violations. The automated system saves us hours every week, and the professional reports have improved our compliance significantly.",
+    role: "General Counsel",
+    company: "TechCorp Inc.",
+            content: "ContractGuard.ai has transformed how we review contracts. The AI analysis saves us hours every week, and the risk assessment reports have improved our compliance significantly.",
     rating: 5
   },
   {
     name: "Michael Chen",
-    role: "Property Manager",
-    company: "Riverside Properties",
-    content: "The mobile capture feature is incredible. Our inspectors can document violations on-site with photos and GPS coordinates. The AI analysis is spot-on every time.",
+    role: "Legal Operations Manager",
+    company: "Riverside Legal",
+    content: "The contract upload feature is incredible. We can analyze contracts in any format and get instant insights. The AI analysis is spot-on every time.",
     rating: 5
   },
   {
     name: "Lisa Rodriguez",
-    role: "HOA Administrator",
-    company: "Oakwood Community",
-    content: "The resident portal has dramatically reduced our phone calls. Residents can view their violations, upload photos, and communicate directly through the platform.",
+    role: "Contract Manager",
+    company: "Oakwood Enterprises",
+    content: "The collaborative review feature has dramatically reduced our review time. Team members can comment, track changes, and communicate directly through the platform.",
     rating: 5
   },
   {
     name: "David Thompson",
-    role: "Community Manager",
-    company: "Pine Valley Estates",
-    content: "The analytics dashboard gives us insights we never had before. We can track trends, identify repeat offenders, and make data-driven decisions about enforcement.",
+    role: "Legal Director",
+    company: "Pine Valley Corp",
+    content: "The analytics dashboard gives us insights we never had before. We can track contract trends, identify risk patterns, and make data-driven decisions about negotiations.",
     rating: 5
   },
   {
     name: "Jennifer Williams",
-    role: "HOA Board Member",
-    company: "Maple Ridge Association",
+    role: "Senior Counsel",
+    company: "Maple Ridge Law",
     content: "Setting up was incredibly easy. The team walked us through everything, and we were up and running in less than a day. The support has been outstanding.",
     rating: 5
   },
   {
     name: "Robert Kim",
-    role: "Property Inspector",
-    company: "Greenfield Management",
-    content: "The mobile app is intuitive and powerful. I can capture violations, add notes, and generate reports all from my phone. It's made my job so much more efficient.",
+    role: "Legal Analyst",
+    company: "Greenfield Legal",
+    content: "The platform is intuitive and powerful. I can analyze contracts, generate reports, and track negotiations all from one place. It's made my job so much more efficient.",
     rating: 5
   }
 ];
 
 const demoSteps = [
   {
-    title: "Violation Discovery",
-    description: "Inspector identifies a violation during routine patrol",
-    demo: "/dashboard/violations/new"
-  },
-  {
-    title: "Mobile Capture",
-    description: "Photos, GPS coordinates, and notes captured on mobile device",
-    demo: "/dashboard/violations/new"
+    title: "Contract Upload",
+    description: "Upload contracts in any format (PDF, Word, etc.)",
+    demo: "/dashboard/contracts"
   },
   {
     title: "AI Analysis",
-    description: "AI automatically categorizes and generates violation summary",
-    demo: "/dashboard/violations"
+    description: "AI automatically analyzes contracts for risks and compliance issues",
+    demo: "/dashboard/contracts"
   },
   {
-    title: "Notification Sent",
-    description: "Professional violation letter automatically sent to resident",
-    demo: "/dashboard/violations"
+    title: "Risk Assessment",
+    description: "Generate comprehensive risk analysis and recommendations",
+    demo: "/dashboard/contracts"
   },
   {
-    title: "Resolution Tracking",
-    description: "Track violation status and resolution progress",
-    demo: "/dashboard/violations"
+    title: "Collaborative Review",
+    description: "Share contracts with team members for review and comments",
+    demo: "/dashboard/contracts"
+  },
+  {
+    title: "Report Generation",
+    description: "Create professional PDF reports with findings and insights",
+    demo: "/dashboard/contracts"
   }
 ];
 
@@ -125,17 +125,17 @@ export default function DemoPage() {
   };
 
   const handleLiveDemoRequest = () => {
-    const subject = encodeURIComponent('Request for Live Demo - CivicLogHOA');
+    const subject = encodeURIComponent('Request for Live Demo - ContractGuard.ai');
     const body = encodeURIComponent(`Hello,
 
-I'm interested in scheduling a live demo of CivicLogHOA for our HOA management needs.
+      I'm interested in scheduling a live demo of ContractGuard.ai for our contract management needs.
 
 Please contact me to arrange a personalized demonstration of the platform.
 
 Best regards,
 [Your Name]`);
     
-    window.open(`mailto:sales@civicloghoa.com?subject=${subject}&body=${body}`, '_blank');
+            window.open(`mailto:sales@contractguard.ai?subject=${subject}&body=${body}`, '_blank');
   };
 
   const renderStars = (rating: number) => {
@@ -157,7 +157,7 @@ Best regards,
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
               <Link href="/" className="text-2xl font-bold text-blue-600">
-                CivicLogHOA
+                ContractGuard.ai
               </Link>
             </div>
             <div className="flex items-center space-x-4">
@@ -177,10 +177,10 @@ Best regards,
         {/* Hero Section */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            See CivicLogHOA in Action
+            See ContractGuard.ai in Action
           </h1>
           <p className="text-xl text-gray-700 mb-8 max-w-3xl mx-auto">
-            Discover how our platform streamlines HOA violation management from discovery to resolution
+            Discover how our platform streamlines contract review from upload to final approval
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
@@ -235,11 +235,11 @@ Best regards,
             <div className="space-y-12">
               <div className="text-center">
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                  Complete HOA Violation Management
+                  Complete Contract Management
                 </h2>
                 <p className="text-xl text-gray-700 mb-8 max-w-3xl mx-auto">
-                  See how CivicLogHOA streamlines the entire violation process from discovery to resolution, 
-                  saving time and ensuring compliance.
+                                       See how ContractGuard.ai streamlines the entire contract review process from upload to analysis, 
+                       saving time and ensuring compliance.
                 </p>
               </div>
 
@@ -271,10 +271,10 @@ Best regards,
               {/* Call to Action */}
               <div className="text-center">
                 <h3 className="text-2xl font-bold mb-4 text-gray-900">
-                  Ready to Transform Your HOA Management?
+                  Ready to Transform Your Contract Review Process?
                 </h3>
                 <p className="text-gray-700 mb-6">
-                  Schedule a personalized demo to see how CivicLogHOA can work for your community
+                  Schedule a personalized demo to see how ContractGuard.ai can work for your community
                 </p>
                 <Button 
                   size="lg"
@@ -294,7 +294,7 @@ Best regards,
               <div className="text-center mb-12">
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">What Our Customers Say</h2>
                 <p className="text-xl text-gray-700">
-                  Hear from HOA professionals who have transformed their violation management with CivicLogHOA
+                  Hear from legal professionals who have transformed their contract review process with ContractGuard.ai
                 </p>
               </div>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -364,7 +364,7 @@ Best regards,
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">Request a Live Demo</h2>
                 <p className="text-xl text-gray-700">
-                  Get a personalized demonstration of CivicLogHOA tailored to your HOA's needs
+                  Get a personalized demonstration of ContractGuard.ai tailored to your contract management needs
                 </p>
               </div>
               
@@ -401,7 +401,7 @@ Best regards,
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
-                      HOA/Company Name
+                      Company Name
                     </label>
                     <input
                       type="text"
@@ -434,7 +434,7 @@ Best regards,
                     rows={4}
                     value={demoForm.message}
                     onChange={(e) => setDemoForm({ ...demoForm, message: e.target.value })}
-                    placeholder="Tell us about your HOA's specific needs, current challenges, or any questions you have..."
+                                            placeholder="Tell us about your contract management needs, current challenges, or any questions you have..."
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>

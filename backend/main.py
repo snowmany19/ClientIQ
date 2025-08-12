@@ -21,7 +21,7 @@ from database import engine, Base
 from core.config import get_settings
 from utils.logger import setup_logging, get_logger, log_api_request, log_error
 from utils.rate_limiter import RateLimiter, rate_limit_middleware, get_client_ip
-from utils.exceptions import custom_exception_handler, CivicLogHOAException
+from utils.exceptions import custom_exception_handler, ContractGuardAIException
 from utils.cache import warm_cache, get_cache_stats
 
 # Get settings
@@ -41,13 +41,14 @@ request_duration = Histogram('http_request_duration_seconds', 'HTTP request dura
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
-    logger.info("Starting CivicLogHOA - HOA Violation Management Platform backend...")
+    logger.info("Starting ContractGuard.ai - AI Contract Review Platform backend...")
     
     # Create tables if they don't exist
     Base.metadata.create_all(bind=engine)
     
     # Create static directories
     os.makedirs("static/images", exist_ok=True)
+    os.makedirs("static/documents", exist_ok=True)
     os.makedirs("static/reports", exist_ok=True)
     os.makedirs("logs", exist_ok=True)
     
@@ -59,34 +60,29 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Cache warming failed: {e}")
     
-    logger.info("CivicLogHOA - HOA Violation Management Platform backend started successfully!")
+    logger.info("ContractGuard.ai - AI Contract Review Platform backend started successfully!")
     
     yield
     
     # Shutdown
-    logger.info("Shutting down CivicLogHOA - HOA Violation Management Platform backend...")
+    logger.info("Shutting down ContractGuard.ai - AI Contract Review Platform backend...")
 
 # ✅ FastAPI app with lifespan
 app = FastAPI(
-    title="CivicLogHOA - HOA Violation Management Platform API",
-    description="Production-ready HOA violation management API",
+    title="ContractGuard.ai - AI Contract Review Platform API",
+    description="Production-ready AI contract review and analysis API",
     version="1.0.0",
     lifespan=lifespan
 )
 
 # 🔌 Include routers
-from routes import auth, violations, billing, resident_portal, analytics, communications, settings as user_settings, policies
+from routes import auth, billing, contracts, analytics, settings as user_settings
 
 app.include_router(auth.router, prefix="/api")
-app.include_router(violations.router, prefix="/api")
 app.include_router(billing.router, prefix="/api")
-app.include_router(resident_portal.router, prefix="/api")
-app.include_router(analytics.router, prefix="/api")
-app.include_router(communications.router, prefix="/api")
-app.include_router(user_settings.router, prefix="/api")
-app.include_router(policies.router, prefix="/api")
-
-# Debug router removed
+app.include_router(analytics.router, prefix="/api")  # Enable analytics for dashboard
+app.include_router(contracts.router, prefix="/api")
+app.include_router(user_settings.router, prefix="/api/user-settings")
 
 # 🔒 Security Middleware
 if settings.environment == "production":
@@ -96,194 +92,183 @@ if settings.environment == "production":
         allowed_hosts=["*"]  # Configure with actual domain in production
     )
 
-# 🚦 Rate Limiting Middleware
-app.middleware("http")(rate_limit_middleware(rate_limiter))
-
-# 🌐 CORS Middleware
+# 🌐 CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 🗜️ GZip Compression Middleware
+# 📦 Gzip compression middleware
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# �� Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# 🚀 Rate limiting middleware
+rate_limiter = RateLimiter(requests_per_minute=100)
+app.middleware("http")(rate_limit_middleware(rate_limiter))
 
-# 🚨 Add custom exception handler
-app.add_exception_handler(Exception, custom_exception_handler)
-
-# 📊 Request Logging Middleware with Prometheus metrics
+# 📊 Request logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
+    """Log all API requests for monitoring and debugging."""
     start_time = time.time()
     
-    # Log request
+    # Get client IP
+    client_ip = get_client_ip(request)
+    
+    # Log request start
     log_api_request(
-        logger,
+        logger=logger,
         method=request.method,
         path=str(request.url.path),
-        status_code=0,  # Will be updated after response
-        user_id=None,  # Will be extracted if authenticated
-        duration=None  # Will be calculated after response
+        status_code=0,  # 0 indicates request started
+        response_time=0.0,  # 0 for request start
+        ip_address=client_ip
     )
     
-    # Process request
-    response = await call_next(request)
-    
-    # Calculate duration
-    duration = time.time() - start_time
-    
-    # Update metrics
-    request_count.labels(
-        method=request.method,
-        endpoint=request.url.path,
-        status=response.status_code
-    ).inc()
-    
-    request_duration.labels(
-        method=request.method,
-        endpoint=request.url.path
-    ).observe(duration)
-    
-    # Update logging with final values
-    log_api_request(
-        logger,
-        method=request.method,
-        path=str(request.url.path),
-        status_code=response.status_code,
-        user_id=None,  # Could extract from JWT if needed
-        duration=duration
-    )
-    
-    return response
+    try:
+        # Process request
+        response = await call_next(request)
+        
+        # Calculate duration
+        duration = time.time() - start_time
+        
+        # Update metrics
+        request_count.labels(method=request.method, endpoint=request.url.path, status=response.status_code).inc()
+        request_duration.labels(method=request.method, endpoint=request.url.path).observe(duration)
+        
+        # Log successful request
+        log_api_request(
+            logger=logger,
+            method=request.method,
+            path=str(request.url.path),
+            status_code=response.status_code,
+            response_time=duration,
+            ip_address=client_ip
+        )
+        
+        return response
+        
+    except Exception as e:
+        # Calculate duration
+        duration = time.time() - start_time
+        
+        # Update metrics
+        request_count.labels(method=request.method, endpoint=request.url.path, status=500).inc()
+        request_duration.labels(method=request.method, endpoint=request.url.path).observe(duration)
+        
+        # Log error
+        log_error(
+            logger=logger,
+            error=e,
+            context={
+                "method": request.method,
+                "path": str(request.url.path),
+                "client_ip": client_ip,
+                "user_agent": request.headers.get("user-agent", ""),
+                "duration": duration
+            }
+        )
+        
+        # Return error response
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "Internal server error",
+                "type": "internal_error",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
 
-# 🏥 Health Check Endpoint
+# 🔧 Exception handler
+app.add_exception_handler(ContractGuardAIException, custom_exception_handler)
+
+# 📁 Static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# 🏥 Health check endpoint
 @app.get("/health")
 async def health_check():
-    """Comprehensive health check for production monitoring."""
-    health_status = {
+    """Health check endpoint for load balancers and monitoring."""
+    return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "version": "1.0.0",
-        "environment": settings.environment,
-        "services": {}
+        "service": "ContractGuard.ai API"
     }
-    
-    # Check database connection
-    try:
-        from database import SessionLocal
-        from sqlalchemy import text
-        db = SessionLocal()
-        db.execute(text("SELECT 1"))
-        db.close()
-        health_status["services"]["database"] = "healthy"
-    except Exception as e:
-        health_status["services"]["database"] = f"unhealthy: {str(e)}"
-        health_status["status"] = "degraded"
-    
-    # Check Redis connection (if configured)
-    try:
-        from utils.cache import redis_client
-        if hasattr(redis_client, 'ping'):
-            redis_client.ping()
-            health_status["services"]["redis"] = "healthy"
-        else:
-            health_status["services"]["redis"] = "not_configured"
-    except Exception as e:
-        health_status["services"]["redis"] = f"unhealthy: {str(e)}"
-        health_status["status"] = "degraded"
-    
-    # Check external services
-    try:
-        if settings.openai_api_key:
-            health_status["services"]["openai"] = "configured"
-        else:
-            health_status["services"]["openai"] = "not_configured"
-    except:
-        health_status["services"]["openai"] = "not_configured"
-    
-    try:
-        if settings.stripe_secret_key:
-            health_status["services"]["stripe"] = "configured"
-        else:
-            health_status["services"]["stripe"] = "not_configured"
-    except:
-        health_status["services"]["stripe"] = "not_configured"
-    
-    # Check SMTP configuration
-    try:
-        if settings.smtp_username and settings.smtp_password:
-            health_status["services"]["smtp"] = "configured"
-        else:
-            health_status["services"]["smtp"] = "not_configured"
-    except:
-        health_status["services"]["smtp"] = "not_configured"
-    
-    # Return appropriate status code
-    status_code = 200 if health_status["status"] == "healthy" else 503
-    
-    return JSONResponse(
-        content=health_status,
-        status_code=status_code,
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0"
-        }
-    )
 
-# 📊 Metrics Endpoint
+# 📊 Prometheus metrics endpoint
 @app.get("/metrics")
 async def metrics():
-    """Prometheus metrics endpoint."""
+    """Prometheus metrics endpoint for monitoring."""
     return Response(
         content=generate_latest(),
         media_type="text/plain"
     )
 
-# 🔄 Cache management endpoints
+# 🔥 Cache management endpoints
 @app.post("/api/cache/warm")
 async def warm_cache_endpoint():
-    """Manually trigger cache warming."""
+    """Warm up the cache with frequently accessed data."""
     try:
         warm_cache()
-        return {"status": "success", "message": "Cache warming completed"}
+        return {"message": "Cache warming completed successfully"}
     except Exception as e:
-        logger.error(f"Manual cache warming failed: {e}")
-        return {"status": "error", "message": str(e)}
+        logger.error(f"Cache warming failed: {e}")
+        return {"message": "Cache warming failed", "error": str(e)}
 
 @app.get("/api/cache/stats")
 async def cache_stats_endpoint():
-    """Get cache statistics."""
+    """Get cache statistics for monitoring."""
     try:
         stats = get_cache_stats()
-        return {"status": "success", "stats": stats}
+        return stats
     except Exception as e:
         logger.error(f"Failed to get cache stats: {e}")
-        return {"status": "error", "message": str(e)}
+        return {"error": "Failed to get cache stats"}
 
-# 🔍 Schema verification on startup
+# 🔍 Schema validation on startup
 @app.on_event("startup")
 async def verify_schemas():
-    """Verify that all schemas are properly loaded."""
+    """Verify that all Pydantic schemas are valid on startup."""
     try:
-        from schemas import UserInfo
-        # Check if UserInfo schema has required fields
-        if hasattr(UserInfo, 'id'):
-            logger.info("UserInfo schema loaded correctly with 'id' field")
-        else:
-            logger.warning("UserInfo schema missing 'id' field")
+        # Import all schemas to validate them
+        from schemas import (
+            UserCreate, UserOut, UserInfo,
+            WorkspaceCreate, WorkspaceOut, WorkspaceInfo,
+            ContractRecordCreate, ContractRecordOut, ContractRecordList,
+            LoginRequest, LoginResponse,
+            DashboardMetrics
+        )
+        logger.info("✅ All Pydantic schemas validated successfully")
     except Exception as e:
-        logger.warning(f"Could not verify UserInfo schema: {e}")
+        logger.error(f"❌ Schema validation failed: {e}")
+        raise e
 
-# 🚀 Startup delay for development (disabled for better performance)
-# if settings.environment == "development":
-#     import asyncio
-#     asyncio.create_task(asyncio.sleep(1))  # Small delay for development
+# 🎯 Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint with API information."""
+    return {
+        "message": "Welcome to ContractGuard.ai API",
+        "version": "1.0.0",
+        "description": "AI Contract Review Platform",
+        "docs": "/docs",
+        "health": "/health",
+        "metrics": "/metrics"
+    }
+
+# 🚀 Startup message
+if __name__ == "__main__":
+    import uvicorn
+    logger.info("🚀 Starting ContractGuard.ai API server...")
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info"
+    )
 
 

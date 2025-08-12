@@ -39,8 +39,15 @@ export default function BillingDashboard() {
       console.log('Plans data received:', plansData);
       console.log('Subscription data received:', subscriptionData);
       
-      setPlans(plansData.plans);
-      setSubscription(subscriptionData);
+      // Backend now returns flat structure
+      setPlans(plansData || []);
+      
+      // Backend now returns flat subscription structure
+      if (subscriptionData && subscriptionData.subscription_id) {
+        setSubscription(subscriptionData);
+      } else {
+        setSubscription(null);
+      }
     } catch (error) {
       console.error('Failed to load billing data:', error);
       setError('Failed to load billing information');
@@ -55,7 +62,14 @@ export default function BillingDashboard() {
       const cancelUrl = `${window.location.origin}/dashboard/billing?canceled=true`;
       
       const response = await apiClient.createCheckoutSession(planId, successUrl, cancelUrl);
-      window.location.href = response.checkout_url;
+      
+      // Handle the current backend response (not yet implemented)
+      if (response.checkout_url) {
+        window.location.href = response.checkout_url;
+      } else {
+        // Show message that checkout is not yet implemented
+        setError('Checkout functionality is coming soon. Please contact support for manual subscription setup.');
+      }
     } catch (error) {
       console.error('Failed to create checkout session:', error);
       setError('Failed to start checkout process');
@@ -222,16 +236,16 @@ export default function BillingDashboard() {
                 {/* Plan Limits */}
                 <div className="mt-4 space-y-2 text-sm text-gray-600">
                   <div>
-                    <span className="font-medium">HOAs:</span> {plan.limits.hoas === -1 ? 'Unlimited' : plan.limits.hoas}
+                    <span className="font-medium">Workspaces:</span> {plan.limits.workspaces === -1 ? 'Unlimited' : plan.limits.workspaces}
                   </div>
                   <div>
-                    <span className="font-medium">Units:</span> {plan.limits.units === -1 ? 'Unlimited' : plan.limits.units}
+                    <span className="font-medium">Contracts:</span> {plan.limits.contracts_per_month === -1 ? 'Unlimited' : plan.limits.contracts_per_month}/month
                   </div>
                   <div>
                     <span className="font-medium">Users:</span> {plan.limits.users === -1 ? 'Unlimited' : plan.limits.users}
                   </div>
                   <div>
-                    <span className="font-medium">Violations:</span> {plan.limits.violations_per_month === -1 ? 'Unlimited' : plan.limits.violations_per_month}/month
+                    <span className="font-medium">Storage:</span> {plan.limits.storage_gb === -1 ? 'Unlimited' : plan.limits.storage_gb}GB
                   </div>
                 </div>
 
@@ -277,10 +291,10 @@ export default function BillingDashboard() {
           <div className="text-center">
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Need White-Label Solution?</h3>
             <p className="text-gray-600 mb-4">
-              For property management companies and resellers who need custom branding and multi-HOA management.
+              For legal firms and contract management companies who need custom branding and multi-workspace management.
             </p>
             <Button
-              onClick={() => window.open('mailto:sales@civicloghoa.com?subject=White-Label Inquiry', '_blank')}
+              onClick={() => window.open('mailto:sales@contractguard.ai?subject=White-Label Inquiry', '_blank')}
               variant="outline"
               className="border-purple-300 text-purple-700 hover:bg-purple-50"
             >
@@ -300,18 +314,18 @@ export default function BillingDashboard() {
               <div className="flex items-center">
                 <Zap className="h-5 w-5 text-blue-500 mr-3" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Violations</p>
+                  <p className="text-sm font-medium text-gray-900">Contracts</p>
                   <p className="text-sm text-gray-500">
-                    {subscription.limits.violations_per_month === -1 
+                    {subscription.limits.contracts_per_month === -1 
                       ? 'Unlimited' 
-                      : `${0} / ${subscription.limits.violations_per_month}`
+                      : `${0} / ${subscription.limits.contracts_per_month}`
                     }
                   </p>
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-sm font-medium text-gray-900">
-                  {subscription.limits.violations_per_month === -1 ? '∞' : '0%'}
+                  {subscription.limits.contracts_per_month === -1 ? '∞' : '0%'}
                 </div>
               </div>
             </div>
@@ -340,18 +354,18 @@ export default function BillingDashboard() {
               <div className="flex items-center">
                 <CreditCard className="h-5 w-5 text-purple-500 mr-3" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">HOAs</p>
+                  <p className="text-sm font-medium text-gray-900">Workspaces</p>
                   <p className="text-sm text-gray-500">
-                    {subscription.limits.hoas === -1 
+                    {subscription.limits.workspaces === -1 
                       ? 'Unlimited' 
-                      : `${0} / ${subscription.limits.hoas}`
+                      : `${0} / ${subscription.limits.workspaces}`
                     }
                   </p>
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-sm font-medium text-gray-900">
-                  {subscription.limits.hoas === -1 ? '∞' : '0%'}
+                  {subscription.limits.workspaces === -1 ? '∞' : '0%'}
                 </div>
               </div>
             </div>
@@ -360,18 +374,18 @@ export default function BillingDashboard() {
               <div className="flex items-center">
                 <Calendar className="h-5 w-5 text-orange-500 mr-3" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Units</p>
+                  <p className="text-sm font-medium text-gray-900">Storage</p>
                   <p className="text-sm text-gray-500">
-                    {subscription.limits.units === -1 
+                    {subscription.limits.storage_gb === -1 
                       ? 'Unlimited' 
-                      : `${0} / ${subscription.limits.units}`
+                      : `${0} / ${subscription.limits.storage_gb}GB`
                     }
                   </p>
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-sm font-medium text-gray-900">
-                  {subscription.limits.units === -1 ? '∞' : '0%'}
+                  {subscription.limits.storage_gb === -1 ? '∞' : '0%'}
                 </div>
               </div>
             </div>

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Create demo users for the HOA-Log platform demo environment.
+Create demo users for the ContractGuard.ai platform demo environment.
 This script creates sample users with different roles for demonstration purposes.
 """
 
@@ -9,7 +9,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.database import get_db
-from backend.models import User, HOA
+from backend.models import User, Workspace
 from backend.utils.auth_utils import hash_password
 from sqlalchemy.orm import Session
 
@@ -29,79 +29,88 @@ def create_demo_users():
             print("  Password: demo123")
             print("  Role: Admin (full access)")
             print()
-            print("HOA Board Member:")
-            print("  Email: board@demo.com")
+            print("Analyst User:")
+            print("  Email: analyst@demo.com")
             print("  Password: demo123")
-            print("  Role: HOA Board (management access)")
+            print("  Role: Analyst (contract analysis)")
             print()
-            print("Inspector:")
-            print("  Email: inspector@demo.com")
+            print("Viewer User:")
+            print("  Email: viewer@demo.com")
             print("  Password: demo123")
-            print("  Role: Inspector (violation capture)")
+            print("  Role: Viewer (read-only access)")
             print()
-            print("Resident:")
-            print("  Email: resident@demo.com")
+            print("Super Admin:")
+            print("  Email: superadmin@demo.com")
             print("  Password: demo123")
-            print("  Role: Resident (portal access)")
+            print("  Role: Super Admin (system-wide access)")
             return
         
-        # Create demo HOA
-        demo_hoa = HOA(
-            name="Demo HOA",
-            address="123 Demo Street, Demo City, DC 12345",
-            contact_email="demo@hoa.com",
+        # Create demo workspace
+        demo_workspace = Workspace(
+            name="Demo Workspace",
+            company_name="Demo Company Inc.",
+            contact_email="demo@company.com",
             contact_phone="555-0123"
         )
-        db.add(demo_hoa)
+        db.add(demo_workspace)
         db.commit()
-        db.refresh(demo_hoa)
+        db.refresh(demo_workspace)
         
         # Create demo admin user
         demo_admin = User(
-            username="demo_admin",
+            username="admin",
             email="admin@demo.com",
-            password_hash=hash_password("demo123"),
+            hashed_password=hash_password("demo123"),
+            first_name="Demo",
+            last_name="Admin",
             role="admin",
-            is_active=True,
-            subscription_status="active"
+            workspace_id=demo_workspace.id,
+            company_name="Demo Company Inc.",
+            phone="555-0123"
         )
         db.add(demo_admin)
         
-        # Create demo HOA board member
-        demo_board = User(
-            username="demo_board",
-            email="board@demo.com",
-            password_hash=hash_password("demo123"),
-            role="hoa_board",
-            hoa_id=demo_hoa.id,
-            is_active=True,
-            subscription_status="active"
+        # Create demo analyst user
+        demo_analyst = User(
+            username="analyst",
+            email="analyst@demo.com",
+            hashed_password=hash_password("demo123"),
+            first_name="Demo",
+            last_name="Analyst",
+            role="analyst",
+            workspace_id=demo_workspace.id,
+            company_name="Demo Company Inc.",
+            phone="555-0124"
         )
-        db.add(demo_board)
+        db.add(demo_analyst)
         
-        # Create demo inspector
-        demo_inspector = User(
-            username="demo_inspector",
-            email="inspector@demo.com",
-            password_hash=hash_password("demo123"),
-            role="inspector",
-            hoa_id=demo_hoa.id,
-            is_active=True,
-            subscription_status="active"
+        # Create demo viewer user
+        demo_viewer = User(
+            username="viewer",
+            email="viewer@demo.com",
+            hashed_password=hash_password("demo123"),
+            first_name="Demo",
+            last_name="Viewer",
+            role="viewer",
+            workspace_id=demo_workspace.id,
+            company_name="Demo Company Inc.",
+            phone="555-0125"
         )
-        db.add(demo_inspector)
+        db.add(demo_viewer)
         
-        # Create demo resident
-        demo_resident = User(
-            username="demo_resident",
-            email="resident@demo.com",
-            password_hash=hash_password("demo123"),
-            role="resident",
-            hoa_id=demo_hoa.id,
-            is_active=True,
-            subscription_status="active"
+        # Create demo super admin user
+        demo_super_admin = User(
+            username="superadmin",
+            email="superadmin@demo.com",
+            hashed_password=hash_password("demo123"),
+            first_name="Demo",
+            last_name="Super Admin",
+            role="super_admin",
+            workspace_id=demo_workspace.id,
+            company_name="Demo Company Inc.",
+            phone="555-0126"
         )
-        db.add(demo_resident)
+        db.add(demo_super_admin)
         
         db.commit()
         
@@ -113,22 +122,22 @@ def create_demo_users():
         print("  Password: demo123")
         print("  Role: Admin (full access)")
         print()
-        print("HOA Board Member:")
-        print("  Email: board@demo.com")
+        print("Analyst User:")
+        print("  Email: analyst@demo.com")
         print("  Password: demo123")
-        print("  Role: HOA Board (management access)")
+        print("  Role: Analyst (contract analysis)")
         print()
-        print("Inspector:")
-        print("  Email: inspector@demo.com")
+        print("Viewer User:")
+        print("  Email: viewer@demo.com")
         print("  Password: demo123")
-        print("  Role: Inspector (violation capture)")
+        print("  Role: Viewer (read-only access)")
         print()
-        print("Resident:")
-        print("  Email: resident@demo.com")
+        print("Super Admin:")
+        print("  Email: superadmin@demo.com")
         print("  Password: demo123")
-        print("  Role: Resident (portal access)")
+        print("  Role: Super Admin (system-wide access)")
         print()
-        print("Demo HOA ID:", demo_hoa.id)
+        print("Demo Workspace ID:", demo_workspace.id)
         
     except Exception as e:
         print(f"❌ Error creating demo users: {e}")

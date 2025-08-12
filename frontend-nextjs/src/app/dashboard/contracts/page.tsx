@@ -1,0 +1,373 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAuthStore } from '@/lib/auth';
+import { apiClient } from '@/lib/api';
+import { ContractRecord, ContractCreate } from '@/types';
+import ContractUploadForm from '@/components/forms/ContractUploadForm';
+import { 
+  Plus, 
+  FileText, 
+  Search, 
+  Filter,
+  Upload,
+  Eye,
+  Trash2,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Download,
+  MessageSquare
+} from 'lucide-react';
+
+export default function ContractsPage() {
+  const { user } = useAuthStore();
+  const router = useRouter();
+  const [contracts, setContracts] = useState<ContractRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [showUploadModal, setShowUploadModal] = useState(false);
+
+  useEffect(() => {
+    loadContracts();
+  }, []);
+
+  const loadContracts = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.getContracts();
+      setContracts(response.data || []);
+    } catch (error) {
+      console.error('Failed to load contracts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleContractDelete = async (contractId: number) => {
+    if (!confirm('Are you sure you want to delete this contract?')) return;
+    
+    try {
+      await apiClient.deleteContract(contractId);
+      setContracts(prev => prev.filter(c => c.id !== contractId));
+    } catch (error) {
+      console.error('Failed to delete contract:', error);
+    }
+  };
+
+  const handleAnalyzeContract = async (contractId: number) => {
+    try {
+      await apiClient.analyzeContract(contractId);
+      // Reload contracts to get updated analysis
+      loadContracts();
+    } catch (error) {
+      console.error('Failed to analyze contract:', error);
+    }
+  };
+
+  const handleDownloadReport = async (contractId: number) => {
+    try {
+      const blob = await apiClient.downloadContractReport(contractId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contract_analysis_${contractId}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Failed to download report:', error);
+    }
+  };
+
+  const filteredContracts = contracts.filter(contract => {
+    const matchesSearch = contract.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         contract.counterparty.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || contract.category === selectedCategory;
+    const matchesStatus = selectedStatus === 'all' || contract.status === selectedStatus;
+    
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      case 'analyzed':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'reviewed':
+        return <Eye className="h-4 w-4 text-blue-500" />;
+      case 'approved':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'rejected':
+        return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      default:
+        return <Clock className="h-4 w-4 text-gray-400" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'analyzed':
+        return 'bg-green-100 text-green-800';
+      case 'reviewed':
+        return 'bg-blue-100 text-blue-800';
+      case 'approved':
+        return 'bg-green-100 text-green-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'NDA':
+        return 'bg-purple-100 text-purple-800';
+      case 'MSA':
+        return 'bg-blue-100 text-blue-800';
+      case 'SOW':
+        return 'bg-green-100 text-green-800';
+      case 'Employment':
+        return 'bg-orange-100 text-orange-800';
+      case 'Vendor':
+        return 'bg-indigo-100 text-indigo-800';
+      case 'Lease':
+        return 'bg-pink-100 text-pink-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading contracts...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <div className="bg-white shadow flex-shrink-0">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-semibold text-gray-900">
+                Contracts
+              </h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Upload Contract
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Filters */}
+          <div className="mb-6 bg-white p-4 rounded-lg shadow">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search contracts..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Category Filter */}
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">All Categories</option>
+                <option value="NDA">NDA</option>
+                <option value="MSA">MSA</option>
+                <option value="SOW">SOW</option>
+                <option value="Employment">Employment</option>
+                <option value="Vendor">Vendor</option>
+                <option value="Lease">Lease</option>
+                <option value="Other">Other</option>
+              </select>
+
+              {/* Status Filter */}
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="analyzed">Analyzed</option>
+                <option value="reviewed">Reviewed</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+
+              {/* Clear Filters */}
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedCategory('all');
+                  setSelectedStatus('all');
+                }}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+
+          {/* Contracts List */}
+          <div className="bg-white shadow overflow-hidden sm:rounded-md">
+            {filteredContracts.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No contracts found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Get started by uploading your first contract.
+                </p>
+                <div className="mt-6">
+                  <button
+                    onClick={() => setShowUploadModal(true)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Contract
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <ul className="divide-y divide-gray-200">
+                {filteredContracts.map((contract) => (
+                  <li key={contract.id} className="px-6 py-4 hover:bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-shrink-0">
+                          <FileText className="h-8 w-8 text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-sm font-medium text-gray-900 truncate">
+                              {contract.title}
+                            </h3>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(contract.category)}`}>
+                              {contract.category}
+                            </span>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(contract.status)}`}>
+                              {getStatusIcon(contract.status)}
+                              <span className="ml-1">{contract.status}</span>
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500">
+                            Counterparty: {contract.counterparty}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            Created: {new Date(contract.created_at).toLocaleDateString()}
+                            {contract.effective_date && ` • Effective: ${new Date(contract.effective_date).toLocaleDateString()}`}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        {/* Risk indicator */}
+                        {contract.risk_items && contract.risk_items.length > 0 && (
+                          <div className="flex items-center space-x-1">
+                            <AlertTriangle className="h-4 w-4 text-red-500" />
+                            <span className="text-xs text-red-600 font-medium">
+                              {contract.risk_items.filter(r => r.severity >= 4).length} high risks
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex items-center space-x-1">
+                          <Link
+                            href={`/dashboard/contracts/${contract.id}`}
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                          
+                          {contract.status === 'pending' && (
+                            <button
+                              onClick={() => handleAnalyzeContract(contract.id)}
+                              className="p-1 text-gray-400 hover:text-blue-600"
+                              title="Analyze Contract"
+                            >
+                              <Search className="h-4 w-4" />
+                            </button>
+                          )}
+                          
+                          {contract.analysis_json && (
+                            <button
+                              onClick={() => handleDownloadReport(contract.id)}
+                              className="p-1 text-gray-400 hover:text-green-600"
+                              title="Download Report"
+                            >
+                              <Download className="h-4 w-4" />
+                            </button>
+                          )}
+                          
+                          <button
+                            onClick={() => handleContractDelete(contract.id)}
+                            className="p-1 text-gray-400 hover:text-red-600"
+                            title="Delete Contract"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <ContractUploadForm
+          onClose={() => setShowUploadModal(false)}
+          onSuccess={() => {
+            setShowUploadModal(false);
+            loadContracts();
+          }}
+        />
+      )}
+    </>
+  );
+}

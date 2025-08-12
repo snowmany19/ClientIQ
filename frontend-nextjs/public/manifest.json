@@ -1,11 +1,11 @@
 {
-  "name": "CivicLogHOA - HOA Violation Management",
-  "short_name": "CivicLogHOA",
-  "description": "Professional HOA violation management platform",
+  "name": "ContractGuard - AI Contract Review Platform",
+  "short_name": "ContractGuard",
+  "description": "AI-powered contract review, analysis, and risk detection",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
+  "theme_color": "#1e293b",
   "orientation": "portrait-primary",
   "icons": [
     {
@@ -21,7 +21,7 @@
       "purpose": "maskable any"
     }
   ],
-  "categories": ["business", "productivity"],
+  "categories": ["business", "productivity", "legal"],
   "lang": "en-US",
   "dir": "ltr"
 } 

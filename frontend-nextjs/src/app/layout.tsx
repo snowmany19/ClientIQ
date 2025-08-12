@@ -7,15 +7,15 @@ import { ThemeProvider } from '@/components/ui/ThemeProvider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'CivicLogHOA - HOA Violation Management',
-  description: 'Professional HOA violation management platform',
+  title: 'ContractGuard.ai - AI Contract Review Platform',
+  description: 'Professional AI-powered contract analysis and risk management platform',
   manifest: '/manifest.json',
-  themeColor: '#3b82f6',
+  themeColor: '#1e293b',
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'CivicLogHOA',
+    title: 'ContractGuard.ai',
   },
   formatDetection: {
     telephone: false,
@@ -39,23 +39,23 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta name="application-name" content="CivicLogHOA" />
+        <meta name="application-name" content="ContractGuard.ai" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="CivicLogHOA" />
-        <meta name="description" content="Professional HOA violation management platform" />
+        <meta name="apple-mobile-web-app-title" content="ContractGuard.ai" />
+        <meta name="description" content="Professional AI-powered contract analysis and risk management platform" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
-        <meta name="msapplication-TileColor" content="#3b82f6" />
+        <meta name="msapplication-TileColor" content="#1e293b" />
         <meta name="msapplication-tap-highlight" content="no" />
-        <meta name="theme-color" content="#3b82f6" />
+        <meta name="theme-color" content="#1e293b" />
 
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/icon-192x192.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/icon-192x192.png" />
         <link rel="manifest" href="/manifest.json" />
-        <link rel="mask-icon" href="/icon-192x192.png" color="#3b82f6" />
+        <link rel="mask-icon" href="/icon-192x192.png" color="#1e293b" />
         <link rel="shortcut icon" href="/favicon.ico" />
       </head>
       <body className={inter.className}>

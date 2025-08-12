@@ -47,7 +47,7 @@ export function InstallPrompt() {
             <Download className="h-5 w-5 text-blue-600" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">Install CivicLogHOA</h3>
+                            <h3 className="text-sm font-semibold text-gray-900">Install ContractGuard.ai</h3>
             <p className="text-xs text-gray-600">Get the app-like experience</p>
           </div>
         </div>

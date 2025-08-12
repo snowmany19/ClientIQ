@@ -5,17 +5,17 @@ services:
     image: postgres:15
     restart: unless-stopped
     environment:
-      POSTGRES_DB: civicloghoa_db
-      POSTGRES_USER: civicloghoa_user
-      POSTGRES_PASSWORD: civicloghoa_pass
+      POSTGRES_DB: contractguard_db
+      POSTGRES_USER: contractguard_user
+      POSTGRES_PASSWORD: contractguard_pass
     volumes:
       - db_data:/var/lib/postgresql/data
     networks:
-      - hoanet
+      - contractguardnet
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U civicloghoa_user -d civicloghoa_db"]
+      test: ["CMD-SHELL", "pg_isready -U contractguard_user -d contractguard_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -25,9 +25,9 @@ services:
       context: ./backend
     restart: unless-stopped
     env_file:
-      - .env
+      - ./backend/.env
     environment:
-      DATABASE_URL: postgresql://civicloghoa_user:civicloghoa_pass@db:5432/civicloghoa_db
+      DATABASE_URL: postgresql://contractguard_user:contractguard_pass@db:5432/contractguard_db
     depends_on:
       db:
         condition: service_healthy
@@ -35,7 +35,7 @@ services:
       - ./backend:/app
       - ./backend/static/reports:/app/static/reports
     networks:
-      - hoanet
+      - contractguardnet
     ports:
       - "8000:8000"
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -46,7 +46,7 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - hoanet
+      - contractguardnet
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -56,17 +56,15 @@ services:
       context: ./frontend-nextjs
       dockerfile: Dockerfile.dev
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       # Set API URL to backend container
       NEXT_PUBLIC_API_URL: http://localhost:8000/api
     depends_on:
       - backend
     networks:
-      - hoanet
+      - contractguardnet
     ports:
-      - "3000:3000"
+      - "3001:3000"
     volumes:
       - ./frontend-nextjs:/app
       - /app/node_modules
@@ -77,5 +75,5 @@ volumes:
   redis_data:
 
 networks:
-  hoanet:
-    driver: bridge 
+  contractguardnet:
+    driver: bridge

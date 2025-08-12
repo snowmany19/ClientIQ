@@ -1,45 +1,57 @@
 # CRUD operations
 # crud.py
-# Reusable database operations for CivicLogHOA - HOA Violation Management Platform (CRUD: Create, Read, Update, Delete)
+# Reusable database operations for ContractGuard.ai - AI Contract Review Platform (CRUD: Create, Read, Update, Delete)
 
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from models import Violation, User, HOA, Resident
+from models import User, Workspace, ContractRecord
 
-# 🔍 Get all violations with optional filters
-def get_violations(db: Session, skip: int = 0, limit: int = 100, hoa_id: Optional[int] = None) -> List[Violation]:
-    query = db.query(Violation)
-    if hoa_id:
-        query = query.filter(Violation.hoa_id == hoa_id)
-    return query.order_by(Violation.timestamp.desc()).offset(skip).limit(limit).all()
+# 🔍 Get all contracts with optional filters
+def get_contracts(db: Session, skip: int = 0, limit: int = 100, workspace_id: Optional[int] = None) -> List[ContractRecord]:
+    query = db.query(ContractRecord)
+    if workspace_id:
+        query = query.filter(ContractRecord.workspace_id == workspace_id)
+    return query.order_by(ContractRecord.created_at.desc()).offset(skip).limit(limit).all()
 
-# 🔍 Get single violation by ID
-def get_violation(db: Session, violation_id: int) -> Optional[Violation]:
-    return db.query(Violation).filter(Violation.id == violation_id).first()
+def get_contract(db: Session, contract_id: int) -> Optional[ContractRecord]:
+    return db.query(ContractRecord).filter(ContractRecord.id == contract_id).first()
 
-# ➕ Create new violation
-def create_violation(db: Session, violation_data: dict) -> Violation:
-    db_violation = Violation(**violation_data)
-    db.add(db_violation)
+def create_contract(db: Session, contract_data: dict) -> ContractRecord:
+    db_contract = ContractRecord(**contract_data)
+    db.add(db_contract)
     db.commit()
-    db.refresh(db_violation)
-    return db_violation
+    db.refresh(db_contract)
+    return db_contract
 
-# 🗑️ Delete violation
-def delete_violation(db: Session, violation_id: int) -> bool:
-    violation = db.query(Violation).filter(Violation.id == violation_id).first()
-    if violation:
-        db.delete(violation)
+def update_contract(db: Session, contract_id: int, contract_data: dict) -> Optional[ContractRecord]:
+    db_contract = db.query(ContractRecord).filter(ContractRecord.id == contract_id).first()
+    if db_contract:
+        for key, value in contract_data.items():
+            setattr(db_contract, key, value)
+        db.commit()
+        db.refresh(db_contract)
+    return db_contract
+
+def delete_contract(db: Session, contract_id: int) -> bool:
+    db_contract = db.query(ContractRecord).filter(ContractRecord.id == contract_id).first()
+    if db_contract:
+        db.delete(db_contract)
         db.commit()
         return True
     return False
 
-# 👤 User operations
-def get_user_by_username(db: Session, username: str) -> Optional[User]:
-    return db.query(User).filter(User.username == username).first()
+# 👥 User operations
+def get_user(db: Session, user_id: int) -> Optional[User]:
+    return db.query(User).filter(User.id == user_id).first()
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
     return db.query(User).filter(User.email == email).first()
+
+def get_user_by_username(db: Session, username: str) -> Optional[User]:
+    return db.query(User).filter(User.username == username).first()
+
+def get_users_by_workspace(db: Session, workspace_id: int) -> List[User]:
+    return db.query(User).filter(User.workspace_id == workspace_id).all()
 
 def create_user(db: Session, user_data: dict) -> User:
     db_user = User(**user_data)
@@ -48,55 +60,55 @@ def create_user(db: Session, user_data: dict) -> User:
     db.refresh(db_user)
     return db_user
 
-def get_users_by_hoa(db: Session, hoa_id: int) -> List[User]:
-    return db.query(User).filter(User.hoa_id == hoa_id).all()
+def update_user(db: Session, user_id: int, user_data: dict) -> Optional[User]:
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if db_user:
+        for key, value in user_data.items():
+            setattr(db_user, key, value)
+        db.commit()
+        db.refresh(db_user)
+    return db_user
 
-# 🏘️ HOA operations
-def get_hoa(db: Session, hoa_id: int) -> Optional[HOA]:
-    return db.query(HOA).filter(HOA.id == hoa_id).first()
+def delete_user(db: Session, user_id: int) -> bool:
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if db_user:
+        db.delete(db_user)
+        db.commit()
+        return True
+    return False
 
-def get_all_hoas(db: Session) -> List[HOA]:
-    return db.query(HOA).all()
+# 🏢 Workspace operations
+def get_workspace(db: Session, workspace_id: int) -> Optional[Workspace]:
+    return db.query(Workspace).filter(Workspace.id == workspace_id).first()
 
-def create_hoa(db: Session, name: str, location: str, contact_email: Optional[str] = None, contact_phone: Optional[str] = None) -> HOA:
-    db_hoa = HOA(
+def get_all_workspaces(db: Session) -> List[Workspace]:
+    return db.query(Workspace).all()
+
+def create_workspace(db: Session, name: str, company_name: str, contact_email: Optional[str] = None, contact_phone: Optional[str] = None) -> Workspace:
+    db_workspace = Workspace(
         name=name,
-        location=location,
+        company_name=company_name,
         contact_email=contact_email,
         contact_phone=contact_phone
     )
-    db.add(db_hoa)
+    db.add(db_workspace)
     db.commit()
-    db.refresh(db_hoa)
-    return db_hoa
+    db.refresh(db_workspace)
+    return db_workspace
 
-# 🧑‍🚨 Resident operations
-def get_resident(db: Session, resident_id: int) -> Optional[Resident]:
-    return db.query(Resident).filter(Resident.id == resident_id).first()
-
-def get_residents_by_hoa(db: Session, hoa_id: int) -> List[Resident]:
-    return db.query(Resident).filter(Resident.hoa_id == hoa_id).all()
-
-def create_resident(db: Session, name: str, address: str, hoa_id: int, email: Optional[str] = None, phone: Optional[str] = None, notes: Optional[str] = None) -> Resident:
-    db_resident = Resident(
-        name=name,
-        address=address,
-        hoa_id=hoa_id,
-        email=email,
-        phone=phone,
-        notes=notes
-    )
-    db.add(db_resident)
-    db.commit()
-    db.refresh(db_resident)
-    return db_resident
-
-def update_resident_violation_count(db: Session, resident_id: int) -> None:
-    """Update the violation count for a resident."""
-    resident = get_resident(db, resident_id)
-    if resident:
-        # Use SQLAlchemy update to avoid type issues
-        db.query(Resident).filter(Resident.id == resident_id).update(
-            {"violation_count": Resident.violation_count + 1}
-        )
+def update_workspace(db: Session, workspace_id: int, workspace_data: dict) -> Optional[Workspace]:
+    db_workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if db_workspace:
+        for key, value in workspace_data.items():
+            setattr(db_workspace, key, value)
         db.commit()
+        db.refresh(db_workspace)
+    return db_workspace
+
+def delete_workspace(db: Session, workspace_id: int) -> bool:
+    db_workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if db_workspace:
+        db.delete(db_workspace)
+        db.commit()
+        return True
+    return False

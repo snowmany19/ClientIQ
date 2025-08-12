@@ -16,7 +16,7 @@ import {
   X,
   Building,
   User,
-  FileCheck
+  FileSearch
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -24,21 +24,15 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user, logout, isAuthenticated } = useAuthStore();
   
-  const navigation = user?.role === 'resident' 
-    ? [
-        { name: 'Resident Portal', href: '/dashboard/resident-portal', icon: User },
-        { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-      ]
-    : [
-        { name: 'Dashboard', href: '/dashboard', icon: Home },
-        { name: 'Violations', href: '/dashboard/violations', icon: FileText },
-        { name: 'Users', href: '/dashboard/users', icon: Users },
-        { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-        ...(user?.role === 'super_admin' ? [{ name: 'HOAs', href: '/dashboard/hoas', icon: Building }] : []),
-        ...(user?.role === 'admin' || user?.role === 'hoa_board' ? [{ name: 'Policies', href: '/dashboard/policies', icon: FileCheck }] : []),
-        { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
-        { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-      ];
+  const navigation = [
+    { name: 'Dashboard', href: '/dashboard', icon: Home },
+    { name: 'Contracts', href: '/dashboard/contracts', icon: FileSearch },
+    { name: 'Users', href: '/dashboard/users', icon: Users },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+    ...(user?.role === 'super_admin' ? [{ name: 'Workspaces', href: '/dashboard/workspaces', icon: Building }] : []),
+    { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  ];
 
   const handleLogout = () => {
     logout();
@@ -82,7 +76,7 @@ export default function Sidebar() {
                   <span className="text-white font-bold text-sm">C</span>
                 </div>
                 <span className="ml-3 text-lg font-semibold text-gray-900">
-                  CivicLogHOA
+                  ContractGuard.ai
                 </span>
               </div>
               <nav className="mt-5 h-full flex-1 space-y-1 px-2">
@@ -145,7 +139,7 @@ export default function Sidebar() {
                   <span className="text-white font-bold text-sm">C</span>
                 </div>
                 <span className="ml-3 text-lg font-semibold text-gray-900">
-                  CivicLogHOA
+                  ContractGuard.ai
                 </span>
               </div>
               <nav className="mt-5 flex-1 space-y-1 px-2">
