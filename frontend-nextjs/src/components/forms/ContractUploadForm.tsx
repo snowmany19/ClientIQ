@@ -119,6 +119,7 @@ export default function ContractUploadForm({ onClose, onSuccess }: ContractUploa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('=== FORM SUBMISSION START ===');
     console.log('Form submitted with files:', files);
     console.log('Files details:', files.map(f => ({ name: f.name, size: f.size, type: f.type })));
     
@@ -151,26 +152,42 @@ export default function ContractUploadForm({ onClose, onSuccess }: ContractUploa
         uploaded_files: [] // Will be populated after file upload
       };
 
+      console.log('=== CONTRACT CREATION ===');
       console.log('Sending contract data to backend:', contractData);
 
       const contract = await apiClient.createContract(contractData);
 
       console.log('Contract created successfully:', contract);
+      console.log('Contract ID:', contract.id);
 
       // Upload files
+      console.log('=== FILE UPLOAD START ===');
       console.log('Starting file upload for', files.length, 'files');
-      for (const file of files) {
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
         try {
-          console.log('Uploading file:', file.name, 'Size:', file.size);
+          console.log(`--- Uploading file ${i + 1}/${files.length} ---`);
+          console.log('File details:', { name: file.name, size: file.size, type: file.type });
+          console.log('File object:', file);
+          console.log('Contract ID for upload:', contract.id);
+          
           const uploadResult = await apiClient.uploadContractFile(contract.id, file);
           console.log('File upload result:', uploadResult);
-        } catch (uploadError) {
+          console.log('File upload successful for:', file.name);
+        } catch (uploadError: any) {
+          console.error('=== FILE UPLOAD ERROR ===');
           console.error('File upload failed for', file.name, ':', uploadError);
+          console.error('Error details:', {
+            name: uploadError.name,
+            message: uploadError.message,
+            stack: uploadError.stack
+          });
           throw new Error(`Failed to upload file ${file.name}: ${uploadError}`);
         }
       }
 
-      console.log('All files uploaded successfully');
+      console.log('=== ALL FILES UPLOADED SUCCESSFULLY ===');
       
       // Wait a moment for backend to process the upload
       console.log('Waiting for backend to process upload...');
@@ -181,11 +198,18 @@ export default function ContractUploadForm({ onClose, onSuccess }: ContractUploa
       const refreshedContract = await apiClient.getContract(contract.id);
       console.log('Refreshed contract data:', refreshedContract);
       
+      console.log('=== FORM SUBMISSION COMPLETE ===');
       onSuccess();
       onClose();
       router.push(`/dashboard/contracts/${contract.id}`);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('=== FORM SUBMISSION ERROR ===');
       console.error('Failed to create contract:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
       setError('Failed to create contract. Please try again.');
     } finally {
       setLoading(false);

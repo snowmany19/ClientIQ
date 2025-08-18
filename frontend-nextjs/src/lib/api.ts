@@ -36,6 +36,11 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
     
+    console.log('=== API CLIENT: REQUEST METHOD ===');
+    console.log('URL:', url);
+    console.log('Method:', options.method || 'GET');
+    console.log('Options:', options);
+    
     const config: RequestInit = {
       ...options,
     };
@@ -46,11 +51,13 @@ class ApiClient {
         'Content-Type': 'application/json',
         ...options.headers,
       };
+      console.log('Set Content-Type: application/json');
     } else {
       // For FormData and other types, don't set Content-Type (let browser set it)
       config.headers = {
         ...options.headers,
       };
+      console.log('No Content-Type set (browser will set it)');
     }
 
     // Add authorization header if token exists
@@ -59,33 +66,61 @@ class ApiClient {
         ...config.headers,
         Authorization: `Bearer ${this.token}`,
       };
+      console.log('Added Authorization header');
     }
 
+    console.log('Final config:', config);
+    console.log('Final headers:', config.headers);
+
     try {
+      console.log('Making fetch request...');
       const response = await fetch(url, config);
+      
+      console.log('Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
       
       if (response.status === 401) {
         // Token expired or invalid
+        console.log('Unauthorized response, redirecting to login');
         this.removeToken();
         window.location.href = '/login';
         throw new Error('Authentication required');
       }
 
       if (!response.ok) {
+        console.log('Response not OK, parsing error data');
         const errorData: ApiError = await response.json();
+        console.log('Error data:', errorData);
         throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
       }
 
       // Handle empty responses
       const contentType = response.headers.get('content-type');
+      console.log('Response content-type:', contentType);
+      
       if (contentType && contentType.includes('application/json')) {
-        return await response.json();
+        const jsonResult = await response.json();
+        console.log('JSON response:', jsonResult);
+        return jsonResult;
       }
       
+      console.log('Empty response, returning empty object');
       return {} as T;
     } catch (error: any) {
+      console.error('=== API CLIENT: REQUEST ERROR ===');
+      console.error('Request failed:', error);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
       if (retries > 0 && error.name === 'TypeError') {
         // Network error, retry
+        console.log(`Retrying request (${retries} retries left)...`);
         await new Promise(resolve => setTimeout(resolve, 1000));
         return this.request<T>(endpoint, options, retries - 1);
       }
@@ -205,27 +240,69 @@ class ApiClient {
   }
 
   async uploadContractFile(contractId: number, file: File): Promise<any> {
+    console.log('=== API CLIENT: UPLOAD CONTRACT FILE ===');
+    console.log('Contract ID:', contractId);
+    console.log('File details:', { name: file.name, size: file.size, type: file.type });
+    console.log('File object:', file);
+    
     const formData = new FormData();
     formData.append('file', file);
     
-    return this.request<any>(`/api/upload/${contractId}`, {
-      method: 'POST',
-      body: formData,
-    });
+    console.log('FormData created:', formData);
+    console.log('FormData entries:');
+    for (const [key, value] of formData.entries()) {
+      console.log(`  ${key}:`, value);
+    }
+    
+    console.log('Making request to:', `/api/upload/${contractId}`);
+    console.log('Request method: POST');
+    console.log('Request body type:', typeof formData);
+    
+    try {
+      const result = await this.request<any>(`/api/upload/${contractId}`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      console.log('Upload request successful:', result);
+      return result;
+    } catch (error) {
+      console.error('=== API CLIENT: UPLOAD ERROR ===');
+      console.error('Upload request failed:', error);
+      throw error;
+    }
   }
 
   async downloadContractReport(id: number): Promise<Blob> {
-    const response = await fetch(`${this.baseURL}/api/report/${id}`, {
-      headers: {
-        Authorization: `Bearer ${this.getToken()}`,
-      },
-    });
+    console.log('=== API CLIENT: DOWNLOAD REPORT ===');
+    console.log('Contract ID:', id);
     
-    if (!response.ok) {
-      throw new Error('Failed to download report');
+    try {
+      const response = await fetch(`${this.baseURL}/api/report/${id}`, {
+        headers: {
+          Authorization: `Bearer ${this.getToken()}`,
+        },
+      });
+      
+      console.log('Download response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
+      if (!response.ok) {
+        console.error('Download failed with status:', response.status);
+        throw new Error(`Failed to download report: ${response.status} ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      console.log('Download successful, blob size:', blob.size);
+      return blob;
+    } catch (error) {
+      console.error('=== API CLIENT: DOWNLOAD ERROR ===');
+      console.error('Download failed:', error);
+      throw error;
     }
-    
-    return response.blob();
   }
 
   // ===========================

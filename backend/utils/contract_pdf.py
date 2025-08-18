@@ -12,14 +12,42 @@ class ContractAnalysisPDF(FPDF):
     def __init__(self):
         super().__init__()
         self.set_auto_page_break(auto=True, margin=15)
-        self.add_font('DejaVu', '', '/System/Library/Fonts/Arial.ttf', uni=True)
+        
+        # Try to add a font, with fallbacks for different systems
+        font_paths = [
+            '/System/Library/Fonts/Arial.ttf',  # macOS
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',  # Linux
+            '/usr/share/fonts/TTF/Arial.ttf',  # Some Linux systems
+            'arial.ttf'  # Windows fallback
+        ]
+        
+        font_added = False
+        for font_path in font_paths:
+            try:
+                if os.path.exists(font_path):
+                    self.add_font('DejaVu', '', font_path, uni=True)
+                    font_added = True
+                    break
+            except Exception:
+                continue
+        
+        if not font_added:
+            # Use default font if no custom font can be loaded
+            print("Warning: Could not load custom font, using default")
         
     def header(self):
-        # Add logo at the top center
+        # Add logo at the top center (optional)
         logo_path = os.path.join(os.path.dirname(__file__), "..", "static", "images", "ai_logo.png")
         if os.path.exists(logo_path):
-            self.image(logo_path, x=80, y=10, w=50)
-            self.ln(35)
+            try:
+                self.image(logo_path, x=80, y=10, w=50)
+                self.ln(35)
+            except Exception:
+                # If logo fails to load, just continue without it
+                self.ln(25)
+        else:
+            # No logo, just add some spacing
+            self.ln(25)
         
         self.set_font("Arial", "B", 16)
         self.cell(0, 10, "ContractGuard.ai - Contract Analysis Report", border=False, ln=True, align="C")
@@ -37,16 +65,29 @@ class ContractAnalysisPDF(FPDF):
 
     def add_section_title(self, title: str, level: int = 1):
         """Add a section title with appropriate formatting."""
-        if level == 1:
-            self.set_font("Arial", "B", 14)
-            self.set_fill_color(240, 240, 240)
-            self.cell(0, 10, title, ln=True, fill=True)
-        elif level == 2:
-            self.set_font("Arial", "B", 12)
-            self.cell(0, 8, title, ln=True)
-        else:
-            self.set_font("Arial", "B", 10)
-            self.cell(0, 6, title, ln=True)
+        try:
+            if level == 1:
+                self.set_font("DejaVu", "B", 14)
+                self.set_fill_color(240, 240, 240)
+                self.cell(0, 10, title, ln=True, fill=True)
+            elif level == 2:
+                self.set_font("DejaVu", "B", 12)
+                self.cell(0, 8, title, ln=True)
+            else:
+                self.set_font("DejaVu", "B", 10)
+                self.cell(0, 6, title, ln=True)
+        except Exception:
+            # Fallback to default font
+            if level == 1:
+                self.set_font("Arial", "B", 14)
+                self.set_fill_color(240, 240, 240)
+                self.cell(0, 10, title, ln=True, fill=True)
+            elif level == 2:
+                self.set_font("Arial", "B", 12)
+                self.cell(0, 8, title, ln=True)
+            else:
+                self.set_font("Arial", "B", 10)
+                self.cell(0, 6, title, ln=True)
         self.ln(2)
 
     def add_contract_info(self, contract: ContractRecord):
@@ -54,47 +95,96 @@ class ContractAnalysisPDF(FPDF):
         self.add_section_title("Contract Information", 1)
         
         # Create a table-like layout for contract details
-        self.set_font("Arial", "B", 10)
+        try:
+            self.set_font("DejaVu", "B", 10)
+        except Exception:
+            self.set_font("Arial", "B", 10)
+            
         self.cell(40, 8, "Title:", ln=False)
-        self.set_font("Arial", "", 10)
+        try:
+            self.set_font("DejaVu", "", 10)
+        except Exception:
+            self.set_font("Arial", "", 10)
         self.cell(0, 8, contract.title, ln=True)
         
-        self.set_font("Arial", "B", 10)
+        try:
+            self.set_font("DejaVu", "B", 10)
+        except Exception:
+            self.set_font("Arial", "B", 10)
         self.cell(40, 8, "Counterparty:", ln=False)
-        self.set_font("Arial", "", 10)
+        try:
+            self.set_font("DejaVu", "", 10)
+        except Exception:
+            self.set_font("Arial", "", 10)
         self.cell(0, 8, contract.counterparty, ln=True)
         
-        self.set_font("Arial", "B", 10)
+        try:
+            self.set_font("DejaVu", "B", 10)
+        except Exception:
+            self.set_font("Arial", "B", 10)
         self.cell(40, 8, "Category:", ln=False)
-        self.set_font("Arial", "", 10)
+        try:
+            self.set_font("DejaVu", "", 10)
+        except Exception:
+            self.set_font("Arial", "", 10)
         self.cell(0, 8, contract.category, ln=True)
         
         if contract.effective_date:
-            self.set_font("Arial", "B", 10)
+            try:
+                self.set_font("DejaVu", "B", 10)
+            except Exception:
+                self.set_font("Arial", "B", 10)
             self.cell(40, 8, "Effective Date:", ln=False)
-            self.set_font("Arial", "", 10)
+            try:
+                self.set_font("DejaVu", "", 10)
+            except Exception:
+                self.set_font("Arial", "", 10)
             self.cell(0, 8, contract.effective_date.strftime('%B %d, %Y'), ln=True)
         
         if contract.term_end:
-            self.set_font("Arial", "B", 10)
+            try:
+                self.set_font("DejaVu", "B", 10)
+            except Exception:
+                self.set_font("Arial", "B", 10)
             self.cell(40, 8, "Term End:", ln=False)
-            self.set_font("Arial", "", 10)
+            try:
+                self.set_font("DejaVu", "", 10)
+            except Exception:
+                self.set_font("Arial", "", 10)
             self.cell(0, 8, contract.term_end.strftime('%B %d, %Y'), ln=True)
         
         if contract.governing_law:
-            self.set_font("Arial", "B", 10)
+            try:
+                self.set_font("DejaVu", "B", 10)
+            except Exception:
+                self.set_font("Arial", "B", 10)
             self.cell(40, 8, "Governing Law:", ln=False)
-            self.set_font("Arial", "", 10)
+            try:
+                self.set_font("DejaVu", "", 10)
+            except Exception:
+                self.set_font("Arial", "", 10)
             self.cell(0, 8, contract.governing_law, ln=True)
         
-        self.set_font("Arial", "B", 10)
+        try:
+            self.set_font("DejaVu", "B", 10)
+        except Exception:
+            self.set_font("Arial", "B", 10)
         self.cell(40, 8, "Status:", ln=False)
-        self.set_font("Arial", "", 10)
+        try:
+            self.set_font("DejaVu", "", 10)
+        except Exception:
+            self.set_font("Arial", "", 10)
         self.cell(0, 8, contract.status.title(), ln=True)
         
-        self.set_font("Arial", "B", 10)
+        try:
+            self.set_font("DejaVu", "B", 10)
+        except Exception:
+            self.set_font("Arial", "B", 10)
         self.cell(40, 8, "Analysis Date:", ln=False)
-        self.set_font("Arial", "", 10)
+        try:
+            self.set_font("DejaVu", "", 10)
+        except Exception:
+            self.set_font("Arial", "", 10)
         self.cell(0, 8, contract.updated_at.strftime('%B %d, %Y at %I:%M %p'), ln=True)
         
         self.ln(5)
