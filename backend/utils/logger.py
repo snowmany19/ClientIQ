@@ -85,10 +85,17 @@ def log_api_request(
     if ip_address:
         extra_data["ip_address"] = ip_address
     
+    # Format message for standard logging
+    message = f"API request - {method} {path} - Status: {status_code} - Time: {extra_data['response_time_ms']}ms"
+    if user_id:
+        message += f" - User: {user_id}"
+    if ip_address:
+        message += f" - IP: {ip_address}"
+    
     if status_code >= 400:
-        logger.warning("API request", **extra_data)
+        logger.warning(message)
     else:
-        logger.info("API request", **extra_data)
+        logger.info(message)
 
 def log_error(
     logger: logging.Logger,

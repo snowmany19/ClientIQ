@@ -81,8 +81,8 @@ from routes import auth, billing, contracts, analytics, settings as user_setting
 app.include_router(auth.router, prefix="/api")
 app.include_router(billing.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")  # Enable analytics for dashboard
-app.include_router(contracts.router, prefix="/api")
-app.include_router(user_settings.router, prefix="/api/user-settings")
+app.include_router(user_settings.router, prefix="/api/user-settings")  # More specific routes first
+app.include_router(contracts.router, prefix="/api")  # Generic routes last
 
 # 🔒 Security Middleware
 if settings.environment == "production":

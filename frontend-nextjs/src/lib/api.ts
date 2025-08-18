@@ -25,7 +25,7 @@ class ApiClient {
     this.baseURL = baseURL;
     // Try to get token from localStorage on initialization
     if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('access_token');
+      this.token = localStorage.getItem('auth_token');
     }
   }
 
@@ -37,12 +37,21 @@ class ApiClient {
     const url = `${this.baseURL}${endpoint}`;
     
     const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
       ...options,
     };
+
+    // Only set default Content-Type for JSON requests
+    if (!options.body || typeof options.body === 'string') {
+      config.headers = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      };
+    } else {
+      // For FormData and other types, don't set Content-Type (let browser set it)
+      config.headers = {
+        ...options.headers,
+      };
+    }
 
     // Add authorization header if token exists
     if (this.token) {
@@ -85,17 +94,17 @@ class ApiClient {
   }
 
   private getToken(): string | null {
-    return this.token || localStorage.getItem('access_token');
+    return this.token || localStorage.getItem('auth_token');
   }
 
   private setToken(token: string): void {
     this.token = token;
-    localStorage.setItem('access_token', token);
+    localStorage.setItem('auth_token', token);
   }
 
   private removeToken(): void {
     this.token = null;
-    localStorage.removeItem('access_token');
+    localStorage.removeItem('auth_token');
   }
 
   // ===========================
@@ -137,12 +146,12 @@ class ApiClient {
   // ===========================
 
   async getContracts(params?: {
-    skip?: number;
-    limit?: number;
+    page?: number;
+    per_page?: number;
     category?: string;
     status?: string;
     search?: string;
-  }): Promise<PaginatedResponse<ContractRecord>> {
+  }): Promise<any> { // Changed from PaginatedResponse<ContractRecord> to any to match backend response
     const searchParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -152,35 +161,35 @@ class ApiClient {
       });
     }
 
-    return this.request<PaginatedResponse<ContractRecord>>(`/contracts/?${searchParams}`);
+    return this.request<any>(`/api/list?${searchParams}`);
   }
 
   async getContract(id: number): Promise<ContractRecord> {
-    return this.request<ContractRecord>(`/contracts/${id}`);
+    return this.request<ContractRecord>(`/api/${id}`);
   }
 
   async createContract(contract: ContractCreate): Promise<ContractRecord> {
-    return this.request<ContractRecord>('/contracts/', {
+    return this.request<ContractRecord>('/api/', {
       method: 'POST',
       body: JSON.stringify(contract),
     });
   }
 
   async updateContract(id: number, updates: Partial<ContractCreate>): Promise<ContractRecord> {
-    return this.request<ContractRecord>(`/contracts/${id}`, {
+    return this.request<ContractRecord>(`/api/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
   }
 
   async deleteContract(id: number): Promise<void> {
-    return this.request<void>(`/contracts/${id}`, {
+    return this.request<void>(`/api/${id}`, {
       method: 'DELETE',
     });
   }
 
   async analyzeContract(id: number): Promise<any> {
-    return this.request<any>(`/contracts/${id}/analyze`, {
+    return this.request<any>(`/api/analyze/${id}`, {
       method: 'POST',
     });
   }
@@ -189,7 +198,7 @@ class ApiClient {
     const formData = new FormData();
     formData.append('question', question);
     
-    return this.request<any>(`/contracts/${id}/ask`, {
+    return this.request<any>(`/api/ask/${id}`, {
       method: 'POST',
       body: formData,
     });
@@ -199,14 +208,14 @@ class ApiClient {
     const formData = new FormData();
     formData.append('file', file);
     
-    return this.request<any>(`/contracts/${contractId}/upload`, {
+    return this.request<any>(`/api/upload/${contractId}`, {
       method: 'POST',
       body: formData,
     });
   }
 
   async downloadContractReport(id: number): Promise<Blob> {
-    const response = await fetch(`${this.baseURL}/contracts/${id}/report`, {
+    const response = await fetch(`${this.baseURL}/api/report/${id}`, {
       headers: {
         Authorization: `Bearer ${this.getToken()}`,
       },

@@ -106,11 +106,11 @@ class ContractRecord(Base):
     term_end = Column(DateTime, nullable=True)
     renewal_terms = Column(Text, nullable=True)
     governing_law = Column(String, nullable=True)
-    uploaded_files = Column(JSON, default=list)  # Array of file paths
+    uploaded_files = Column(JSON, default=lambda: [])  # Array of file paths
     analysis_json = Column(JSON, nullable=True)  # AI analysis results
     summary_text = Column(Text, nullable=True)
-    risk_items = Column(JSON, default=list)  # Array of risk assessments
-    rewrite_suggestions = Column(JSON, default=list)  # Array of suggestions
+    risk_items = Column(JSON, default=lambda: [])  # Array of risk assessments
+    rewrite_suggestions = Column(JSON, default=lambda: [])  # Array of suggestions
     status = Column(String, default="pending")  # pending, analyzed, reviewed, approved, rejected
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -158,7 +158,7 @@ class EmailTemplate(Base):
     name = Column(String, nullable=False, unique=True)
     subject = Column(String, nullable=False)
     body = Column(Text, nullable=False)
-    variables = Column(JSON, default=list)  # Available template variables
+    variables = Column(JSON, default=lambda: [])  # Available template variables
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

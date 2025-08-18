@@ -106,36 +106,46 @@ async def extract_contract_text(contract: ContractRecord) -> str:
     contract_text = ""
     
     for file_path in contract.uploaded_files or []:
-        if os.path.exists(file_path):
-            file_extension = os.path.splitext(file_path)[1].lower()
+        # Handle both relative and absolute paths
+        if not os.path.isabs(file_path):
+            # If it's a relative path, make it relative to the backend directory
+            backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            full_path = os.path.join(backend_dir, file_path)
+        else:
+            full_path = file_path
+            
+        if os.path.exists(full_path):
+            file_extension = os.path.splitext(full_path)[1].lower()
             
             try:
                 if file_extension == '.pdf':
                     # Extract text from PDF
                     import PyPDF2
-                    with open(file_path, 'rb') as file:
+                    with open(full_path, 'rb') as file:
                         pdf_reader = PyPDF2.PdfReader(file)
                         for page in pdf_reader.pages:
                             contract_text += page.extract_text() + "\n"
                             
                 elif file_extension in ['.txt']:
                     # Read text file
-                    with open(file_path, 'r', encoding='utf-8') as file:
+                    with open(full_path, 'r', encoding='utf-8') as file:
                         contract_text += file.read() + "\n"
                         
                 elif file_extension in ['.docx']:
                     # Extract text from DOCX (basic implementation)
                     try:
                         import docx
-                        doc = docx.Document(file_path)
+                        doc = docx.Document(full_path)
                         for paragraph in doc.paragraphs:
                             contract_text += paragraph.text + "\n"
                     except ImportError:
                         logger.warning("python-docx not installed, skipping DOCX file")
                         
             except Exception as e:
-                logger.warning(f"Failed to extract text from {file_path}: {e}")
+                logger.warning(f"Failed to extract text from {full_path}: {e}")
                 continue
+        else:
+            logger.warning(f"File not found: {full_path}")
     
     return contract_text
 
@@ -161,7 +171,35 @@ async def generate_contract_summary(contract: ContractRecord, contract_text: str
         if content is None:
             raise Exception("Empty response from GPT")
         
-        return json.loads(content)
+        # Try to parse JSON, with fallback handling
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON response: {e}. Content: {content[:200]}...")
+            # Try to extract JSON from the response if it's wrapped in text
+            import re
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                try:
+                    return json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    logger.error(f"Could not extract valid JSON from response")
+                    return {
+                        "executive_summary": "Unable to generate summary due to technical issues.",
+                        "key_terms": {},
+                        "business_impact": "Analysis unavailable.",
+                        "critical_dates": [],
+                        "obligations": []
+                    }
+            else:
+                logger.error(f"No JSON object found in response")
+                return {
+                    "executive_summary": "Unable to generate summary due to technical issues.",
+                    "key_terms": {},
+                    "business_impact": "Analysis unavailable.",
+                    "critical_dates": [],
+                    "obligations": []
+                }
         
     except Exception as e:
         logger.error(f"Summary generation failed: {e}")
@@ -197,7 +235,23 @@ async def assess_contract_risks(contract: ContractRecord, contract_text: str) ->
         if content is None:
             raise Exception("Empty response from GPT")
         
-        risks = json.loads(content)
+        # Try to parse JSON, with fallback handling
+        try:
+            risks = json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON response: {e}. Content: {content[:200]}...")
+            # Try to extract JSON from the response if it's wrapped in text
+            import re
+            json_match = re.search(r'\[.*\]', content, re.DOTALL)
+            if json_match:
+                try:
+                    risks = json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    logger.error(f"Could not extract valid JSON from response")
+                    return []
+            else:
+                logger.error(f"No JSON array found in response")
+                return []
         
         # Validate and clean risks
         validated_risks = []
@@ -277,7 +331,23 @@ Focus on:
         if content is None:
             raise Exception("Empty response from GPT")
         
-        suggestions = json.loads(content)
+        # Try to parse JSON, with fallback handling
+        try:
+            suggestions = json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON response: {e}. Content: {content[:200]}...")
+            # Try to extract JSON from the response if it's wrapped in text
+            import re
+            json_match = re.search(r'\[.*\]', content, re.DOTALL)
+            if json_match:
+                try:
+                    suggestions = json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    logger.error(f"Could not extract valid JSON from response")
+                    return []
+            else:
+                logger.error(f"No JSON array found in response")
+                return []
         
         # Validate suggestions
         validated_suggestions = []
@@ -339,7 +409,39 @@ Focus on {category}-specific considerations and industry standards.
         if content is None:
             raise Exception("Empty response from GPT")
         
-        return json.loads(content)
+        # Try to parse JSON, with fallback handling
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON response: {e}. Content: {content[:200]}...")
+            # Try to extract JSON from the response if it's wrapped in text
+            import re
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                try:
+                    return json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    logger.error(f"Could not extract valid JSON from response")
+                    return {
+                        "category_insights": "Category-specific analysis unavailable.",
+                        "industry_standards": "Unable to compare to industry standards.",
+                        "missing_elements": [],
+                        "unusual_provisions": [],
+                        "regulatory_considerations": [],
+                        "best_practices": [],
+                        "red_flags": []
+                    }
+            else:
+                logger.error(f"No JSON object found in response")
+                return {
+                    "category_insights": "Category-specific analysis unavailable.",
+                    "industry_standards": "Unable to compare to industry standards.",
+                    "missing_elements": [],
+                    "unusual_provisions": [],
+                    "regulatory_considerations": [],
+                    "best_practices": [],
+                    "red_flags": []
+                }
         
     except Exception as e:
         logger.error(f"Category analysis failed: {e}")
@@ -405,7 +507,39 @@ Focus on:
         if content is None:
             raise Exception("Empty response from GPT")
         
-        return json.loads(content)
+        # Try to parse JSON, with fallback handling
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON response: {e}. Content: {content[:200]}...")
+            # Try to extract JSON from the response if it's wrapped in text
+            import re
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                try:
+                    return json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    logger.error(f"Could not extract valid JSON from response")
+                    return {
+                        "regulatory_risks": [],
+                        "data_privacy": "Compliance analysis unavailable.",
+                        "employment_law": "Employment law analysis unavailable.",
+                        "intellectual_property": "IP law analysis unavailable.",
+                        "tax_implications": "Tax analysis unavailable.",
+                        "industry_regulations": "Industry regulation analysis unavailable.",
+                        "compliance_recommendations": []
+                    }
+            else:
+                logger.error(f"No JSON object found in response")
+                return {
+                    "regulatory_risks": [],
+                    "data_privacy": "Compliance analysis unavailable.",
+                    "employment_law": "Employment law analysis unavailable.",
+                    "intellectual_property": "IP law analysis unavailable.",
+                    "tax_implications": "Tax analysis unavailable.",
+                    "industry_regulations": "Industry regulation analysis unavailable.",
+                    "compliance_recommendations": []
+                }
         
     except Exception as e:
         logger.error(f"Compliance check failed: {e}")
@@ -464,7 +598,37 @@ IMPORTANT: Base your answer ONLY on the contract text provided. Do not make assu
         if content is None:
             raise Exception("Empty response from GPT")
         
-        return json.loads(content)
+        # Try to parse JSON, with fallback handling
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON response: {e}. Content: {content[:200]}...")
+            # Try to extract JSON from the response if it's wrapped in text
+            import re
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                try:
+                    return json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    logger.error(f"Could not extract valid JSON from response")
+                    return {
+                        "answer": "Unable to answer the question due to technical issues.",
+                        "confidence": 0.0,
+                        "source_reference": "N/A",
+                        "context": "Analysis unavailable.",
+                        "implications": "Unable to assess implications.",
+                        "recommendations": []
+                    }
+            else:
+                logger.error(f"No JSON object found in response")
+                return {
+                    "answer": "Unable to answer the question due to technical issues.",
+                    "confidence": 0.0,
+                    "source_reference": "N/A",
+                    "context": "Analysis unavailable.",
+                    "implications": "Unable to assess implications.",
+                    "recommendations": []
+                }
         
     except Exception as e:
         logger.error(f"Contract Q&A failed: {e}")

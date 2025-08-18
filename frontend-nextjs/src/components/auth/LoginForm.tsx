@@ -16,16 +16,24 @@ export default function LoginForm() {
     e.preventDefault();
     clearError();
     
+    console.log('🚀 Login form submitted');
+    
     try {
-      await login(username, password);
-      // Redirect based on user role
-      const { user } = useAuthStore.getState();
-      if (user?.role === 'resident') {
+      const result = await login(username, password);
+      console.log('✅ Login result:', result);
+      
+      // Get the user from the response or wait for state update
+      if (result?.user?.role === 'resident') {
+        console.log('🔄 Redirecting to resident portal...');
         router.push('/dashboard/resident-portal');
       } else {
+        console.log('🔄 Redirecting to dashboard...');
         router.push('/dashboard');
       }
+      
+      console.log('📍 Redirect command sent');
     } catch (error) {
+      console.error('❌ Login error:', error);
       // Error is handled by the store
     }
   };

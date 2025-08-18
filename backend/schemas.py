@@ -27,7 +27,7 @@ class WorkspaceOut(WorkspaceBase):
     updated_at: datetime = Field(..., description="Workspace last update date")
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class WorkspaceInfo(BaseModel):
     id: int = Field(..., description="Unique workspace identifier")
@@ -69,7 +69,7 @@ class UserOut(UserBase):
     plan_id: str = Field(default="basic", description="Current plan")
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserInfo(BaseModel):
     id: int = Field(..., description="Unique user identifier")
@@ -95,7 +95,7 @@ class ContractRisk(BaseModel):
     rationale: str = Field(..., description="Risk rationale")
     clause_reference: Optional[str] = Field(None, description="Reference to specific clause")
     business_impact: str = Field(..., description="Business impact description")
-    mitigation_suggestions: List[str] = Field(default=list, description="Mitigation suggestions")
+    mitigation_suggestions: List[str] = Field(default_factory=list, description="Mitigation suggestions")
 
 class ContractSuggestion(BaseModel):
     risk_id: str = Field(..., description="Associated risk ID")
@@ -104,7 +104,7 @@ class ContractSuggestion(BaseModel):
     original_text: Optional[str] = Field(None, description="Original contract text")
     suggested_text: str = Field(..., description="Suggested replacement text")
     rationale: str = Field(..., description="Suggestion rationale")
-    negotiation_tips: List[str] = Field(default=list, description="Negotiation tips")
+    negotiation_tips: List[str] = Field(default_factory=list, description="Negotiation tips")
     fallback_position: Optional[str] = Field(None, description="Fallback negotiation position")
 
 class ContractRecordBase(BaseModel):
@@ -115,7 +115,7 @@ class ContractRecordBase(BaseModel):
     term_end: Optional[datetime] = Field(None, description="Contract end date")
     renewal_terms: Optional[str] = Field(None, description="Renewal terms")
     governing_law: Optional[str] = Field(None, description="Governing law")
-    uploaded_files: List[str] = Field(default=list, description="List of uploaded file paths")
+    uploaded_files: List[str] = Field(default_factory=list, description="List of uploaded file paths")
     status: str = Field(default="pending", description="Contract status")
 
 class ContractRecordCreate(ContractRecordBase):
@@ -134,17 +134,17 @@ class ContractRecordUpdate(BaseModel):
 class ContractRecordOut(ContractRecordBase):
     id: int = Field(..., description="Unique contract identifier")
     owner_user_id: int = Field(..., description="Contract owner user ID")
-    workspace_id: int = Field(..., description="Contract workspace ID")
+    # workspace_id: int = Field(..., description="Contract workspace ID")  # Removed since column doesn't exist in DB
     analysis_json: Optional[dict] = Field(None, description="AI analysis results")
     summary_text: Optional[str] = Field(None, description="AI-generated summary")
-    risk_items: List[ContractRisk] = Field(default=list, description="Risk assessment items")
-    rewrite_suggestions: List[ContractSuggestion] = Field(default=list, description="Rewrite suggestions")
+    risk_items: List[ContractRisk] = Field(default_factory=list, description="Risk assessment items")
+    rewrite_suggestions: List[ContractSuggestion] = Field(default_factory=list, description="Rewrite suggestions")
     created_at: datetime = Field(..., description="Contract creation date")
     updated_at: datetime = Field(..., description="Contract last update date")
     owner_username: Optional[str] = Field(None, description="Contract owner username")
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ContractRecordList(BaseModel):
     contracts: List[ContractRecordOut] = Field(..., description="List of contracts")
@@ -183,7 +183,7 @@ class SubscriptionPlan(BaseModel):
     price: float = Field(..., description="Plan price")
     currency: str = Field(default="USD", description="Currency")
     interval: str = Field(..., description="Billing interval")
-    features: List[str] = Field(default=list, description="Plan features")
+    features: List[str] = Field(default_factory=list, description="Plan features")
     limits: dict = Field(..., description="Plan limits")
 
 class UserSubscription(BaseModel):
@@ -193,7 +193,7 @@ class UserSubscription(BaseModel):
     current_period_start: str = Field(..., description="Current period start")
     current_period_end: str = Field(..., description="Current period end")
     cancel_at_period_end: bool = Field(..., description="Cancel at period end flag")
-    features: List[str] = Field(default=list, description="Subscription features")
+    features: List[str] = Field(default_factory=list, description="Subscription features")
     limits: dict = Field(..., description="Subscription limits")
 
 # ===========================
@@ -206,8 +206,8 @@ class DashboardMetrics(BaseModel):
     analyzed_contracts: int = Field(..., description="Analyzed contracts")
     pending_contracts: int = Field(..., description="Pending contracts")
     high_risk_contracts: int = Field(..., description="High risk contracts")
-    monthly_contract_trends: List[dict] = Field(default=list, description="Monthly trends")
-    top_contract_categories: List[dict] = Field(default=list, description="Top categories")
+    monthly_contract_trends: List[dict] = Field(default_factory=list, description="Monthly trends")
+    top_contract_categories: List[dict] = Field(default_factory=list, description="Top categories")
     average_analysis_time: float = Field(..., description="Average analysis time")
 
 # ===========================

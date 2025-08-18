@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth';
-import { apiClient } from '@/lib/api';
 import { ContractRecord, ContractCreate } from '@/types';
 import ContractUploadForm from '@/components/forms/ContractUploadForm';
+import { useContracts, useDeleteContract, useAnalyzeContract } from '@/lib/hooks/useContracts';
 import { 
   Plus, 
   FileText, 
@@ -21,39 +21,26 @@ import {
   Download,
   MessageSquare
 } from 'lucide-react';
+import { apiClient } from '@/lib/api';
 
 export default function ContractsPage() {
   const { user } = useAuthStore();
   const router = useRouter();
-  const [contracts, setContracts] = useState<ContractRecord[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  useEffect(() => {
-    loadContracts();
-  }, []);
-
-  const loadContracts = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.getContracts();
-      setContracts(response.data || []);
-    } catch (error) {
-      console.error('Failed to load contracts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Use React Query hooks for better performance
+  const { data: contracts = [], isLoading, error } = useContracts();
+  const deleteContractMutation = useDeleteContract();
+  const analyzeContractMutation = useAnalyzeContract();
 
   const handleContractDelete = async (contractId: number) => {
     if (!confirm('Are you sure you want to delete this contract?')) return;
     
     try {
-      await apiClient.deleteContract(contractId);
-      setContracts(prev => prev.filter(c => c.id !== contractId));
+      await deleteContractMutation.mutateAsync(contractId);
     } catch (error) {
       console.error('Failed to delete contract:', error);
     }
@@ -61,9 +48,7 @@ export default function ContractsPage() {
 
   const handleAnalyzeContract = async (contractId: number) => {
     try {
-      await apiClient.analyzeContract(contractId);
-      // Reload contracts to get updated analysis
-      loadContracts();
+      await analyzeContractMutation.mutateAsync(contractId);
     } catch (error) {
       console.error('Failed to analyze contract:', error);
     }
@@ -98,33 +83,29 @@ export default function ContractsPage() {
     switch (status) {
       case 'pending':
         return <Clock className="h-4 w-4 text-yellow-500" />;
-      case 'analyzed':
+      case 'analyzing':
+        return <AlertTriangle className="h-4 w-4 text-blue-500" />;
+      case 'completed':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'reviewed':
-        return <Eye className="h-4 w-4 text-blue-500" />;
-      case 'approved':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'rejected':
+      case 'error':
         return <AlertTriangle className="h-4 w-4 text-red-500" />;
       default:
-        return <Clock className="h-4 w-4 text-gray-400" />;
+        return <Clock className="h-4 w-4 text-gray-500" />;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'analyzed':
-        return 'bg-green-100 text-green-800';
-      case 'reviewed':
-        return 'bg-blue-100 text-blue-800';
-      case 'approved':
-        return 'bg-green-100 text-green-800';
-      case 'rejected':
-        return 'bg-red-100 text-red-800';
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
+      case 'analyzing':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
+      case 'completed':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
+      case 'error':
+        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300';
     }
   };
 
@@ -147,15 +128,39 @@ export default function ContractsPage() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading contracts...</p>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading contracts...</p>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center">
+            <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Failed to load contracts
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              There was an error loading your contracts. Please try again.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Retry
+            </button>
           </div>
         </div>
       </div>
@@ -364,7 +369,8 @@ export default function ContractsPage() {
           onClose={() => setShowUploadModal(false)}
           onSuccess={() => {
             setShowUploadModal(false);
-            loadContracts();
+            // Reload contracts after successful upload
+            // This is handled by React Query's refetching
           }}
         />
       )}

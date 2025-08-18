@@ -29,7 +29,6 @@ export default function Sidebar() {
     { name: 'Contracts', href: '/dashboard/contracts', icon: FileSearch },
     { name: 'Users', href: '/dashboard/users', icon: Users },
     { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-    ...(user?.role === 'super_admin' ? [{ name: 'Workspaces', href: '/dashboard/workspaces', icon: Building }] : []),
     { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];
@@ -39,9 +38,12 @@ export default function Sidebar() {
   };
 
   // Don't render sidebar if not authenticated
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated) {
     return null;
   }
+
+  // Show basic navigation even without user data
+  // User-specific features will be added when user data loads
 
   return (
     <>

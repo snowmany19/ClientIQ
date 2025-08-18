@@ -1,0 +1,29 @@
+
+VENDOR AGREEMENT
+
+This Vendor Agreement (the "Agreement") is entered into as of July 14, 2026 by and between WorkTech, a corporation organized under the laws of the State of California ("Client"), and TechCorp, a corporation organized under the laws of the State of Delaware ("Vendor").
+
+1. SERVICES
+Vendor shall provide logistics services to Client in accordance with the terms and conditions of this Agreement.
+
+2. PERFORMANCE STANDARDS
+Vendor shall maintain performance standards including same-day delivery and shall provide monthly performance reports.
+
+3. PAYMENT TERMS
+Client shall pay Vendor according to the payment schedule specified in Exhibit A. Standard payment terms are Net 60.
+
+4. QUALITY ASSURANCE
+Vendor shall implement quality control measures and maintain quality standards as specified in this Agreement.
+
+5. LIABILITY
+Vendor's liability shall be limited to the amount paid by Client under this Agreement in the 12 months preceding the claim.
+
+6. TERMINATION
+Either party may terminate this Agreement upon 60 days written notice to the other party.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first above written.
+
+WorkTech                                    TechCorp
+By: ___________________________    By: ___________________________
+Title: _________________________    Title: _________________________
+Date: __________________________    Date: ___________________________

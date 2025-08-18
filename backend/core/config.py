@@ -6,6 +6,10 @@ import secrets
 from functools import lru_cache
 from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 class Settings(BaseSettings):

@@ -289,6 +289,27 @@ export default function ContractDetailPage() {
                     </div>
                   </div>
                 )}
+                {contract.uploaded_files && contract.uploaded_files.length > 0 && (
+                  <div className="flex items-start space-x-3 col-span-full">
+                    <FileText className="h-5 w-5 text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Uploaded Files</p>
+                      <div className="mt-1 space-y-1">
+                        {contract.uploaded_files.map((filePath, index) => {
+                          const fileName = filePath.split('/').pop() || filePath;
+                          return (
+                            <div key={index} className="flex items-center space-x-2 text-sm text-gray-500">
+                              <span>• {fileName}</span>
+                              <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                                {filePath.includes('contract_') ? 'Uploaded' : 'Processing...'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

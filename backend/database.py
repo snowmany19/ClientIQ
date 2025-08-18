@@ -13,7 +13,7 @@ from sqlalchemy.pool import QueuePool
 load_dotenv()
 
 # 🧠 Get DB URL (PostgreSQL preferred)
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./a_incident.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./contractguard.db")
 
 # 🛠 Engine setup with connection pooling for production
 if DATABASE_URL.startswith("sqlite"):

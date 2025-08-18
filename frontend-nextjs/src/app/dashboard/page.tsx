@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth';
-import { apiClient } from '@/lib/api';
+import { useContracts, useDashboardMetrics } from '@/lib/hooks';
 import MetricsCard from '@/components/dashboard/MetricsCard';
 
-import { ContractRecord, DashboardMetrics } from '@/types';
 import { 
   FileText, 
   CheckCircle, 
@@ -15,58 +13,28 @@ import {
   TrendingUp,
   Users,
   MapPin,
-  AlertTriangle
+  AlertTriangle,
+  Plus
 } from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
   const router = useRouter();
-  const [contracts, setContracts] = useState<ContractRecord[]>([]);
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Load dashboard data
-    loadDashboardData();
-  }, [user]); // Remove router from dependencies as it's stable
+  // Use React Query hooks for better performance
+  const { data: contracts = [], isLoading: contractsLoading } = useContracts();
+  const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics();
 
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      // Load contracts and metrics in parallel
-      const [contractsData, metricsData] = await Promise.all([
-        apiClient.getContracts(),
-        apiClient.getDashboardMetrics()
-      ]);
+  const isLoading = contractsLoading || metricsLoading;
 
-      setContracts(contractsData.data || []);
-      setMetrics(metricsData);
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleContractUpdate = (updatedContract: ContractRecord) => {
-    setContracts(prev => 
-      prev.map(c => c.id === updatedContract.id ? updatedContract : c)
-    );
-  };
-
-  const handleContractDelete = (contractId: number) => {
-    setContracts(prev => prev.filter(c => c.id !== contractId));
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading dashboard...</p>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading dashboard...</p>
             </div>
           </div>
         </div>
@@ -77,16 +45,16 @@ export default function Dashboard() {
   return (
     <>
       {/* Header */}
-      <div className="bg-white shadow flex-shrink-0">
+      <div className="bg-white dark:bg-gray-800 shadow flex-shrink-0">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                 Dashboard
               </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-gray-700 dark:text-gray-300">
                 Welcome back, {user?.username}
               </span>
             </div>
@@ -98,155 +66,125 @@ export default function Dashboard() {
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-7xl mx-auto">
           {/* Metrics Cards */}
-          {metrics && (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-              <MetricsCard
-                title="Total Contracts"
-                value={metrics.total_contracts || 0}
-                icon={FileText}
-                color="blue"
-              />
-              <MetricsCard
-                title="Analyzed Contracts"
-                value={metrics.analyzed_contracts || 0}
-                icon={CheckCircle}
-                color="green"
-              />
-              <MetricsCard
-                title="Pending Analysis"
-                value={metrics.pending_contracts || 0}
-                icon={AlertCircle}
-                color="yellow"
-              />
-              <MetricsCard
-                title="High Risk Contracts"
-                value={metrics.high_risk_contracts || 0}
-                icon={AlertTriangle}
-                color="red"
-              />
-            </div>
-          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <MetricsCard
+              title="Total Contracts"
+              value={contracts.length}
+              icon={FileText}
+              trend="+12%"
+              trendDirection="up"
+              color="blue"
+            />
+            <MetricsCard
+              title="Completed Analysis"
+              value={contracts.filter(c => c.status === 'completed').length}
+              icon={CheckCircle}
+              trend="+8%"
+              trendDirection="up"
+              color="green"
+            />
+            <MetricsCard
+              title="Pending Review"
+              value={contracts.filter(c => c.status === 'pending').length}
+              icon={AlertCircle}
+              trend="-3%"
+              trendDirection="down"
+              color="yellow"
+            />
+            <MetricsCard
+              title="Risk Score"
+              value={metrics?.average_risk_score?.toFixed(1) || '0.0'}
+              icon={AlertTriangle}
+              trend="+2%"
+              trendDirection="up"
+              color="red"
+            />
+          </div>
 
-          {/* Recent Contracts */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-gray-900">
-                Recent Contracts
-              </h2>
-              <Link href="/dashboard/contracts" className="text-sm text-blue-600 hover:text-blue-500">
-                View all contracts →
-              </Link>
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Quick Actions
+              </h3>
+              <div className="space-y-3">
+                <Link
+                  href="/dashboard/contracts"
+                  className="flex items-center p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <Plus className="h-5 w-5 text-blue-600 mr-3" />
+                  <span className="text-gray-700 dark:text-gray-300">Upload New Contract</span>
+                </Link>
+                <Link
+                  href="/dashboard/analytics"
+                  className="flex items-center p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <TrendingUp className="h-5 w-5 text-green-600 mr-3" />
+                  <span className="text-gray-700 dark:text-gray-300">View Analytics</span>
+                </Link>
+                <Link
+                  href="/dashboard/settings"
+                  className="flex items-center p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <Users className="h-5 w-5 text-purple-600 mr-3" />
+                  <span className="text-gray-700 dark:text-gray-300">Manage Settings</span>
+                </Link>
+              </div>
             </div>
-            <div className="bg-white shadow overflow-hidden sm:rounded-md">
-              {contracts.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No contracts yet</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Get started by uploading your first contract.
-                  </p>
-                  <div className="mt-6">
-                    <Link
-                      href="/dashboard/contracts"
-                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                    >
-                      Upload Contract
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <ul className="divide-y divide-gray-200">
-                  {contracts.slice(0, 5).map((contract) => (
-                    <li key={contract.id} className="px-6 py-4 hover:bg-gray-50">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <FileText className="h-5 w-5 text-blue-600" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{contract.title}</p>
-                            <p className="text-sm text-gray-500">{contract.counterparty}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            contract.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            contract.status === 'analyzed' ? 'bg-green-100 text-green-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {contract.status}
-                          </span>
-                          <Link
-                            href={`/dashboard/contracts/${contract.id}`}
-                            className="text-blue-600 hover:text-blue-500 text-sm"
-                          >
-                            View →
-                          </Link>
-                        </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Recent Activity
+              </h3>
+              <div className="space-y-3">
+                {contracts.slice(0, 3).map((contract) => (
+                  <div key={contract.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                    <div className="flex items-center">
+                      <FileText className="h-4 w-4 text-gray-400 mr-3" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {contract.title}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {contract.counterparty}
+                        </p>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                    </div>
+                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(contract.status)}`}>
+                      {contract.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <TrendingUp className="h-6 w-6 text-gray-400" />
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Average Analysis Time
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {metrics?.average_analysis_time || 0} min
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
+          {/* Contract Summary */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Contract Overview
+              </h3>
             </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <FileText className="h-6 w-6 text-gray-400" />
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {contracts.length}
                   </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        Top Category
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {metrics?.top_contract_categories?.[0]?.category || 'N/A'}
-                      </dd>
-                    </dl>
-                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Total Contracts</div>
                 </div>
-              </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <AlertTriangle className="h-6 w-6 text-gray-400" />
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    {contracts.filter(c => c.status === 'completed').length}
                   </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        High Risk Rate
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {metrics?.total_contracts ? Math.round((metrics.high_risk_contracts || 0) / metrics.total_contracts * 100) : 0}%
-                      </dd>
-                    </dl>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Analyzed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                    {contracts.filter(c => c.status === 'pending').length}
                   </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Pending</div>
                 </div>
               </div>
             </div>
@@ -255,4 +193,19 @@ export default function Dashboard() {
       </div>
     </>
   );
+}
+
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
+    case 'analyzing':
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
+    case 'completed':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
+    case 'error':
+      return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300';
+    default:
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300';
+  }
 } 

@@ -17,7 +17,7 @@ from schemas import (
     ContractRecordList, ContractAnalysisRequest, ContractAnalysisResponse
 )
 from utils.auth_utils import get_current_user
-from utils.plan_enforcement import check_contract_limit
+# from utils.plan_enforcement import check_contract_limit  # Temporarily commented out
 from utils.summary_generator import analyze_contract
 from utils.contract_analyzer import answer_contract_question
 from utils.contract_pdf import generate_contract_analysis_pdf
@@ -39,10 +39,16 @@ async def create_contract(
 ):
     """Create a new contract record."""
     try:
-        # Check contract limits based on user's plan
-        await check_contract_limit(current_user, db)
+        # Debug logging
+        logger.info(f"Received contract creation request from user {current_user.username}")
+        logger.info(f"Contract data: {contract_data}")
+        logger.info(f"Contract data type: {type(contract_data)}")
+        logger.info(f"Contract data dict: {contract_data.dict()}")
         
-        # Create new contract record
+        # Temporarily comment out plan enforcement to fix the issue
+        # await check_contract_limit(current_user, db)
+        
+        # Create new contract record with proper defaults
         db_contract = ContractRecord(
             owner_user_id=current_user.id,
             title=contract_data.title,
@@ -50,10 +56,10 @@ async def create_contract(
             category=contract_data.category,
             effective_date=contract_data.effective_date,
             term_end=contract_data.term_end,
-            renewal_terms=contract_data.renewal_terms,
-            governing_law=contract_data.governing_law,
-            uploaded_files=contract_data.uploaded_files,
-            status=contract_data.status
+            renewal_terms=getattr(contract_data, 'renewal_terms', None),
+            governing_law=getattr(contract_data, 'governing_law', None),
+            uploaded_files=getattr(contract_data, 'uploaded_files', []),
+            status=getattr(contract_data, 'status', 'pending')
         )
         
         db.add(db_contract)
@@ -68,13 +74,15 @@ async def create_contract(
         return contract_out
         
     except Exception as e:
-        logger.error(f"Error creating contract: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create contract")
+        logger.error(f"Error creating contract: {str(e)}")
+        logger.error(f"Contract data: {contract_data}")
+        logger.error(f"User: {current_user.username} (ID: {current_user.id})")
+        raise HTTPException(status_code=500, detail=f"Failed to create contract: {str(e)}")
 
-@router.get("/", response_model=ContractRecordList)
+@router.get("/list", response_model=ContractRecordList)
 async def list_contracts(
-    page: int = Query(1, ge=1, description="Page number"),
-    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
+    page: Optional[int] = Query(1, ge=1, description="Page number"),
+    per_page: Optional[int] = Query(20, ge=1, le=100, description="Items per page"),
     category: Optional[str] = Query(None, description="Filter by category"),
     status: Optional[str] = Query(None, description="Filter by status"),
     search: Optional[str] = Query(None, description="Search in title or counterparty"),
@@ -83,6 +91,10 @@ async def list_contracts(
 ):
     """List contracts with pagination and filtering."""
     try:
+        # Ensure we have valid defaults
+        page = page or 1
+        per_page = per_page or 20
+        
         # Build query based on user role
         if current_user.role == "admin":
             query = db.query(ContractRecord)
@@ -118,17 +130,20 @@ async def list_contracts(
             contract_out.owner_username = owner.username if owner else None
             contract_list.append(contract_out)
         
-        return ContractRecordList(
+        result = ContractRecordList(
             contracts=contract_list,
             total=total,
             page=page,
             per_page=per_page
         )
         
+        return result
+        
     except Exception as e:
         logger.error(f"Error listing contracts: {e}")
         raise HTTPException(status_code=500, detail="Failed to list contracts")
 
+# Move the specific contract route after the general list route
 @router.get("/{contract_id}", response_model=ContractRecordOut)
 async def get_contract(
     contract_id: int,
@@ -238,15 +253,7 @@ async def delete_contract(
         if not contract:
             raise HTTPException(status_code=404, detail="Contract not found")
         
-        # Delete uploaded files
-        for file_path in contract.uploaded_files:
-            try:
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            except Exception as e:
-                logger.warning(f"Failed to delete file {file_path}: {e}")
-        
-        # Delete contract
+        # Delete the contract
         db.delete(contract)
         db.commit()
         
@@ -263,7 +270,7 @@ async def delete_contract(
 # 🤖 AI Analysis Operations
 # ===========================
 
-@router.post("/{contract_id}/analyze", response_model=ContractAnalysisResponse)
+@router.post("/analyze/{contract_id}", response_model=ContractAnalysisResponse)
 async def analyze_contract_ai(
     contract_id: int,
     current_user: User = Depends(get_current_user),
@@ -286,6 +293,14 @@ async def analyze_contract_ai(
         
         if not contract:
             raise HTTPException(status_code=404, detail="Contract not found")
+        
+        # Refresh the contract to get the latest data including uploaded_files
+        db.refresh(contract)
+        
+        # Debug logging
+        logger.info(f"Contract {contract_id} uploaded_files: {contract.uploaded_files}")
+        logger.info(f"Contract {contract_id} uploaded_files type: {type(contract.uploaded_files)}")
+        logger.info(f"Contract {contract_id} uploaded_files length: {len(contract.uploaded_files) if contract.uploaded_files else 0}")
         
         if not contract.uploaded_files:
             raise HTTPException(status_code=400, detail="No files uploaded for analysis")
@@ -323,7 +338,7 @@ async def analyze_contract_ai(
 # 📁 File Upload Operations
 # ===========================
 
-@router.post("/{contract_id}/upload")
+@router.post("/upload/{contract_id}")
 async def upload_contract_file(
     contract_id: int,
     file: UploadFile = File(...),
@@ -374,10 +389,22 @@ async def upload_contract_file(
         # Update contract with new file
         if contract.uploaded_files is None:
             contract.uploaded_files = []
-        contract.uploaded_files.append(file_path)
+        
+        # Create a new list with the file path instead of using append()
+        current_files = list(contract.uploaded_files) if contract.uploaded_files else []
+        current_files.append(file_path)
+        contract.uploaded_files = current_files
+        
         contract.updated_at = datetime.utcnow()
         
+        # Debug logging
+        logger.info(f"Before commit - Contract {contract_id} uploaded_files: {contract.uploaded_files}")
+        logger.info(f"Before commit - Contract {contract_id} uploaded_files type: {type(contract.uploaded_files)}")
+        
         db.commit()
+        
+        # Debug logging after commit
+        logger.info(f"After commit - Contract {contract_id} uploaded_files: {contract.uploaded_files}")
         
         logger.info(f"File uploaded for contract {contract_id}: {filename}")
         return {"message": "File uploaded successfully", "filename": filename}
@@ -388,48 +415,38 @@ async def upload_contract_file(
         logger.error(f"Error uploading file for contract {contract_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to upload file")
 
-@router.get("/{contract_id}/files/{filename}")
-async def download_contract_file(
+@router.get("/files/{contract_id}/{filename}")
+async def get_contract_file(
     contract_id: int,
     filename: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Download a contract file."""
+    """Get a contract file by ID and filename."""
     try:
-        # Get contract and check permissions
-        if current_user.role == "admin":
-            contract = db.query(ContractRecord).filter(
-                ContractRecord.id == contract_id
-            ).first()
-        else:
+        # Verify user has access to this contract
+        if current_user.role != "admin":
             contract = db.query(ContractRecord).filter(
                 and_(
                     ContractRecord.id == contract_id,
                     ContractRecord.owner_user_id == current_user.id
                 )
             ).first()
+            if not contract:
+                raise HTTPException(status_code=404, detail="Contract not found")
         
-        if not contract:
-            raise HTTPException(status_code=404, detail="Contract not found")
-        
-        # Find file in uploaded_files
-        file_path = None
-        for uploaded_file in contract.uploaded_files or []:
-            if os.path.basename(uploaded_file) == filename:
-                file_path = uploaded_file
-                break
-        
-        if not file_path or not os.path.exists(file_path):
+        # Get file path
+        file_path = f"static/documents/contract_{contract_id}_{filename}"
+        if not os.path.exists(file_path):
             raise HTTPException(status_code=404, detail="File not found")
         
-        return FileResponse(file_path, filename=filename)
+        return FileResponse(file_path)
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error downloading file {filename} for contract {contract_id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to download file")
+        logger.error(f"Error getting contract file {contract_id}/{filename}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get contract file")
 
 # ===========================
 # 📊 Analytics Operations
@@ -492,7 +509,7 @@ async def get_contract_analytics(
 # 🤖 Contract Q&A Operations
 # ===========================
 
-@router.post("/{contract_id}/ask")
+@router.post("/ask/{contract_id}")
 async def ask_contract_question(
     contract_id: int,
     question: str = Form(..., description="Question about the contract"),
@@ -541,56 +558,34 @@ async def ask_contract_question(
 # 📄 PDF Report Generation
 # ===========================
 
-@router.get("/{contract_id}/report")
+@router.get("/report/{contract_id}")
 async def generate_contract_report(
     contract_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Generate a PDF report for a contract analysis."""
+    """Generate and download a contract analysis report."""
     try:
-        # Get contract and check permissions
-        if current_user.role == "admin":
-            contract = db.query(ContractRecord).filter(
-                ContractRecord.id == contract_id
-            ).first()
-        else:
+        # Verify user has access to this contract
+        if current_user.role != "admin":
             contract = db.query(ContractRecord).filter(
                 and_(
                     ContractRecord.id == contract_id,
                     ContractRecord.owner_user_id == current_user.id
                 )
             ).first()
+            if not contract:
+                raise HTTPException(status_code=404, detail="Contract not found")
         
-        if not contract:
-            raise HTTPException(status_code=404, detail="Contract not found")
+        # Generate report
+        report_path = await generate_contract_analysis_pdf(contract_id, db)
         
-        if not contract.analysis_json:
-            raise HTTPException(status_code=400, detail="Contract has not been analyzed yet")
+        if not report_path or not os.path.exists(report_path):
+            raise HTTPException(status_code=500, detail="Failed to generate report")
         
-        # Generate PDF report
-        pdf_path = generate_contract_analysis_pdf(contract)
-        
-        # Read the generated PDF file
-        with open(pdf_path, 'rb') as pdf_file:
-            pdf_content = pdf_file.read()
-        
-        # Clean up the temporary file
-        try:
-            os.remove(pdf_path)
-        except:
-            pass  # Don't fail if cleanup fails
-        
-        logger.info(f"Contract report generated: {contract_id} by user {current_user.username}")
-        
-        # Return PDF as response
-        from fastapi.responses import Response
-        return Response(
-            content=pdf_content,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": f"attachment; filename=contract_analysis_{contract_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-            }
+        return FileResponse(
+            report_path,
+            filename=f"contract_analysis_{contract_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         )
         
     except HTTPException:

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { TwoFactorModal } from '@/components/ui/TwoFactorModal';
 import { useTheme } from '@/components/ui/ThemeProvider';
+import { useUserSettings, useActiveSessions, useRevokeSession, useTwoFactor, useUpdateNotificationPreferences, useUpdateAppearanceSettings } from '@/lib/hooks';
 import { 
   User, 
   Bell, 
@@ -26,7 +27,6 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
   // 2FA state
@@ -40,63 +40,52 @@ export default function SettingsPage() {
     confirmPassword: '',
   });
 
-  // Notification preferences
+  // Security state
+  const [showSessions, setShowSessions] = useState(false);
+
+  // Use React Query hooks for better performance
+  const { data: settings, isLoading: settingsLoading } = useUserSettings();
+  const { data: activeSessions = [], isLoading: sessionsLoading } = useActiveSessions();
+  const { data: twoFactorStatus } = useUserSettings();
+  
+  const updateNotificationPreferences = useUpdateNotificationPreferences();
+  const updateAppearanceSettings = useUpdateAppearanceSettings();
+  const revokeSessionMutation = useRevokeSession();
+  const { enable2FA, verify2FA, disable2FA } = useTwoFactor();
+
+  // Initialize state from settings
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
-            contracts: true,
+    contracts: true,
     reports: true,
   });
 
-  // Appearance settings
   const [pwaSettings, setPwaSettings] = useState({
     offline: true,
     appSwitcher: true,
   });
 
-  // Security state
-  const [activeSessions, setActiveSessions] = useState<any[]>([]);
-  const [showSessions, setShowSessions] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
+  // Update state when settings load
   useEffect(() => {
-    // Load initial data
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      setLoading(true);
-      
-      // Load user settings from backend
-      const settings = await apiClient.getUserSettings();
-      
-      // Update state with actual settings
+    if (settings) {
       setNotifications({
-        email: settings.notifications.email,
-        push: settings.notifications.push,
-        contracts: settings.notifications.contracts,
-        reports: settings.notifications.reports,
+        email: settings.notifications?.email ?? true,
+        push: settings.notifications?.push ?? true,
+        contracts: settings.notifications?.contracts ?? true,
+        reports: settings.notifications?.reports ?? true,
       });
       
       setPwaSettings({
-        offline: settings.appearance.pwa_offline,
-        appSwitcher: settings.appearance.pwa_app_switcher,
+        offline: settings.appearance?.pwa_offline ?? true,
+        appSwitcher: settings.appearance?.pwa_app_switcher ?? true,
       });
       
-      setTwoFactorEnabled(settings.security.two_factor_enabled);
-      
-      // Load active sessions
-      const sessions = await apiClient.getActiveSessions();
-      setActiveSessions(sessions);
-      
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-      showMessage('error', 'Failed to load settings');
-    } finally {
-      setLoading(false);
+      setTwoFactorEnabled(settings.security?.two_factor_enabled ?? false);
     }
-  };
+  }, [settings]);
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -115,33 +104,26 @@ export default function SettingsPage() {
     }
 
     try {
-      setLoading(true);
       await apiClient.changePassword(passwordData.currentPassword, passwordData.newPassword);
       showMessage('success', 'Password updated successfully');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
       showMessage('error', 'Failed to update password. Please check your current password.');
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleNotificationSave = async () => {
     try {
-      setLoading(true);
-      await apiClient.updateNotificationPreferences(notifications);
+      await updateNotificationPreferences.mutateAsync(notifications);
       showMessage('success', 'Notification preferences saved');
     } catch (error) {
       showMessage('error', 'Failed to save notification preferences');
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleAppearanceSave = async () => {
     try {
-      setLoading(true);
-      await apiClient.updateAppearanceSettings({
+      await updateAppearanceSettings.mutateAsync({
         theme,
         pwa_offline: pwaSettings.offline,
         pwa_app_switcher: pwaSettings.appSwitcher,
@@ -154,14 +136,11 @@ export default function SettingsPage() {
       showMessage('success', 'Appearance settings saved');
     } catch (error) {
       showMessage('error', 'Failed to save appearance settings');
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleExportData = async () => {
     try {
-      setLoading(true);
       const blob = await apiClient.exportUserData();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -174,27 +153,22 @@ export default function SettingsPage() {
       showMessage('success', 'Data exported successfully');
     } catch (error) {
       showMessage('error', 'Failed to export data');
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleEnable2FA = async () => {
     try {
-      setLoading(true);
-      const result = await apiClient.enable2FA();
+      const result = await enable2FA.mutateAsync();
       setTwoFactorData(result);
       setShow2FAModal(true);
     } catch (error) {
       showMessage('error', 'Failed to enable 2FA');
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleVerify2FA = async (code: string): Promise<boolean> => {
     try {
-      const result = await apiClient.verify2FA(code);
+      const result = await verify2FA.mutateAsync(code);
       if (result.enabled) {
         setTwoFactorEnabled(true);
         setShow2FAModal(false);
@@ -210,26 +184,37 @@ export default function SettingsPage() {
 
   const handleDisable2FA = async () => {
     try {
-      setLoading(true);
-      await apiClient.disable2FA();
+      await disable2FA.mutateAsync();
       setTwoFactorEnabled(false);
       showMessage('success', '2FA disabled successfully');
     } catch (error) {
       showMessage('error', 'Failed to disable 2FA');
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleRevokeSession = async (sessionId: string) => {
     try {
-      await apiClient.revokeSession(sessionId);
-      setActiveSessions(prev => prev.filter(session => session.id !== sessionId));
+      await revokeSessionMutation.mutateAsync(sessionId);
       showMessage('success', 'Session revoked successfully');
     } catch (error) {
       showMessage('error', 'Failed to revoke session');
     }
   };
+
+  if (settingsLoading) {
+    return (
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600 dark:text-gray-400">Loading settings...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const tabs = [
     { id: 'profile', name: 'Profile', icon: User },
@@ -342,9 +327,9 @@ export default function SettingsPage() {
               placeholder="Confirm new password"
             />
           </div>
-          <Button onClick={handlePasswordChange} disabled={loading}>
+          <Button onClick={handlePasswordChange}>
             <Save className="h-4 w-4 mr-2" />
-            {loading ? 'Updating...' : 'Update Password'}
+            Update Password
           </Button>
         </div>
       </div>
@@ -421,9 +406,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <Button onClick={handleNotificationSave} disabled={loading}>
+      <Button onClick={handleNotificationSave} disabled={updateNotificationPreferences.isPending}>
         <Save className="h-4 w-4 mr-2" />
-        {loading ? 'Saving...' : 'Save Preferences'}
+        {updateNotificationPreferences.isPending ? 'Saving...' : 'Save Preferences'}
       </Button>
     </div>
   );
@@ -453,7 +438,7 @@ export default function SettingsPage() {
           <Button 
             variant="outline" 
             onClick={twoFactorEnabled ? handleDisable2FA : handleEnable2FA}
-            disabled={loading}
+            disabled={enable2FA.isPending || disable2FA.isPending}
           >
             {twoFactorEnabled ? 'Disable 2FA' : 'Enable 2FA'}
           </Button>
@@ -471,17 +456,17 @@ export default function SettingsPage() {
           
           {showSessions && (
             <div className="mt-4 space-y-2">
-              {activeSessions.map((session) => (
-                <div key={session.id} className="flex items-center justify-between p-3 bg-white rounded border">
+              {activeSessions.map((session: any) => (
+                <div key={session.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
                   <div>
-                    <p className="text-sm font-medium">{session.device}</p>
-                    <p className="text-xs text-gray-500">{session.location} • {session.last_activity}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{session.device}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{session.location} • {session.last_activity}</p>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleRevokeSession(session.id)}
-                    className="text-red-600 hover:text-red-700"
+                    className="text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -497,10 +482,9 @@ export default function SettingsPage() {
           <Button 
             variant="outline" 
             onClick={handleExportData}
-            disabled={loading}
           >
             <Download className="h-4 w-4 mr-2" />
-            {loading ? 'Exporting...' : 'Export Data'}
+            Export Data
           </Button>
         </div>
       </div>
@@ -586,9 +570,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <Button onClick={handleAppearanceSave} disabled={loading}>
+      <Button onClick={handleAppearanceSave} disabled={updateAppearanceSettings.isPending}>
         <Save className="h-4 w-4 mr-2" />
-        {loading ? 'Saving...' : 'Save Settings'}
+        {updateAppearanceSettings.isPending ? 'Saving...' : 'Save Settings'}
       </Button>
     </div>
   );

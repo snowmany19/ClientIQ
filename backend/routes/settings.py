@@ -15,7 +15,7 @@ from utils.auth_utils import get_current_user
 
 router = APIRouter(tags=["user-settings"])
 
-@router.get("/user-settings")
+@router.get("/")
 def get_user_settings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)

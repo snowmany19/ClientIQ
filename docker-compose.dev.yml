@@ -1,79 +1,68 @@
-version: '3.9'
+version: '3.8'
 
 services:
   db:
     image: postgres:15
-    restart: unless-stopped
     environment:
-      POSTGRES_DB: contractguard_db
-      POSTGRES_USER: contractguard_user
-      POSTGRES_PASSWORD: contractguard_pass
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    networks:
-      - contractguardnet
+      POSTGRES_DB: contractguard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U contractguard_user -d contractguard_db"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
       timeout: 5s
       retries: 5
 
   backend:
     build:
       context: ./backend
-    restart: unless-stopped
-    env_file:
-      - ./backend/.env
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://contractguard_user:contractguard_pass@db:5432/contractguard_db
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/contractguard
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./backend:/app
+      - ./.env:/app/.env
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
-      - ./backend/static/reports:/app/static/reports
-    networks:
-      - contractguardnet
-    ports:
-      - "8000:8000"
+      redis:
+        condition: service_healthy
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    networks:
-      - contractguardnet
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
 
   frontend:
     build:
       context: ./frontend-nextjs
       dockerfile: Dockerfile.dev
-    restart: unless-stopped
-    environment:
-      # Set API URL to backend container
-      NEXT_PUBLIC_API_URL: http://localhost:8000/api
-    depends_on:
-      - backend
-    networks:
-      - contractguardnet
     ports:
       - "3001:3000"
     volumes:
       - ./frontend-nextjs:/app
       - /app/node_modules
-      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
 
 volumes:
-  db_data:
+  postgres_data:
   redis_data:
-
-networks:
-  contractguardnet:
-    driver: bridge
