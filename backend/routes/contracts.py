@@ -594,7 +594,7 @@ async def generate_contract_report(
             raise HTTPException(status_code=404, detail="Contract not found")
         
         # Generate report
-        report_path = await generate_contract_analysis_pdf(contract)
+        report_path = generate_contract_analysis_pdf(contract)
         
         if not report_path or not os.path.exists(report_path):
             raise HTTPException(status_code=500, detail="Failed to generate report")

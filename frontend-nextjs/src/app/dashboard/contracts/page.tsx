@@ -207,17 +207,17 @@ export default function ContractsPage() {
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-7xl mx-auto">
           {/* Filters */}
-          <div className="mb-6 bg-white p-4 rounded-lg shadow">
+          <div className="mb-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
                 <input
                   type="text"
                   placeholder="Search contracts..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
 
@@ -225,7 +225,7 @@ export default function ContractsPage() {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="all">All Categories</option>
                 <option value="NDA">NDA</option>
@@ -241,7 +241,7 @@ export default function ContractsPage() {
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -258,7 +258,7 @@ export default function ContractsPage() {
                   setSelectedCategory('all');
                   setSelectedStatus('all');
                 }}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
               >
                 Clear Filters
               </button>
