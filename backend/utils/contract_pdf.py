@@ -441,9 +441,9 @@ class ContractAnalysisPDF(FPDF):
         self.cell(40, 6, "Last Updated:", ln=False)
         self.cell(0, 6, contract.updated_at.strftime('%B %d, %Y at %I:%M %p'), ln=True)
         
-        if contract.owner_username:
+        if hasattr(contract, 'owner') and contract.owner and hasattr(contract.owner, 'username'):
             self.cell(40, 6, "Owner:", ln=False)
-            self.cell(0, 6, contract.owner_username, ln=True)
+            self.cell(0, 6, contract.owner.username, ln=True)
         
         if contract.uploaded_files:
             self.cell(40, 6, "Files:", ln=True)
