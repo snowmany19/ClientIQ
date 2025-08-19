@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api';
 import { ContractCreate } from '@/types';
 import { Upload, FileText, X, AlertCircle } from 'lucide-react';
+import { useCreateContract } from '@/lib/hooks/useContracts';
 
 interface ContractUploadFormProps {
   onClose: () => void;
@@ -14,6 +15,9 @@ interface ContractUploadFormProps {
 export default function ContractUploadForm({ onClose, onSuccess }: ContractUploadFormProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Use the create contract hook for proper cache invalidation
+  const createContractMutation = useCreateContract();
   
   const [formData, setFormData] = useState<Partial<ContractCreate>>({
     title: '',
@@ -27,8 +31,11 @@ export default function ContractUploadForm({ onClose, onSuccess }: ContractUploa
     status: 'pending'
   });
   const [files, setFiles] = useState<File[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [fileUploadLoading, setFileUploadLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Combine loading states
+  const isLoading = createContractMutation.isPending || fileUploadLoading;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -140,7 +147,7 @@ export default function ContractUploadForm({ onClose, onSuccess }: ContractUploa
       return;
     }
 
-    setLoading(true);
+    setFileUploadLoading(true); // Start file upload loading
     setError(null);
 
     try {
@@ -155,7 +162,7 @@ export default function ContractUploadForm({ onClose, onSuccess }: ContractUploa
       console.log('=== CONTRACT CREATION ===');
       console.log('Sending contract data to backend:', contractData);
 
-      const contract = await apiClient.createContract(contractData);
+      const contract = await createContractMutation.mutateAsync(contractData);
 
       console.log('Contract created successfully:', contract);
       console.log('Contract ID:', contract.id);
@@ -212,7 +219,7 @@ export default function ContractUploadForm({ onClose, onSuccess }: ContractUploa
       });
       setError('Failed to create contract. Please try again.');
     } finally {
-      setLoading(false);
+      setFileUploadLoading(false); // End file upload loading
     }
   };
 
@@ -424,10 +431,10 @@ export default function ContractUploadForm({ onClose, onSuccess }: ContractUploa
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={isLoading}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              {loading ? 'Uploading...' : 'Upload Contract'}
+              {isLoading ? 'Uploading...' : 'Upload Contract'}
             </button>
           </div>
         </form>

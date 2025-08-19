@@ -176,9 +176,19 @@ async def generate_contract_summary(contract: ContractRecord, contract_text: str
             return json.loads(content)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse JSON response: {e}. Content: {content[:200]}...")
-            # Try to extract JSON from the response if it's wrapped in text
+            # Try to extract JSON from the response if it's wrapped in markdown
             import re
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            
+            # First try to extract content between ```json and ``` markers
+            json_block_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+            if json_block_match:
+                try:
+                    return json.loads(json_block_match.group(1).strip())
+                except json.JSONDecodeError:
+                    logger.warning("Failed to parse JSON from markdown block")
+            
+            # Fallback: try to extract JSON object from the content
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content, re.DOTALL)
             if json_match:
                 try:
                     return json.loads(json_match.group())
@@ -240,12 +250,26 @@ async def assess_contract_risks(contract: ContractRecord, contract_text: str) ->
             risks = json.loads(content)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse JSON response: {e}. Content: {content[:200]}...")
-            # Try to extract JSON from the response if it's wrapped in text
+            # Try to extract JSON from the response if it's wrapped in markdown
             import re
-            json_match = re.search(r'\[.*\]', content, re.DOTALL)
+            
+            # First try to extract content between ```json and ``` markers
+            json_block_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+            if json_block_match:
+                try:
+                    risks = json.loads(json_block_match.group(1).strip())
+                    if isinstance(risks, list):
+                        return risks
+                except json.JSONDecodeError:
+                    logger.warning("Failed to parse JSON from markdown block")
+            
+            # Fallback: try to extract JSON array from the content
+            json_match = re.search(r'\[[^\[\]]*(?:\{[^{}]*\}[^\[\]]*)*\]', content, re.DOTALL)
             if json_match:
                 try:
                     risks = json.loads(json_match.group())
+                    if isinstance(risks, list):
+                        return risks
                 except json.JSONDecodeError:
                     logger.error(f"Could not extract valid JSON from response")
                     return []
@@ -414,9 +438,19 @@ Focus on {category}-specific considerations and industry standards.
             return json.loads(content)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse JSON response: {e}. Content: {content[:200]}...")
-            # Try to extract JSON from the response if it's wrapped in text
+            # Try to extract JSON from the response if it's wrapped in markdown
             import re
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            
+            # First try to extract content between ```json and ``` markers
+            json_block_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+            if json_block_match:
+                try:
+                    return json.loads(json_block_match.group(1).strip())
+                except json.JSONDecodeError:
+                    logger.warning("Failed to parse JSON from markdown block")
+            
+            # Fallback: try to extract JSON object from the content
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content, re.DOTALL)
             if json_match:
                 try:
                     return json.loads(json_match.group())
@@ -512,9 +546,19 @@ Focus on:
             return json.loads(content)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse JSON response: {e}. Content: {content[:200]}...")
-            # Try to extract JSON from the response if it's wrapped in text
+            # Try to extract JSON from the response if it's wrapped in markdown
             import re
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            
+            # First try to extract content between ```json and ``` markers
+            json_block_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+            if json_block_match:
+                try:
+                    return json.loads(json_block_match.group(1).strip())
+                except json.JSONDecodeError:
+                    logger.warning("Failed to parse JSON from markdown block")
+            
+            # Fallback: try to extract JSON object from the content
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content, re.DOTALL)
             if json_match:
                 try:
                     return json.loads(json_match.group())
@@ -603,9 +647,19 @@ IMPORTANT: Base your answer ONLY on the contract text provided. Do not make assu
             return json.loads(content)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse JSON response: {e}. Content: {content[:200]}...")
-            # Try to extract JSON from the response if it's wrapped in text
+            # Try to extract JSON from the response if it's wrapped in markdown
             import re
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            
+            # First try to extract content between ```json and ``` markers
+            json_block_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+            if json_block_match:
+                try:
+                    return json.loads(json_block_match.group(1).strip())
+                except json.JSONDecodeError:
+                    logger.warning("Failed to parse JSON from markdown block")
+            
+            # Fallback: try to extract JSON object from the content
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content, re.DOTALL)
             if json_match:
                 try:
                     return json.loads(json_match.group())
