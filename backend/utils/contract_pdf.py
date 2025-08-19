@@ -288,7 +288,7 @@ class ContractAnalysisPDF(FPDF):
             if risk.get('mitigation_suggestions'):
                 self.cell(0, 6, "Mitigation Suggestions:", ln=True)
                 for suggestion in risk.get('mitigation_suggestions', []):
-                    self.cell(10, 6, "•", ln=False)
+                    self.cell(10, 6, "-", ln=False)
                     self.multi_cell(0, 6, suggestion)
             
             self.ln(3)
@@ -328,7 +328,7 @@ class ContractAnalysisPDF(FPDF):
             if suggestion.get('negotiation_tips'):
                 self.cell(0, 6, "Negotiation Tips:", ln=True)
                 for tip in suggestion.get('negotiation_tips', []):
-                    self.cell(10, 6, "•", ln=False)
+                    self.cell(10, 6, "-", ln=False)
                     self.multi_cell(0, 6, tip)
             
             if suggestion.get('fallback_position'):
@@ -411,7 +411,7 @@ class ContractAnalysisPDF(FPDF):
             self.add_section_title("Missing Elements", 2)
             self.set_font("Arial", "", 9)
             for element in category_analysis.get('missing_elements', []):
-                self.cell(10, 6, "•", ln=False)
+                self.cell(10, 6, "-", ln=False)
                 self.multi_cell(0, 6, element)
             self.ln(2)
         
@@ -419,7 +419,7 @@ class ContractAnalysisPDF(FPDF):
             self.add_section_title("Red Flags", 2)
             self.set_font("Arial", "", 9)
             for flag in category_analysis.get('red_flags', []):
-                self.cell(10, 6, "•", ln=False)
+                self.cell(10, 6, "-", ln=False)
                 self.multi_cell(0, 6, flag)
             self.ln(2)
 
@@ -449,7 +449,7 @@ class ContractAnalysisPDF(FPDF):
             self.cell(40, 6, "Files:", ln=True)
             for file_path in contract.uploaded_files:
                 filename = os.path.basename(file_path)
-                self.cell(10, 6, "•", ln=False)
+                self.cell(10, 6, "-", ln=False)
                 self.cell(0, 6, filename, ln=True)
 
 def generate_contract_analysis_pdf(contract: ContractRecord, output_dir="static/reports") -> str:
