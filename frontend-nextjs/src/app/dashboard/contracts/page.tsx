@@ -298,7 +298,7 @@ export default function ContractsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2">
-                            <h3 className="text-sm font-medium text-gray-900 truncate">
+                            <h3 className="text-sm font-medium text-white truncate">
                               {r.title}
                             </h3>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(r.category)}`}>
@@ -309,7 +309,7 @@ export default function ContractsPage() {
                               <span className="ml-1">{r.status}</span>
                             </span>
                           </div>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-300">
                             Counterparty: {r.counterparty}
                           </p>
                           <p className="text-xs text-gray-400">
@@ -324,7 +324,7 @@ export default function ContractsPage() {
                         {r.risk_items && r.risk_items.length > 0 && (
                           <div className="flex items-center space-x-1">
                             <AlertTriangle className="h-4 w-4 text-red-500" />
-                            <span className="text-xs text-red-600 font-medium">
+                            <span className="text-xs text-red-400 font-medium">
                               {r.risk_items.filter((risk: any) => risk.severity >= 4).length} high risks
                             </span>
                           </div>

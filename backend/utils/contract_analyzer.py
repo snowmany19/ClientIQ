@@ -360,26 +360,42 @@ Focus on:
             suggestions = json.loads(content)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse JSON response: {e}. Content: {content[:200]}...")
-            # Try to extract JSON from the response if it's wrapped in text
+            # Try to extract JSON from the response if it's wrapped in markdown
             import re
-            json_match = re.search(r'\[.*\]', content, re.DOTALL)
+            
+            # First try to extract content between ```json and ``` markers
+            json_block_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+            if json_block_match:
+                try:
+                    suggestions = json.loads(json_block_match.group(1).strip())
+                    if isinstance(suggestions, list):
+                        # Validate suggestions
+                        validated_suggestions = []
+                        for suggestion in suggestions:
+                            if isinstance(suggestion, dict) and "suggested_text" in suggestion:
+                                validated_suggestions.append(suggestion)
+                        return validated_suggestions
+                except json.JSONDecodeError:
+                    logger.warning("Failed to parse JSON from markdown block")
+            
+            # Fallback: try to extract JSON array from the content
+            json_match = re.search(r'\[[^\[\]]*(?:\{[^{}]*\}[^\[\]]*)*\]', content, re.DOTALL)
             if json_match:
                 try:
                     suggestions = json.loads(json_match.group())
+                    if isinstance(suggestions, list):
+                        # Validate suggestions
+                        validated_suggestions = []
+                        for suggestion in suggestions:
+                            if isinstance(suggestion, dict) and "suggested_text" in suggestion:
+                                validated_suggestions.append(suggestion)
+                        return validated_suggestions
                 except json.JSONDecodeError:
                     logger.error(f"Could not extract valid JSON from response")
                     return []
             else:
                 logger.error(f"No JSON array found in response")
                 return []
-        
-        # Validate suggestions
-        validated_suggestions = []
-        for suggestion in suggestions:
-            if isinstance(suggestion, dict) and "suggested_text" in suggestion:
-                validated_suggestions.append(suggestion)
-        
-        return validated_suggestions
         
     except Exception as e:
         logger.error(f"Rewrite suggestions failed: {e}")

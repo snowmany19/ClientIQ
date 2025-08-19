@@ -577,8 +577,24 @@ async def generate_contract_report(
             if not contract:
                 raise HTTPException(status_code=404, detail="Contract not found")
         
+        # Get contract and check permissions
+        if current_user.role == "admin":
+            contract = db.query(ContractRecord).filter(
+                ContractRecord.id == contract_id
+            ).first()
+        else:
+            contract = db.query(ContractRecord).filter(
+                and_(
+                    ContractRecord.id == contract_id,
+                    ContractRecord.owner_user_id == current_user.id
+                )
+            ).first()
+        
+        if not contract:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        
         # Generate report
-        report_path = await generate_contract_analysis_pdf(contract_id, db)
+        report_path = await generate_contract_analysis_pdf(contract)
         
         if not report_path or not os.path.exists(report_path):
             raise HTTPException(status_code=500, detail="Failed to generate report")
