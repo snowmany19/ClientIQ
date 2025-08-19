@@ -113,7 +113,7 @@ def log_error(
     if context:
         error_data.update(context)
     
-    logger.error("Application error", **error_data, exc_info=True)
+    logger.error(f"Application error: {error_data.get('error_type', 'Unknown')} - {error_data.get('detail', 'No detail')}", exc_info=True)
 
 def log_security_event(
     logger: logging.Logger,
@@ -133,7 +133,7 @@ def log_security_event(
     if details:
         security_data.update(details)
     
-    logger.warning("Security event", **security_data)
+    logger.warning(f"Security event: {event_type} - User: {user_id}, IP: {ip_address}")
 
 def log_performance_metric(
     logger: logging.Logger,
@@ -153,7 +153,7 @@ def log_performance_metric(
     if context:
         metric_data.update(context)
     
-    logger.info("Performance metric", **metric_data)
+    logger.info(f"Performance metric: {metric_name} = {value} {unit}")
 
 def log_user_action(
     logger: logging.Logger,
@@ -177,7 +177,7 @@ def log_user_action(
     if details:
         action_data.update(details)
     
-    logger.info("User action", **action_data)
+    logger.info(f"User action: {action} - User: {user_id}, Resource: {resource_type}/{resource_id}")
 
 def log_contract_analysis(
     logger: logging.Logger,
@@ -189,22 +189,11 @@ def log_contract_analysis(
     error_message: Optional[str] = None
 ):
     """Log contract analysis events."""
-    analysis_data = {
-        "contract_id": contract_id,
-        "analysis_type": analysis_type,
-        "duration_ms": round(duration * 1000, 2),
-        "success": success,
-        "user_id": user_id,
-        "timestamp": datetime.utcnow().isoformat()
-    }
-    
-    if not success and error_message:
-        analysis_data["error_message"] = error_message
-    
+    duration_ms = round(duration * 1000, 2)
     if success:
-        logger.info("Contract analysis completed", **analysis_data)
+        logger.info(f"Contract analysis completed: {analysis_type} - Contract: {contract_id}, Duration: {duration_ms}ms")
     else:
-        logger.error("Contract analysis failed", **analysis_data)
+        logger.error(f"Contract analysis failed: {analysis_type} - Contract: {contract_id}, Error: {error_message}")
 
 def log_workspace_activity(
     logger: logging.Logger,

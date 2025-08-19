@@ -33,6 +33,18 @@ export default function ContractsPage() {
 
   // Use React Query hooks for better performance
   const { data: contracts = [], isLoading, error } = useContracts();
+  
+  // Debug logging
+  console.log('=== ContractsPage: Render ===');
+  console.log('Contracts data:', contracts);
+  console.log('Contracts length:', contracts?.length || 0);
+  console.log('Is loading:', isLoading);
+  console.log('Error:', error);
+  
+  if (contracts && Array.isArray(contracts)) {
+    console.log('First few contracts:', contracts.slice(0, 3));
+  }
+
   const deleteContractMutation = useDeleteContract();
   const analyzeContractMutation = useAnalyzeContract();
 
@@ -70,7 +82,7 @@ export default function ContractsPage() {
     }
   };
 
-  const filteredContracts = contracts.filter(contract => {
+  const filteredContracts = contracts.filter((contract: any) => {
     const matchesSearch = contract.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          contract.counterparty.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || contract.category === selectedCategory;
@@ -274,8 +286,11 @@ export default function ContractsPage() {
               </div>
             ) : (
               <ul className="divide-y divide-gray-200">
-                {filteredContracts.map((contract) => (
-                  <li key={contract.id} className="px-6 py-4 hover:bg-gray-50">
+                {filteredContracts.map((r: any) => (
+                  <div
+                    key={r.id}
+                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
                         <div className="flex-shrink-0">
@@ -284,33 +299,33 @@ export default function ContractsPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2">
                             <h3 className="text-sm font-medium text-gray-900 truncate">
-                              {contract.title}
+                              {r.title}
                             </h3>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(contract.category)}`}>
-                              {contract.category}
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(r.category)}`}>
+                              {r.category}
                             </span>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(contract.status)}`}>
-                              {getStatusIcon(contract.status)}
-                              <span className="ml-1">{contract.status}</span>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(r.status)}`}>
+                              {getStatusIcon(r.status)}
+                              <span className="ml-1">{r.status}</span>
                             </span>
                           </div>
                           <p className="text-sm text-gray-500">
-                            Counterparty: {contract.counterparty}
+                            Counterparty: {r.counterparty}
                           </p>
                           <p className="text-xs text-gray-400">
-                            Created: {new Date(contract.created_at).toLocaleDateString()}
-                            {contract.effective_date && ` • Effective: ${new Date(contract.effective_date).toLocaleDateString()}`}
+                            Created: {new Date(r.created_at).toLocaleDateString()}
+                            {r.effective_date && ` • Effective: ${new Date(r.effective_date).toLocaleDateString()}`}
                           </p>
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-2">
                         {/* Risk indicator */}
-                        {contract.risk_items && contract.risk_items.length > 0 && (
+                        {r.risk_items && r.risk_items.length > 0 && (
                           <div className="flex items-center space-x-1">
                             <AlertTriangle className="h-4 w-4 text-red-500" />
                             <span className="text-xs text-red-600 font-medium">
-                              {contract.risk_items.filter(r => r.severity >= 4).length} high risks
+                              {r.risk_items.filter((risk: any) => risk.severity >= 4).length} high risks
                             </span>
                           </div>
                         )}
@@ -318,16 +333,16 @@ export default function ContractsPage() {
                         {/* Actions */}
                         <div className="flex items-center space-x-1">
                           <Link
-                            href={`/dashboard/contracts/${contract.id}`}
+                            href={`/dashboard/contracts/${r.id}`}
                             className="p-1 text-gray-400 hover:text-gray-600"
                             title="View Details"
                           >
                             <Eye className="h-4 w-4" />
                           </Link>
                           
-                          {contract.status === 'pending' && (
+                          {r.status === 'pending' && (
                             <button
-                              onClick={() => handleAnalyzeContract(contract.id)}
+                              onClick={() => handleAnalyzeContract(r.id)}
                               className="p-1 text-gray-400 hover:text-blue-600"
                               title="Analyze Contract"
                             >
@@ -335,9 +350,9 @@ export default function ContractsPage() {
                             </button>
                           )}
                           
-                          {contract.analysis_json && (
+                          {r.analysis_json && (
                             <button
-                              onClick={() => handleDownloadReport(contract.id)}
+                              onClick={() => handleDownloadReport(r.id)}
                               className="p-1 text-gray-400 hover:text-green-600"
                               title="Download Report"
                             >
@@ -346,7 +361,7 @@ export default function ContractsPage() {
                           )}
                           
                           <button
-                            onClick={() => handleContractDelete(contract.id)}
+                            onClick={() => handleContractDelete(r.id)}
                             className="p-1 text-gray-400 hover:text-red-600"
                             title="Delete Contract"
                           >
@@ -355,7 +370,7 @@ export default function ContractsPage() {
                         </div>
                       </div>
                     </div>
-                  </li>
+                  </div>
                 ))}
               </ul>
             )}

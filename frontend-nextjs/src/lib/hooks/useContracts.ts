@@ -16,12 +16,44 @@ export function useContracts() {
   return useQuery({
     queryKey: contractKeys.lists(),
     queryFn: async () => {
-      const response = await apiClient.getContracts({
-        page: 1,
-        per_page: 20
-      });
-      // Backend returns ContractRecordList with contracts array directly
-      return response.contracts || [];
+      console.log('=== useContracts: Fetching contracts ===');
+      try {
+        const response = await apiClient.getContracts({
+          page: 1,
+          per_page: 20
+        });
+        console.log('=== useContracts: API Response ===');
+        console.log('Full response:', response);
+        console.log('Response type:', typeof response);
+        console.log('Response keys:', Object.keys(response || {}));
+        
+        // Backend returns ContractRecordList with contracts array directly
+        const contracts = response.contracts || [];
+        console.log('Extracted contracts:', contracts);
+        console.log('Contracts length:', contracts.length);
+        console.log('Contracts type:', typeof contracts);
+        
+        if (Array.isArray(contracts)) {
+          console.log('Contracts is array, first few items:');
+          contracts.slice(0, 3).forEach((contract, index) => {
+            console.log(`Contract ${index}:`, {
+              id: contract.id,
+              title: contract.title,
+              counterparty: contract.counterparty,
+              category: contract.category,
+              status: contract.status
+            });
+          });
+        } else {
+          console.error('Contracts is not an array:', contracts);
+        }
+        
+        return contracts;
+      } catch (error) {
+        console.error('=== useContracts: Error fetching contracts ===');
+        console.error('Error:', error);
+        throw error;
+      }
     },
     staleTime: 1000 * 60 * 2, // 2 minutes
   });

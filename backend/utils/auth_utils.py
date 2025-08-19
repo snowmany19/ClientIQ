@@ -56,7 +56,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     try:
         return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
     except Exception as e:
-        logger.error("Failed to create JWT token", error=str(e))
+        logger.error(f"Failed to create JWT token: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create authentication token"
@@ -68,7 +68,7 @@ def decode_token(token: str):
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
         return payload
     except JWTError as e:
-        logger.warning("JWT decode failed", error=str(e))
+        logger.warning(f"JWT decode failed: {str(e)}")
         return None
 
 # Dependency to get the current user from JWT
@@ -85,12 +85,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         if username is None:
             raise credentials_exception
     except JWTError as e:
-        logger.warning("JWT validation failed", error=str(e))
+        logger.warning(f"JWT validation failed: {str(e)}")
         raise credentials_exception
     
     user = db.query(User).filter(User.username == username).first()
     if user is None:
-        logger.warning("User not found", username=username)
+        logger.warning(f"User not found: {username}")
         raise credentials_exception
     
     return user
@@ -99,7 +99,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 def require_role(*roles):
     def role_checker(user: User = Depends(get_current_user)):
         if user.role not in roles:
-            logger.warning("Insufficient permissions", user_id=user.id, required_roles=roles, actual_role=user.role)
+            logger.warning(f"Insufficient permissions: user_id={user.id}, required_roles={roles}, actual_role={user.role}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Insufficient permissions. Required role(s): {roles}"
@@ -115,7 +115,7 @@ def require_active_subscription(user: User = Depends(get_current_user)):
     
     # Check subscription status for non-admin users
     if user.subscription_status not in ["active", "trialing"]:
-        logger.warning("Subscription required", user_id=user.id, subscription_status=user.subscription_status)
+        logger.warning(f"Subscription required: user_id={user.id}, subscription_status={user.subscription_status}")
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail="Active subscription required. Please subscribe to continue."
